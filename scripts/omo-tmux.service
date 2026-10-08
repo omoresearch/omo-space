@@ -1,0 +1,22 @@
+[Unit]
+Description=Omo session server (tmux) - owns the shells behind Minecraft terminal tabs
+Documentation=https://github.com/omoresearch/omo-space
+# No After=default.target: this unit is WantedBy it, and ordering after its own
+# target is a cycle systemd breaks at boot by dropping omo-bridge.
+
+# Rendered by launcher/omo_setup.py: the @-delimited placeholders become
+# quoted, %-escaped values.
+[Service]
+Type=simple
+# Foreground server (-D) so systemd tracks the real process. The socket name
+# is fixed so the bridge and desktop attach find the same server.
+ExecStart="@TMUX@" -D -L omo -f "@TMUX_CONF@"
+# Shells under this server outlive the bridge, not this unit: stopping it
+# ends the sessions. That is the honest "reboot boundary".
+KillMode=control-group
+Restart=on-failure
+RestartSec=2
+Environment=OMO_SESSION_SERVER=1
+
+[Install]
+WantedBy=default.target

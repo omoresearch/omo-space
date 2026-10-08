@@ -1,0 +1,25 @@
+{
+  "parent": "omolife:place_station",
+  "display": {
+    "icon": {
+      "id": "omolife:hermes_computer"
+    },
+    "title": {
+      "translate": "advancements.omolife.open_hermes.title"
+    },
+    "description": {
+      "translate": "advancements.omolife.open_hermes.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}

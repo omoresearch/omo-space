@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes Board</title>
+<style>
+  :root {
+    --bg: #17120e; --panel: #221a14; --line: #3a2e24; --cream: #f3efe7; --muted: #b5a893;
+    --gold: #f2c35b; --gold-deep: #dda744; --copper: #d9804a;
+    --live: #6fd08c; --busy: #f2b04a; --ended: #9a8f80; --down: #e5645a;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(120% 90% at 10% 0%, #2b2018 0%, var(--bg) 60%);
+    /* Scales with the page width: a monitor wall renders wide, and is read
+       from a few blocks away. */
+    color: var(--cream); font: clamp(15px, 2.1vw, 34px)/1.35 ui-sans-serif, system-ui, "DejaVu Sans", sans-serif;
+    padding: clamp(10px, 3vw, 28px); overflow: hidden;
+  }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: clamp(10px, 2.4vw, 22px); }
+  .mark { width: 3.4em; height: auto; flex: none; filter: drop-shadow(0 0 10px #f2c35b44); }
+  .mark .wing { transform-origin: 32px 30px; animation: flap 5s ease-in-out infinite; }
+  .mark .wing.r { animation-delay: .15s; }
+  @keyframes flap { 0%, 88%, 100% { transform: rotate(0) } 93% { transform: rotate(-6deg) } }
+  h1 { font: 700 2.1em/1 Georgia, "DejaVu Serif", serif; letter-spacing: .01em; }
+  h1 span { color: var(--gold); }
+  .sub { color: var(--muted); font-size: .85em; margin-top: 4px; }
+  .clock { margin-left: auto; text-align: right; font: 600 1.8em/1 ui-monospace, "DejaVu Sans Mono", monospace; }
+  .clock small { display: block; font: .4em/1.4 ui-sans-serif, system-ui, sans-serif; color: var(--muted); }
+  .grid { display: grid; gap: clamp(8px, 1.6vw, 14px); grid-template-columns: repeat(auto-fill, minmax(min(100%, 16em), 1fr)); }
+  .card {
+    background: linear-gradient(180deg, #2a2019, var(--panel)); border: 1px solid var(--line);
+    border-radius: 12px; padding: 12px 14px; position: relative; overflow: hidden;
+  }
+  .card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--accent, var(--gold-deep)); }
+  .card.terminal { --accent: var(--copper); }
+  .card.interrupted { --accent: var(--down); } .card.ended { --accent: var(--ended); }
+  .top { display: flex; align-items: baseline; gap: 8px; }
+  .name { font-weight: 700; font-size: 1.2em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip { margin-left: auto; font-size: .8em; color: var(--gold); border: 1px solid #f2c35b55; padding: 1px 8px; border-radius: 99px; white-space: nowrap; }
+  .card.terminal .chip { color: var(--copper); border-color: #d9804a55; }
+  .state { font-size: .8em; color: var(--muted); margin: 2px 0 8px; text-transform: lowercase; }
+  .state.interrupted { color: var(--down); }
+  ul { list-style: none; padding: 0; display: grid; gap: 5px; }
+  li { display: flex; align-items: center; gap: .5em; font-size: .95em; min-width: 0; }
+  .dot { width: .6em; height: .6em; border-radius: 50%; flex: none; background: var(--live); box-shadow: 0 0 8px var(--live); }
+  .dot.busy { background: var(--busy); box-shadow: 0 0 8px var(--busy); animation: pulse 1.6s ease-in-out infinite; }
+  .dot.sleeping { background: transparent; box-shadow: none; border: 1.5px solid var(--live); opacity: .7; }
+  .dot.exited { background: var(--ended); box-shadow: none; } .dot.interrupted { background: var(--down); box-shadow: none; }
+  @keyframes pulse { 50% { opacity: .35 } }
+  .tab { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cmd { margin-left: auto; color: var(--muted); font: .8em ui-monospace, "DejaVu Sans Mono", monospace; white-space: nowrap; }
+  .empty, .offline { color: var(--muted); padding: 30px 6px; text-align: center; font-size: 16px; }
+  .offline { color: var(--down); }
+  .resting { margin-top: clamp(10px, 2vw, 18px); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .resting h2 { font: 600 .75em/1 ui-sans-serif, system-ui, sans-serif; color: var(--muted); letter-spacing: .08em;
+                text-transform: uppercase; margin-right: 4px; }
+  .rest { display: inline-flex; align-items: center; gap: 6px; font-size: .85em; color: var(--muted);
+          border: 1px solid var(--line); border-radius: 99px; padding: 2px 10px 2px 8px; }
+  footer { margin-top: 14px; text-align: center; color: #7d705f; font-size: .7em; }
+</style>
+</head>
+<body>
+<header>
+  <svg class="mark" viewBox="0 0 64 60" aria-hidden="true">
+    <g fill="#f2c35b">
+      <path class="wing" d="M30 30 C18 14 6 14 0 18 C8 20 12 24 14 27 C8 26 4 28 2 31 C10 31 14 33 17 35 C12 36 9 38 8 41 C16 39 23 38 30 34 Z"/>
+      <path class="wing r" d="M34 30 C46 14 58 14 64 18 C56 20 52 24 50 27 C56 26 60 28 62 31 C54 31 50 33 47 35 C52 36 55 38 56 41 C48 39 41 38 34 34 Z"/>
+    </g>
+    <circle cx="32" cy="32" r="8" fill="none" stroke="#f3efe7" stroke-width="3"/>
+    <circle cx="32" cy="32" r="3" fill="#f3efe7"/>
+  </svg>
+  <div>
+    <h1>Hermes <span>Board</span></h1>
+    <div class="sub" id="sub">Omo Space · connecting…</div>
+  </div>
+  <div class="clock" id="clock">--:--<small>&nbsp;</small></div>
+</header>
+<main class="grid" id="grid"></main>
+<div class="resting" id="resting"></div>
+<footer>live from this computer · names and states only</footer>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const STATE = { live: "working", ended: "ended · every tab exited", interrupted: "interrupted · host or session server restarted" };
+
+function tick() {
+  const d = new Date();
+  $("clock").innerHTML = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) +
+    `<small>${d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}</small>`;
+}
+
+function card(w) {
+  const tabs = w.tabs.map((t) => {
+    const dot = t.state !== "live" ? t.state : t.sleeping ? "sleeping" : t.busy ? "busy" : "live";
+    const cmd = t.state === "live" ? (t.sleeping ? "asleep · opens on use" : t.busy ? t.command : "idle") : t.state;
+    return `<li><span class="dot ${dot}"></span><span class="tab">${esc(t.name)}</span><span class="cmd">${esc(cmd)}</span></li>`;
+  }).join("");
+  const chip = w.kind === "hermes" || w.profile !== "default" ? `◆ ${esc(w.profile)}` : "terminal";
+  return `<section class="card ${w.kind} ${w.state}">
+    <div class="top"><div class="name">${esc(w.name)}</div><div class="chip">${chip}</div></div>
+    <div class="state ${w.state}">${STATE[w.state] || esc(w.state)}</div><ul>${tabs}</ul></section>`;
+}
+
+async function refresh() {
+  try {
+    const r = await fetch("/board.json", { cache: "no-store" });
+    const b = await r.json();
+    const live = b.workspaces.filter((w) => w.state === "live").length;
+    const busy = b.workspaces.reduce((n, w) => n + w.tabs.filter((t) => t.busy).length, 0);
+    $("sub").textContent = `Omo Space · ${live} of ${b.workspaces.length} workspaces live · ${busy} running · ` +
+      (b.tmux ? "session server up" : "session server DOWN");
+    const working = b.workspaces.filter((w) => w.state === "live");
+    const resting = b.workspaces.filter((w) => w.state !== "live");
+    $("grid").innerHTML = working.length ? working.map(card).join("")
+      : `<div class="empty">Nothing running. Place a Hermes Computer and right-click it.</div>`;
+    $("resting").innerHTML = resting.length ? `<h2>Resting</h2>` + resting.map((w) =>
+      `<span class="rest" title="${esc(STATE[w.state])}"><span class="dot ${w.state === "ended" ? "exited" : "interrupted"}"></span>${esc(w.name)}</span>`).join("") : "";
+  } catch (e) {
+    $("sub").textContent = "Omo Space · bridge offline";
+    $("grid").innerHTML = `<div class="offline">The Omo bridge is not answering. Nothing shown here is current.</div>`;
+    $("resting").innerHTML = "";
+  }
+}
+
+tick(); refresh();
+setInterval(tick, 1000);
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>

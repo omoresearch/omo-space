@@ -1,0 +1,25 @@
+{
+  "parent": "omolife:big_screen",
+  "display": {
+    "icon": {
+      "id": "omolife:linker"
+    },
+    "title": {
+      "translate": "advancements.omolife.link_screen.title"
+    },
+    "description": {
+      "translate": "advancements.omolife.link_screen.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}

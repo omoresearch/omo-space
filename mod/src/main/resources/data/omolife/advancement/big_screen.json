@@ -1,0 +1,25 @@
+{
+  "parent": "omolife:place_station",
+  "display": {
+    "icon": {
+      "id": "omolife:monitor"
+    },
+    "title": {
+      "translate": "advancements.omolife.big_screen.title"
+    },
+    "description": {
+      "translate": "advancements.omolife.big_screen.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}

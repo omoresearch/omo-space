@@ -1,0 +1,25 @@
+{
+  "parent": "omolife:big_screen",
+  "display": {
+    "icon": {
+      "id": "minecraft:cobweb"
+    },
+    "title": {
+      "translate": "advancements.omolife.pin_page.title"
+    },
+    "description": {
+      "translate": "advancements.omolife.pin_page.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}

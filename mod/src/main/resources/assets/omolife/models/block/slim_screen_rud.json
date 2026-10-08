@@ -1,0 +1,4 @@
+{
+ "parent": "omolife:block/slim_screen_base",
+ "textures": {"front": "omolife:block/slim_screen_rud", "edge": "omolife:block/slim_screen_edge"}
+}

@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    name: Bridge + launcher tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: System packages (tmux, Xvfb, xclip for the clipboard checks)
+        run: sudo apt-get update && sudo -S -p '' apt-get install -y tmux xvfb xclip
+      - name: macOS + Windows support tests (offline, platform forced)
+        run: python3 tests/test_platforms.py
+      - name: Launcher tests (offline, fake HOME)
+        run: python3 tests/test_launcher.py
+      - name: Bridge tests (disposable tmux server, stub hermes)
+        env:
+          OMO_TMUX: /usr/bin/tmux
+        run: python3 tests/test_bridge.py
+      - name: Release guard - no host paths or secrets in tracked files
+        run: |
+          if git grep -nIP '/home/(?!you/|x/)[a-z]+/|API_SERVER_KEY=|BEGIN [A-Z ]*PRIVATE KEY' -- ':!bridge/vendor' ':!.github' ':!scripts/package.sh'; then
+            echo "::error::host path or secret found"; exit 1
+          fi
+
+  platforms:
+    name: Platform tests on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-2022]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Launcher imports and reports this platform
+        run: python launcher/omo_setup.py status
+        env:
+          OMO_NO_SERVICES: "1"
+      - name: Installer parses (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $e = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("scripts/install.ps1", [ref]$null, [ref]$e) | Out-Null
+          if ($e.Count) { $e; exit 1 }

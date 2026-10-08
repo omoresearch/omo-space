@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "G": "#c:ingots/gold",
+    "B": "minecraft:bone_meal",
+    "P": "#c:glass_panes"
+  },
+  "pattern": [
+    "GBG",
+    "GPG"
+  ],
+  "result": {
+    "id": "omolife:slim_screen",
+    "count": 3
+  }
+}

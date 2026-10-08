@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "S": "#c:rods/wooden",
+    "P": "minecraft:paper",
+    "G": "#c:dusts/glowstone",
+    "R": "#c:dusts/redstone"
+  },
+  "pattern": [
+    "SPS",
+    "PGP",
+    "SRS"
+  ],
+  "result": {
+    "id": "omolife:status_lamp"
+  }
+}

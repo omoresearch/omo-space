@@ -1,0 +1,26 @@
+{
+ "type": "minecraft:block",
+ "pools": [
+  {
+   "conditions": [
+    {
+     "condition": "minecraft:survives_explosion"
+    }
+   ],
+   "entries": [
+    {
+     "type": "minecraft:item",
+     "functions": [
+      {
+       "function": "minecraft:copy_components",
+       "source": "block_entity"
+      }
+     ],
+     "name": "omolife:monitor"
+    }
+   ],
+   "rolls": 1.0
+  }
+ ],
+ "random_sequence": "omolife:blocks/monitor"
+}

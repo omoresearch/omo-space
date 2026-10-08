@@ -1,0 +1,26 @@
+# Secrets — the bridge auth token is generated per install, never committed
+token
+bridge/token
+*.token
+
+# Runtime
+bridge.log
+*.log
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Interrupted downloads and half-written files from the launcher
+*.part
+*.omo-tmp
+
+# Local build scratch
+build/installed*.json
+build/shader_backups/
+
+# Agent worktrees
+.claude/
+
+# Release bundles
+dist/

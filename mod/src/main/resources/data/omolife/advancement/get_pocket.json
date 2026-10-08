@@ -1,0 +1,43 @@
+{
+  "parent": "omolife:open_hermes",
+  "display": {
+    "icon": {
+      "id": "omolife:pocket_hermes"
+    },
+    "title": {
+      "translate": "advancements.omolife.get_pocket.title"
+    },
+    "description": {
+      "translate": "advancements.omolife.get_pocket.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "pocket_hermes": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "omolife:pocket_hermes"
+          }
+        ]
+      }
+    },
+    "pocket_terminal": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "omolife:pocket_terminal"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "pocket_hermes",
+      "pocket_terminal"
+    ]
+  ]
+}

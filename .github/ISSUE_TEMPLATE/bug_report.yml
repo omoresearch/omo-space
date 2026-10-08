@@ -1,0 +1,27 @@
+name: Bug report
+description: Something in game, the bridge or the launcher does not work
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw. Screenshots help.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Omo Space version
+      placeholder: v1.1.0 (see the VERSION file or the launcher's Details)
+  - type: input
+    id: distro
+    attributes:
+      label: Linux distribution
+      placeholder: Ubuntu 24.04, Fedora 42, ...
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "`~/.local/share/omo/bridge.log`, `~/.local/share/omo/play.log`, and the game's `logs/latest.log`. Check them for anything private first."
+      render: text

@@ -1,0 +1,10 @@
+name: Idea
+description: A block, a screen or a workflow you want
+labels: [idea]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you build with it?
+    validations:
+      required: true

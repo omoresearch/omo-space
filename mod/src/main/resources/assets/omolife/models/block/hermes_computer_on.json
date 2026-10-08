@@ -1,0 +1,9 @@
+{
+  "parent": "computercraft:block/computer_on",
+  "textures": {
+    "front": "omolife:block/hermes_computer_front",
+    "side": "omolife:block/hermes_computer_side",
+    "top": "omolife:block/hermes_computer_top",
+    "cursor": "omolife:block/computer_on"
+  }
+}

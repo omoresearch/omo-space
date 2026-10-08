@@ -1,0 +1,62 @@
+{
+ "model": {
+  "type": "minecraft:select",
+  "property": "minecraft:block_state",
+  "block_state_property": "finish",
+  "cases": [
+   {
+    "when": "cream",
+    "model": {
+     "type": "minecraft:model",
+     "model": "omolife:block/slim_screen_none",
+     "tints": [{"type": "minecraft:constant", "value": 4294703086}]
+    }
+   },
+   {
+    "when": "espresso",
+    "model": {
+     "type": "minecraft:model",
+     "model": "omolife:block/slim_screen_none",
+     "tints": [{"type": "minecraft:constant", "value": 4283054639}]
+    }
+   },
+   {
+    "when": "gold",
+    "model": {
+     "type": "minecraft:model",
+     "model": "omolife:block/slim_screen_none",
+     "tints": [{"type": "minecraft:constant", "value": 4293440846}]
+    }
+   },
+   {
+    "when": "copper",
+    "model": {
+     "type": "minecraft:model",
+     "model": "omolife:block/slim_screen_none",
+     "tints": [{"type": "minecraft:constant", "value": 4291852872}]
+    }
+   },
+   {
+    "when": "black",
+    "model": {
+     "type": "minecraft:model",
+     "model": "omolife:block/slim_screen_none",
+     "tints": [{"type": "minecraft:constant", "value": 4281084199}]
+    }
+   },
+   {
+    "when": "white",
+    "model": {
+     "type": "minecraft:model",
+     "model": "omolife:block/slim_screen_none",
+     "tints": [{"type": "minecraft:constant", "value": 4294967295}]
+    }
+   }
+  ],
+  "fallback": {
+   "type": "minecraft:model",
+   "model": "omolife:block/slim_screen_none",
+   "tints": [{"type": "minecraft:constant", "value": 4294703086}]
+  }
+ }
+}

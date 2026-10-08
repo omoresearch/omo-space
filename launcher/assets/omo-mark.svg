@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Omo Space">
+  <!-- The omo.sh "unbound" mark: a double frame, pristine on the left, fracturing on the right. -->
+  <g stroke="#1a1008" fill="none">
+    <path stroke-width="8" d="M20 20V180M20 20H100M20 180H180M100 20H130M140 20H160M180 20V60M180 72V110M180 120V150M180 160V180"/>
+    <path stroke-width="3" d="M32 32V168M32 32H100M32 168H168M105 32H125M138 32H155M168 32V65M168 75V105M168 115V140M168 150V168"/>
+    <path stroke-width="7" d="M62 100A30 30 0 0 1 100 70A30 30 0 0 1 100 90A30 30 0 0 1 125 108A30 30 0 0 1 138 130M100 90A30 30 0 0 0 62 100"/>
+    <rect x="130" y="110" width="8" height="8" stroke-width="3" transform="rotate(15 134 114)"/>
+    <rect x="142" y="100" width="6" height="6" stroke-width="2" transform="rotate(-10 145 103)"/>
+    <rect x="148" y="118" width="7" height="7" stroke-width="2.5" transform="rotate(25 151 121)"/>
+    <rect x="138" y="128" width="5" height="5" stroke-width="2" transform="rotate(-20 140 130)"/>
+    <rect x="152" y="108" width="5" height="5" stroke-width="1.5" transform="rotate(8 154 110)"/>
+    <rect x="155" y="58" width="14" height="10" stroke-width="3" transform="rotate(12 162 63)"/>
+  </g>
+  <path stroke="#4a3b2f" stroke-width="1" stroke-dasharray="2 3" d="M155 68V80M164 68V76"/>
+  <rect x="95" y="95" width="10" height="10" fill="#1a1008"/>
+  <path stroke="#c4b8a8" stroke-width="1" d="M125 108L130 100M125 108L138 118M138 130L148 125"/>
+</svg>

@@ -1,0 +1,31 @@
+{
+  "required": true,
+  "package": "space.omo.life.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ContainerScreenAccessor",
+    "ContainerScreenRemovedMixin",
+    "FarUseMixin",
+    "KeyboardCaptureMixin",
+    "MouseCaptureMixin",
+    "ScreenAccessor",
+    "StationScreenMixin",
+    "TerminalShortcutsMixin",
+    "WindowTitleMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "mixins": [
+    "MonitorInteractMixin",
+    "MonitorUpdateTagMixin",
+    "MonitorComputersAccessor",
+    "MonitorResizeMixin",
+    "PocketComputerMixin",
+    "MonitorExpandInvoker",
+    "MonitorWallMixin",
+    "MonitorMirrorAccessor",
+    "ServerComputerMixin",
+    "ServerMonitorAccessor"
+  ]
+}

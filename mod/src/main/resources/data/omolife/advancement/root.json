@@ -1,0 +1,78 @@
+{
+  "display": {
+    "icon": {
+      "id": "omolife:hermes_computer"
+    },
+    "title": {
+      "translate": "advancements.omolife.root.title"
+    },
+    "description": {
+      "translate": "advancements.omolife.root.description"
+    },
+    "frame": "task",
+    "background": "minecraft:block/dark_oak_planks",
+    "show_toast": false,
+    "announce_to_chat": false
+  },
+  "criteria": {
+    "hermes_computer": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "omolife:hermes_computer"
+          }
+        ]
+      }
+    },
+    "terminal": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "omolife:terminal"
+          }
+        ]
+      }
+    },
+    "monitor": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "omolife:monitor"
+          }
+        ]
+      }
+    },
+    "pocket_hermes": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "omolife:pocket_hermes"
+          }
+        ]
+      }
+    },
+    "pocket_terminal": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "omolife:pocket_terminal"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "hermes_computer",
+      "terminal",
+      "monitor",
+      "pocket_hermes",
+      "pocket_terminal"
+    ]
+  ]
+}

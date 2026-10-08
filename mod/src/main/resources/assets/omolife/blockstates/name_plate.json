@@ -1,0 +1,16 @@
+{
+ "variants": {
+  "face=wall,facing=north": {"model": "omolife:block/name_plate_wall"},
+  "face=floor,facing=north": {"model": "omolife:block/name_plate_floor", "y": 180},
+  "face=ceiling,facing=north": {"model": "omolife:block/name_plate_ceiling", "y": 180},
+  "face=wall,facing=east": {"model": "omolife:block/name_plate_wall", "y": 90},
+  "face=floor,facing=east": {"model": "omolife:block/name_plate_floor", "y": 270},
+  "face=ceiling,facing=east": {"model": "omolife:block/name_plate_ceiling", "y": 270},
+  "face=wall,facing=south": {"model": "omolife:block/name_plate_wall", "y": 180},
+  "face=floor,facing=south": {"model": "omolife:block/name_plate_floor"},
+  "face=ceiling,facing=south": {"model": "omolife:block/name_plate_ceiling"},
+  "face=wall,facing=west": {"model": "omolife:block/name_plate_wall", "y": 270},
+  "face=floor,facing=west": {"model": "omolife:block/name_plate_floor", "y": 90},
+  "face=ceiling,facing=west": {"model": "omolife:block/name_plate_ceiling", "y": 90}
+ }
+}

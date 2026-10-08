@@ -1,0 +1,30 @@
+{
+ "parent": "block/block",
+ "textures": {"plate": "omolife:block/name_plate", "particle": "omolife:block/name_plate"},
+ "elements": [
+  {
+   "from": [1, 1, 7.5],
+   "to": [15, 7, 8.5],
+   "faces": {
+    "north": {"uv": [1, 5, 15, 11], "texture": "#plate"},
+    "south": {"uv": [1, 0, 15, 6], "texture": "#plate"},
+    "west": {"uv": [1, 5, 2, 11], "texture": "#plate"},
+    "east": {"uv": [14, 5, 15, 11], "texture": "#plate"},
+    "up": {"uv": [1, 5, 15, 6], "texture": "#plate"},
+    "down": {"uv": [1, 10, 15, 11], "texture": "#plate"}
+   }
+  },
+  {
+   "from": [3, 0, 6],
+   "to": [13, 1, 10],
+   "faces": {
+    "north": {"uv": [3, 12, 13, 16], "texture": "#plate"},
+    "south": {"uv": [3, 12, 13, 16], "texture": "#plate"},
+    "west": {"uv": [3, 12, 13, 16], "texture": "#plate"},
+    "east": {"uv": [3, 12, 13, 16], "texture": "#plate"},
+    "up": {"uv": [3, 12, 13, 16], "texture": "#plate"},
+    "down": {"uv": [3, 12, 13, 16], "texture": "#plate", "cullface": "down"}
+   }
+  }
+ ]
+}

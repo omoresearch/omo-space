@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "N": "#c:nuggets/gold",
+    "D": "minecraft:dark_oak_planks",
+    "R": "#c:dusts/redstone"
+  },
+  "pattern": [
+    "NNN",
+    "DRD"
+  ],
+  "result": {
+    "id": "omolife:name_plate",
+    "count": 2
+  }
+}

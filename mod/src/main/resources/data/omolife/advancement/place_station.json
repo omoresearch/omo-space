@@ -1,0 +1,45 @@
+{
+  "parent": "omolife:root",
+  "display": {
+    "icon": {
+      "id": "omolife:terminal"
+    },
+    "title": {
+      "translate": "advancements.omolife.place_station.title"
+    },
+    "description": {
+      "translate": "advancements.omolife.place_station.description"
+    },
+    "frame": "task"
+  },
+  "criteria": {
+    "hermes_computer": {
+      "trigger": "minecraft:placed_block",
+      "conditions": {
+        "location": [
+          {
+            "condition": "minecraft:block_state_property",
+            "block": "omolife:hermes_computer"
+          }
+        ]
+      }
+    },
+    "terminal": {
+      "trigger": "minecraft:placed_block",
+      "conditions": {
+        "location": [
+          {
+            "condition": "minecraft:block_state_property",
+            "block": "omolife:terminal"
+          }
+        ]
+      }
+    }
+  },
+  "requirements": [
+    [
+      "hermes_computer",
+      "terminal"
+    ]
+  ]
+}

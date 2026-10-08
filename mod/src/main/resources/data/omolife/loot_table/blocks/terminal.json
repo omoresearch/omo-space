@@ -1,0 +1,40 @@
+{
+ "type": "minecraft:block",
+ "pools": [
+  {
+   "conditions": [
+    {
+     "condition": "minecraft:any_of",
+     "terms": [
+      {
+       "condition": "computercraft:block_named"
+      },
+      {
+       "condition": "computercraft:has_id"
+      },
+      {
+       "condition": "minecraft:inverted",
+       "term": {
+        "condition": "computercraft:player_creative"
+       }
+      }
+     ]
+    }
+   ],
+   "entries": [
+    {
+     "type": "minecraft:item",
+     "functions": [
+      {
+       "function": "minecraft:copy_components",
+       "source": "block_entity"
+      }
+     ],
+     "name": "omolife:terminal"
+    }
+   ],
+   "rolls": 1.0
+  }
+ ],
+ "random_sequence": "omolife:blocks/terminal"
+}

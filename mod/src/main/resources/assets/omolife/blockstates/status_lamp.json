@@ -1,0 +1,12 @@
+{
+ "variants": {
+  "glow=off,hanging=false": {"model": "omolife:block/status_lamp_off"},
+  "glow=off,hanging=true": {"model": "omolife:block/status_lamp_hanging_off"},
+  "glow=idle,hanging=false": {"model": "omolife:block/status_lamp_idle"},
+  "glow=idle,hanging=true": {"model": "omolife:block/status_lamp_hanging_idle"},
+  "glow=working,hanging=false": {"model": "omolife:block/status_lamp_working"},
+  "glow=working,hanging=true": {"model": "omolife:block/status_lamp_hanging_working"},
+  "glow=interrupted,hanging=false": {"model": "omolife:block/status_lamp_interrupted"},
+  "glow=interrupted,hanging=true": {"model": "omolife:block/status_lamp_hanging_interrupted"}
+ }
+}

@@ -1,0 +1,8 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "computercraft:pocket_computer_state",
+    "cases": [{"when": "off", "model": {"type": "minecraft:model", "model": "omolife:item/pocket_terminal"}}],
+    "fallback": {"type": "minecraft:model", "model": "omolife:item/pocket_terminal_on"}
+  }
+}

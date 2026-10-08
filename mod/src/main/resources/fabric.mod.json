@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "omolife",
+  "version": "1.0.0",
+  "name": "Omo Space",
+  "description": "Hermes Computer, Terminal and Monitor blocks: real host terminals, persistent Hermes workspaces and pinned web pages inside Minecraft. Built on CC: Tweaked and MCEF.",
+  "authors": ["Omo Research"],
+  "contributors": ["CC: Tweaked by Daniel Ratcliffe, SquidDev and contributors", "MCEF Modern by DimasKama"],
+  "contact": {
+    "homepage": "https://omo.space"
+  },
+  "license": "MIT",
+  "icon": "assets/omolife/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["space.omo.life.OmoLife"],
+    "client": ["space.omo.life.client.OmoLifeClient"]
+  },
+  "mixins": ["omolife.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "fabric-api": "*",
+    "minecraft": "~26.2",
+    "computercraft": ">=1.120.0"
+  },
+  "recommends": {
+    "mcef-modern": "*"
+  }
+}

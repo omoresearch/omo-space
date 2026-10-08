@@ -1,0 +1,25 @@
+{
+  "parent": "omolife:big_screen",
+  "display": {
+    "icon": {
+      "id": "minecraft:spyglass"
+    },
+    "title": {
+      "translate": "advancements.omolife.control_afar.title"
+    },
+    "description": {
+      "translate": "advancements.omolife.control_afar.description"
+    },
+    "frame": "goal"
+  },
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "requirements": [
+    [
+      "done"
+    ]
+  ]
+}

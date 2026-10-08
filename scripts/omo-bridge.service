@@ -1,0 +1,22 @@
+[Unit]
+Description=Omo bridge - workspaces and terminal tabs for Minecraft stations
+Documentation=https://github.com/omoresearch/omo-space
+After=omo-tmux.service
+Wants=omo-tmux.service
+
+# Rendered by launcher/omo_setup.py: the @-delimited placeholders become
+# quoted, %-escaped values. The bridge does not depend on its working directory.
+[Service]
+Type=simple
+Environment="OMO_DATA=@OMO_DATA@" "OMO_TMUX=@TMUX@"
+# The Hermes the launcher detected; empty means "hermes" on the service PATH.
+Environment="OMO_HERMES_BIN=@HERMES@"
+ExecStart="@PYTHON@" "@BRIDGE@"
+# Only the bridge's own attach clients live in this cgroup; the shells are in
+# omo-tmux.service, so a restart here never ends a running command.
+KillMode=control-group
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

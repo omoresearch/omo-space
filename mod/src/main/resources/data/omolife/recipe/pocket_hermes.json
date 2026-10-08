@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "key": {
+    "F": "minecraft:feather",
+    "G": "#c:ingots/gold",
+    "P": "computercraft:pocket_computer_advanced"
+  },
+  "pattern": [
+    " F ",
+    "GPG"
+  ],
+  "result": {
+    "id": "omolife:pocket_hermes"
+  }
+}

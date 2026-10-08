@@ -1,0 +1,45 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1.0,
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "omolife:slim_screen",
+          "functions": [
+            {
+              "function": "minecraft:copy_components",
+              "source": "block_entity"
+            },
+            {
+              "function": "minecraft:copy_state",
+              "block": "omolife:slim_screen",
+              "properties": [
+                "finish"
+              ],
+              "conditions": [
+                {
+                  "condition": "minecraft:inverted",
+                  "term": {
+                    "condition": "minecraft:block_state_property",
+                    "block": "omolife:slim_screen",
+                    "properties": {
+                      "finish": "cream"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "random_sequence": "omolife:blocks/slim_screen"
+}

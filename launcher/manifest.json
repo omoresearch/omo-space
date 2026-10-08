@@ -1,0 +1,115 @@
+{
+  "name": "Omo Space",
+  "version": "1.1.0",
+  "download_mb": 650,
+  "microsoft": {
+    "client_id": null,
+    "note": "Omo's own Azure app ID, set once Mojang approves it for Minecraft sign-in (OMO_MSA_CLIENT_ID overrides). Until then Omo signs in and starts the game through its private, headless Prism Launcher."
+  },
+  "minecraft": {
+    "version": "26.2",
+    "url": "https://piston-meta.mojang.com/v1/packages/33c420747ce582e48dff1d8c5d8e67e5bb6257c9/26.2.json",
+    "sha1": "33c420747ce582e48dff1d8c5d8e67e5bb6257c9",
+    "size": 51781,
+    "resources": "https://resources.download.minecraft.net/"
+  },
+  "fabric": {
+    "loader": "0.19.5",
+    "main_class": "net.fabricmc.loader.impl.launch.knot.KnotClient",
+    "jvm": ["-DFabricMcEmu= net.minecraft.client.main.Main "],
+    "libraries": [
+      {"name": "org.ow2.asm:asm:9.10.1", "url": "https://maven.fabricmc.net/", "sha1": "ada2141c0cc52ee8f5c48cd5fa4ce0e794f22236", "size": 126151},
+      {"name": "org.ow2.asm:asm-analysis:9.10.1", "url": "https://maven.fabricmc.net/", "sha1": "8d49f14d51f632cb1d87c88d1ceaf50db0d8af1b", "size": 35140},
+      {"name": "org.ow2.asm:asm-commons:9.10.1", "url": "https://maven.fabricmc.net/", "sha1": "4229e4c55fd8e01c23f9fe9884075cc628aacc50", "size": 74840},
+      {"name": "org.ow2.asm:asm-tree:9.10.1", "url": "https://maven.fabricmc.net/", "sha1": "e244332a17564c1d1572449399a842de35881be2", "size": 51958},
+      {"name": "org.ow2.asm:asm-util:9.10.1", "url": "https://maven.fabricmc.net/", "sha1": "7bb9d450e8d4cbf9f9e04096c44bbfe7fba80b15", "size": 95628},
+      {"name": "net.fabricmc:sponge-mixin:0.17.4+mixin.0.8.7", "url": "https://maven.fabricmc.net/", "sha1": "5f66cc9f59b8efaa942155a3d5a30599bf6640dd", "size": 1539080},
+      {"name": "net.fabricmc:fabric-loader:0.19.5", "url": "https://maven.fabricmc.net/", "sha1": "ff9e65cffca4a67f31523e1807fe0855940fcbfa", "size": 1984980}
+    ]
+  },
+  "lwjgl": "3.4.1",
+  "memory_mb": {"min": 2048, "max": 6144},
+  "java": {
+    "major": 25,
+    "linux-x86_64": {
+      "url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jre_x64_linux_hotspot_25.0.4.1_1.tar.gz",
+      "sha256": "1731a34baadec5479258ea0202e4d5d865d2efeee60cb0c7d7eb056fe96ca219",
+      "size": 61718288,
+      "license": "GPL-2.0 WITH Classpath-exception-2.0 (Eclipse Temurin)"
+    },
+    "macos-arm64": {
+      "url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jre_aarch64_mac_hotspot_25.0.4.1_1.tar.gz",
+      "sha256": "5b02bcc908da092e7e00b9772d4f9bbb87f44a60b7c90f7cf5a91a1d98f37e1b",
+      "size": 56208642,
+      "license": "GPL-2.0 WITH Classpath-exception-2.0 (Eclipse Temurin)"
+    },
+    "macos-x86_64": {
+      "url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jre_x64_mac_hotspot_25.0.4.1_1.tar.gz",
+      "sha256": "099cbc182af99ab454991a4230f0bdbf2b2ee3f61ce462d637aceaa12709380d",
+      "size": 42138276,
+      "license": "GPL-2.0 WITH Classpath-exception-2.0 (Eclipse Temurin)"
+    },
+    "windows-x86_64": {
+      "url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jre_x64_windows_hotspot_25.0.4.1_1.zip",
+      "sha256": "4c95451cea98556def2c54f7782933f52a26d4a36bd85e1d59f0364464828b07",
+      "size": 58475080,
+      "license": "GPL-2.0 WITH Classpath-exception-2.0 (Eclipse Temurin)"
+    }
+  },
+  "prism": {
+    "version": "11.1.0",
+    "linux-x86_64": {
+      "url": "https://github.com/PrismLauncher/PrismLauncher/releases/download/11.1.0/PrismLauncher-Linux-x86_64.AppImage",
+      "sha256": "07d0987fd46b3ec442c15b25b6ab78b29737d33a8095039f488f301103bca463",
+      "size": 107573560,
+      "license": "GPL-3.0-only"
+    },
+    "macos-arm64": {
+      "url": "https://github.com/PrismLauncher/PrismLauncher/releases/download/11.1.0/PrismLauncher-macOS-11.1.0.zip",
+      "sha256": "b6ae145a02dd9bbc7c44ce3fa42ec942daca8c829584e21c66290a8e6ca89af8",
+      "size": 43614715,
+      "license": "GPL-3.0-only",
+      "note": "Universal app bundle (arm64 + x86_64)"
+    },
+    "macos-x86_64": {
+      "url": "https://github.com/PrismLauncher/PrismLauncher/releases/download/11.1.0/PrismLauncher-macOS-11.1.0.zip",
+      "sha256": "b6ae145a02dd9bbc7c44ce3fa42ec942daca8c829584e21c66290a8e6ca89af8",
+      "size": 43614715,
+      "license": "GPL-3.0-only",
+      "note": "Universal app bundle (arm64 + x86_64)"
+    },
+    "windows-x86_64": {
+      "url": "https://github.com/PrismLauncher/PrismLauncher/releases/download/11.1.0/PrismLauncher-Windows-MinGW-w64-11.1.0.zip",
+      "sha256": "c8aae4bea7412868d999e630f008c0666f5128dd14cb4047c66c5c464c05082f",
+      "size": 43926491,
+      "license": "GPL-3.0-only",
+      "note": "MinGW build: ships its own C++ runtime, so no Visual C++ redistributable is needed"
+    }
+  },
+  "tmux": {
+    "note": "Linux pins a static tmux. macOS uses the player's own (brew install tmux); Windows runs tmux inside WSL2.",
+    "linux-x86_64": {
+      "url": "https://github.com/mjakob-gh/build-static-tmux/releases/download/v3.7b/tmux.linux-amd64.stripped.gz",
+      "sha256": "92ac102a1f9b33b21d891a836b4b5b5c8c5d2eeac4bae4dfd34d565bbed598bf",
+      "license": "ISC (tmux), static build by mjakob-gh"
+    }
+  },
+  "mods": [
+    {"id": "fabric-api", "file": "fabric-api-0.160.0+26.2.jar",
+     "url": "https://cdn.modrinth.com/data/P7dR8mSH/versions/UWwhUX3k/fabric-api-0.160.0%2B26.2.jar",
+     "sha512": "1a08b68b2c2c90f6005ef441ab71b65f464be964005b9c0d18e6fc6c5ec53fe346e7dd76189c4f09ade59ef9bc3b836376a2cc71d4ce6e9be47122477d1bbd1e",
+     "size": 2542898, "license": "Apache-2.0", "source": "https://github.com/FabricMC/fabric"},
+    {"id": "cc-tweaked", "file": "cc-tweaked-26.2-fabric-1.120.2.jar",
+     "url": "https://cdn.modrinth.com/data/gu7yAYhd/versions/P99UehrV/cc-tweaked-26.2-fabric-1.120.2.jar",
+     "sha512": "80acd2d52a1efcc562ee0ab0422536556d8a275c32d8be19b45186c6d3c13843317d3240ebba90bc40f45fceb0e96b3198dd0f0e3c3bb4bec90c97d52252b66b",
+     "size": 3074609, "license": "CCPL (ComputerCraft Public License)", "source": "https://github.com/cc-tweaked/CC-Tweaked/"},
+    {"id": "mcef-modern", "file": "mcef-modern-0.3.3+mc26.2.jcef146.0.10.jar",
+     "url": "https://cdn.modrinth.com/data/YJFfu5pH/versions/FOXbUPNd/mcef-modern-0.3.3%2Bmc26.2.jcef146.0.10.jar",
+     "sha512": "1249687814d906fef8a84d42e3bec0bab7c0e1db8f7cdad3fc03af19668107777e1683e373d29e5ffc4479558d11513d2ae4f40f8f59fd74ee261ff4e69574d7",
+     "size": 248099, "license": "LGPL-2.1-only", "source": "https://github.com/DimasKama/mcef-modern",
+     "note": "Downloads Chromium (CEF/JCEF, BSD-3) into the game's config/mcef-modern on first use (~500 MB)."}
+  ],
+  "omolife": {"file": "omolife-1.0.0+mc26.2.jar", "license": "MIT"},
+  "instance_id": "OmoResearch",
+  "world_name": "Omo Workshop"
+}

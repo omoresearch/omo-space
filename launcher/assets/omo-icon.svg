@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Omo Space">
+  <!-- App icon: the omo.sh unbound mark on warm paper. -->
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="#f5f0e8" stroke="#d4cdc0" stroke-width="2"/>
+  <g transform="translate(38 38) scale(0.9)">
+    <g stroke="#1a1008" fill="none">
+      <path stroke-width="10" d="M20 20V180M20 20H100M20 180H180M100 20H130M140 20H160M180 20V60M180 72V110M180 120V150M180 160V180"/>
+      <path stroke-width="4" d="M32 32V168M32 32H100M32 168H168M105 32H125M138 32H155M168 32V65M168 75V105M168 115V140M168 150V168"/>
+      <path stroke-width="8" d="M62 100A30 30 0 0 1 100 70A30 30 0 0 1 100 90A30 30 0 0 1 125 108A30 30 0 0 1 138 130M100 90A30 30 0 0 0 62 100"/>
+      <rect x="130" y="110" width="8" height="8" stroke-width="3" transform="rotate(15 134 114)"/>
+      <rect x="148" y="118" width="7" height="7" stroke-width="3" transform="rotate(25 151 121)"/>
+      <rect x="155" y="58" width="14" height="10" stroke-width="3.5" transform="rotate(12 162 63)"/>
+    </g>
+    <rect x="94" y="94" width="12" height="12" fill="#1a1008"/>
+  </g>
+</svg>

@@ -8,21 +8,35 @@ on:
 jobs:
   tests:
     name: Bridge + launcher tests
-    runs-on: ubuntu-24.04
+    # Shared self-hosted pool (image ci-shared:3, non-root, no sudo). The image already has
+    # tmux, Xvfb, xclip, xauth, x11-utils (xdpyinfo), iproute2 (ss) and /usr/bin/python3, so
+    # there is no apt step. Java and pwsh are not in the image, so test_platforms.py skips 3
+    # instead of the hosted runner's 1: "no java to run the mod's dataDir()" and
+    # "pwsh not installed" (both accepted; the Windows installer parse still runs on
+    # windows-2022 in the platforms job below).
+    runs-on: [self-hosted, ci-shared]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: System packages (tmux, Xvfb, xclip for the clipboard checks)
-        run: sudo apt-get update && sudo -S -p '' apt-get install -y tmux xvfb xclip
       - name: macOS + Windows support tests (offline, platform forced)
         run: python3 tests/test_platforms.py
       - name: Launcher tests (offline, fake HOME)
         run: python3 tests/test_launcher.py
+      - name: Pinned tmux (the one the product ships, not Ubuntu's)
+        run: |
+          python3 - <<'PY'
+          import gzip, hashlib, json, os, urllib.request
+          spec = json.load(open("launcher/manifest.json"))["tmux"]["linux-x86_64"]
+          data = urllib.request.urlopen(spec["url"], timeout=60).read()
+          assert hashlib.sha256(data).hexdigest() == spec["sha256"], "tmux hash mismatch"
+          open("/tmp/omo-tmux", "wb").write(gzip.decompress(data)); os.chmod("/tmp/omo-tmux", 0o755)
+          PY
+          /tmp/omo-tmux -V
       - name: Bridge tests (disposable tmux server, stub hermes)
         env:
-          OMO_TMUX: /usr/bin/tmux
+          OMO_TMUX: /tmp/omo-tmux
         run: python3 tests/test_bridge.py
       - name: Release guard - no host paths or secrets in tracked files
         run: |

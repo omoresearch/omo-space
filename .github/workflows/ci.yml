@@ -10,16 +10,19 @@ jobs:
     name: Bridge + launcher tests
     # Shared self-hosted pool (image ci-shared:3, non-root, no sudo). The image already has
     # tmux, Xvfb, xclip, xauth, x11-utils (xdpyinfo), iproute2 (ss) and /usr/bin/python3, so
-    # there is no apt step. Java and pwsh are not in the image, so test_platforms.py skips 3
+    # there is no apt step. No actions/setup-python here: its Python loads libpython3.12.so
+    # through LD_LIBRARY_PATH, and the tests start child Pythons with a cleaned environment
+    # (run_as in tests/test_platforms.py), so every child exits 127. The image's own
+    # /usr/bin/python3 (3.12) has no such need. Java and pwsh are not in the image, so
+    # test_platforms.py skips 3
     # instead of the hosted runner's 1: "no java to run the mod's dataDir()" and
     # "pwsh not installed" (both accepted; the Windows installer parse still runs on
     # windows-2022 in the platforms job below).
     runs-on: [self-hosted, ci-shared]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - name: Python (image system python3)
+        run: command -v python3 && python3 -V
       - name: macOS + Windows support tests (offline, platform forced)
         run: python3 tests/test_platforms.py
       - name: Launcher tests (offline, fake HOME)

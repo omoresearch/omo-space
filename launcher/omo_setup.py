@@ -978,7 +978,7 @@ def port_holder(port):
     if not out.strip():
         return None
     m = re.search(r'users:\(\("([^"]+)",pid=(\d+)', out)
-    return f"{m.group(1)} (pid {m.group(2)})" if m else "another user's program"
+    return f"{m.group(1)}" if m else "another user's program"
 
 
 def bridge_problem(*health):

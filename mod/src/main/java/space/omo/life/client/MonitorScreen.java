@@ -9,6 +9,7 @@ import com.mojang.blaze3d.textures.GpuTextureView;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -501,12 +502,27 @@ public final class MonitorScreen extends Screen {
         }
     }
 
+    /**
+     * The address bar or a button taking the keyboard from the page: the page
+     * gets key-up for keys still held, whose real key-up now goes elsewhere.
+     */
+    @Override
+    public void setFocused(GuiEventListener focused) {
+        super.setFocused(focused);
+        if (interact && focused != null) {
+            act(v -> v.focus(false));
+        }
+    }
+
     @Override
     public void rebuildWidgets() {
         if (!interact) {
             WebPages.Page p = page();
             if (p != null) {
                 p.setInteractive(false);
+                if (p.view() != null) {
+                    p.view().focus(false);      // back to settings: no key stays held in the page
+                }
             }
         }
         super.rebuildWidgets();

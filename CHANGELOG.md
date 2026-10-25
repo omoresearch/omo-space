@@ -15,6 +15,13 @@
 - The mod finds the bridge token in each OS's data folder.
 - Release bundles: `-linux-x64.tar.gz`, `-macos.tar.gz` and `-windows.zip`.
 - Tested offline only, with no real Mac or Windows run yet. See docs/PLATFORMS.md.
+- **Web monitors take the keyboard properly.** Enter now submits forms and
+  breaks lines (it only ever sent key-down/up, never the Enter character).
+  On Linux, Shift, Ctrl, Alt, F-keys, Home/End/PageUp/PageDown, the keypad,
+  ` and ' reach pages as themselves instead of other keys, and
+  `KeyboardEvent.code` is right, so web games that read WASD by code move.
+  Keys still held when the page loses the keyboard (Esc, the address bar,
+  letting go of a wall) get their key-up, so nothing keeps walking.
 
 ## v1.1.0 — release candidate (private; not published)
 

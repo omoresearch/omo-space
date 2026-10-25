@@ -31,7 +31,15 @@ public interface WebView {
 
     void frameRate(int fps);
 
+    /** Losing focus also releases every key the page saw go down (see {@link #releaseKeys()}). */
     void focus(boolean focused);
+
+    /**
+     * Send key-up for keys the page still thinks are held. Called whenever
+     * the keyboard stops going to the page, since their real key-up will
+     * then go elsewhere.
+     */
+    void releaseKeys();
 
     void mouseMoved(int x, int y);
 

@@ -26,6 +26,7 @@
     "MonitorWallMixin",
     "MonitorMirrorAccessor",
     "ServerComputerMixin",
-    "ServerMonitorAccessor"
+    "ServerMonitorAccessor",
+    "AgentRegistrySyncMixin"
   ]
 }

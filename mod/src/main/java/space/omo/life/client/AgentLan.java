@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.client.server.IntegratedServer;
@@ -42,9 +43,13 @@ public final class AgentLan {
 
     public static void register() {
         if (!ENABLED) return;
-        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
-            if (server instanceof IntegratedServer integrated) server.execute(() -> publish(integrated));
-        });
+        // Publishing needs the host's own client connection (it signs with the
+        // player's key pair), so wait until the host has actually joined, then
+        // publish from the client thread exactly like the Open to LAN screen.
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> {
+            IntegratedServer integrated = client.getSingleplayerServer();
+            if (integrated != null) publish(integrated);
+        }));
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> clearState());
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> guard(handler.player, server));
     }
@@ -56,8 +61,12 @@ public final class AgentLan {
         } else {
             boolean commands = server.getWorldData().isAllowCommands();
             for (int candidate = PORT; candidate < PORT + 5 && port < 0; candidate++) {
-                if (server.publishServer(MinecraftServer.MultiplayerScope.LAN, server.getDefaultGameType(), commands, candidate)) {
-                    port = candidate;
+                try {
+                    if (server.publishServer(MinecraftServer.MultiplayerScope.LAN, server.getDefaultGameType(), commands, candidate)) {
+                        port = candidate;
+                    }
+                } catch (RuntimeException e) {
+                    System.err.println("[omolife] opening to LAN on " + candidate + " failed: " + e);
                 }
             }
         }

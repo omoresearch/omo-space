@@ -11,7 +11,8 @@
     "ScreenAccessor",
     "StationScreenMixin",
     "TerminalShortcutsMixin",
-    "WindowTitleMixin"
+    "WindowTitleMixin",
+    "AgentSkinMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -11,7 +11,9 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.scores.PlayerTeam;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -80,7 +82,25 @@ public final class AgentLan {
         System.out.println("[omolife] agents can join this world at 127.0.0.1:" + port);
     }
 
+    /** Lower-case usernames of the local agent bodies. */
+    public static final java.util.Set<String> AGENT_NAMES = java.util.Set.of(
+        System.getProperty("omo.agents.names", "omo,teacher").toLowerCase(java.util.Locale.ROOT).split(","));
+
+    public static boolean isAgent(String name) {
+        return name != null && AGENT_NAMES.contains(name.toLowerCase(java.util.Locale.ROOT));
+    }
+
+    // Shows the agent as "ChatGPT - OMO" over his head, in the tab list and in chat.
+    private static void tag(ServerPlayer player, MinecraftServer server) {
+        var board = server.getScoreboard();
+        PlayerTeam team = board.getPlayerTeam("omo_agents");
+        if (team == null) team = board.addPlayerTeam("omo_agents");
+        team.setPlayerPrefix(Component.literal("ChatGPT - ").withStyle(ChatFormatting.AQUA));
+        board.addPlayerToTeam(player.getScoreboardName(), team);
+    }
+
     private static void guard(ServerPlayer player, MinecraftServer server) {
+        if (!server.usesAuthentication() && isAgent(player.getScoreboardName())) tag(player, server);
         if (ALLOW_REMOTE || server.usesAuthentication()) return;
         if (server.isSingleplayerOwner(player.nameAndId())) return;
         SocketAddress address = player.connection.getRemoteAddress();

@@ -1,8 +1,5 @@
 package space.omo.life.mixin;
 
-import java.util.Locale;
-import java.util.Set;
-
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -25,14 +22,11 @@ import net.minecraft.server.network.ServerConfigurationPacketListenerImpl;
  */
 @Mixin(value = RegistrySyncManager.class, remap = false)
 public abstract class AgentRegistrySyncMixin {
-    private static final Set<String> OMO_AGENT_NAMES = Set.of(
-        System.getProperty("omo.agents.names", "teacher").toLowerCase(Locale.ROOT).split(","));
 
     @Inject(method = "configureClient", at = @At("HEAD"), cancellable = true)
     private static void omolife$skipForLocalAgents(ServerConfigurationPacketListenerImpl handler,
             MinecraftServer server, CallbackInfo ci) {
         if (server.usesAuthentication() || handler.getOwner() == null) return;
-        String name = handler.getOwner().name();
-        if (name != null && OMO_AGENT_NAMES.contains(name.toLowerCase(Locale.ROOT))) ci.cancel();
+        if (space.omo.life.client.AgentLan.isAgent(handler.getOwner().name())) ci.cancel();
     }
 }

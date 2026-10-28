@@ -34,7 +34,7 @@ desk, and then one prompt that built an underground robotics lab while they
 talked. 15 minutes, one take.
 
 **[▶ Watch the demo](https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27)** ·
-[download the MP4](https://github.com/omoresearch/omo-space/releases/download/demo-2026-10-27/omo-space-demo-2026-10-27.mp4) (1080p, 346 MB) ·
+[download the MP4](https://github.com/omoresearch/omo-space/releases/download/demo-2026-10-27/omo-space-demo-2026-10-27.mp4) (1080p, 345 MB) ·
 [read the transcript](docs/demo/TRANSCRIPT.md)
 
 > *"Any product or idea goes from this terminal here, which is just a Hermes,

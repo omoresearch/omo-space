@@ -1,7 +1,7 @@
 # Commercial readiness: do not announce a paid mod yet
 
-This is an internal release gate, not legal advice. The repo is private and the
-README asks for preview access rather than payment.
+This is an internal release gate, not legal advice. The repo is public (MIT).
+The README shows a demo video and run-from-source steps; nothing is sold.
 
 ## The constraint
 
@@ -14,9 +14,9 @@ behind a paid entitlement or assume a bundled launcher makes this permissible.
 
 The same guidelines allow screenshots of original Minecraft creations if they
 do not imply official endorsement. Our README now uses the prescribed prominent
-"NOT AN OFFICIAL MINECRAFT PRODUCT" notice. The island screenshots use
-Complementary Unbound r5.9.1 shaders. Its bundled licence allows normal content
-creation; the shader pack is not distributed in this repo or our Linux bundle.
+"NOT AN OFFICIAL MINECRAFT PRODUCT" notice. Its images and loops are clips
+from our own live stream (27 October 2026). No shader pack is distributed in
+this repo or our Linux bundle.
 
 ## Before a sales offer
 
@@ -34,6 +34,6 @@ creation; the shader pack is not distributed in this repo or our Linux bundle.
    modded Minecraft client or the Complementary shader zip.
 5. Only then approve a public site/repo, a release asset, payments or campaigns.
 
-The current sales-facing README is an honest private-preview invitation, not a
-paid-mod listing. A person outside the private repo cannot read it. A separate
-public landing page would need its own approval and a compliant offer.
+The README is a public product page with no price, checkout or paid gate, not a
+paid-mod listing. Any paid offer would need its own approval and a compliant
+offer.

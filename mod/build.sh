@@ -18,7 +18,7 @@ cd "$HERE"
 JAVA_HOME="${JAVA_HOME:-$HOME/.local/share/Java/temurin-25}"
 JAVAC="$JAVA_HOME/bin/javac"
 JAR="$JAVA_HOME/bin/jar"
-PRISM="$HOME/.local/share/PrismLauncher"
+PRISM="${PRISM:-$HOME/.local/share/PrismLauncher}"
 LIBS="$PRISM/libraries"
 TEST="${OMO_TEST:-0}"
 

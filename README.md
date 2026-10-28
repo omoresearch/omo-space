@@ -259,9 +259,10 @@ first.
 ## For builders
 
 The repo holds the Fabric mod, the Python bridge, the tmux session server, the
-launcher, world kits, an example workshop, tests and a bundle builder. CI runs
-the bridge, launcher and platform tests on every pull request (Linux, plus
-macOS and Windows checks).
+launcher, world kits, an example workshop, tests and a bundle builder. On every
+pull request CI runs 99 bridge checks against a real bridge on a disposable
+tmux server, 58 launcher tests and the platform tests on Linux, macOS and
+Windows.
 
 [Controls and commands](docs/GUIDE.md) ·
 [Agents and terminals](docs/AGENTS-AND-TERMINALS.md) ·

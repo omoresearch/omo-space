@@ -307,6 +307,7 @@ class MacServices(unittest.TestCase):
         import plistlib
         from pathlib import Path
         S.find_hermes = lambda: Path("/opt/homebrew/bin/hermes")
+        S.find_agent_cli = lambda name: Path("/opt/homebrew/bin/claude") if name == "claude" else None
         S.pick_python = lambda: "/opt/homebrew/bin/python3"
         agents = S.launch_agents(Path("/opt/homebrew/bin/tmux"))
         print(json.dumps({k: plistlib.loads(v) for k, v in agents.items()}, default=str))"""
@@ -322,6 +323,7 @@ class MacServices(unittest.TestCase):
         env = bridge["EnvironmentVariables"]
         self.assertEqual((env["OMO_TMUX"], env["OMO_HERMES_BIN"], env["OMO_OPEN"]),
                          ("/opt/homebrew/bin/tmux", "/opt/homebrew/bin/hermes", "open"))
+        self.assertEqual((env["OMO_CLAUDE_BIN"], env["OMO_CODEX_BIN"]), ("/opt/homebrew/bin/claude", ""))
         self.assertTrue(env["OMO_DATA"].endswith("Library/Application Support/OmoResearch"))
         self.assertIn("/opt/homebrew/bin", env["PATH"])
 

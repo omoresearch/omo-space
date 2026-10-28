@@ -69,6 +69,23 @@ class Env:
                      '  esac\n'
                      'done\n')
         os.chmod(os.path.join(self.stub, "hermes"), 0o755)
+        # A stand-in for Claude Code: records its arguments and, like the real
+        # one, keeps a session file per --session-id so a resume can be told
+        # from a fresh start. Codex is deliberately missing (OMO_CODEX_BIN
+        # points nowhere): its tab must say so and stay a usable shell.
+        self.claude_calls = os.path.join(self.dir, "claude-calls")
+        self.claude_home = os.path.join(self.dir, "claude-home")
+        with open(os.path.join(self.stub, "claude"), "w") as fh:
+            fh.write(f'#!/bin/sh\necho "$*" >> {self.claude_calls}\necho "stub claude $* in $PWD"\n'
+                     'if [ "$1" = "--session-id" ]; then\n'
+                     '  mkdir -p "$CLAUDE_CONFIG_DIR/projects/-stub" && : > "$CLAUDE_CONFIG_DIR/projects/-stub/$2.jsonl"\n'
+                     'fi\n'
+                     'while :; do\n'
+                     '  printf " > "\n'
+                     '  IFS= read -r line || exit 0\n'
+                     '  case "$line" in /exit) echo "stub claude bye"; exit 0 ;; esac\n'
+                     'done\n')
+        os.chmod(os.path.join(self.stub, "claude"), 0o755)
         self.opened = os.path.join(self.dir, "opened")
         with open(os.path.join(self.stub, "open-url"), "w") as fh:
             fh.write(f'#!/bin/sh\necho "$1" >> {self.opened}\n')
@@ -115,7 +132,7 @@ class Env:
         return subprocess.run([TMUX, "-L", self.sock, *args], capture_output=True, text=True)
 
     def start_server(self):
-        env = {**os.environ, "PATH": f"{self.stub}:{os.environ['PATH']}"}
+        env = {**os.environ, "PATH": f"{self.stub}:{os.environ['PATH']}", "CLAUDE_CONFIG_DIR": self.claude_home}
         subprocess.run([TMUX, "-L", self.sock, "-f", os.path.join(REPO, "config", "omo-tmux.conf"),
                         "start-server"], env=env, check=True)
 
@@ -123,6 +140,8 @@ class Env:
         env = {**os.environ, "OMO_DATA": self.data, "OMO_PORT": str(self.port), "OMO_TMUX": TMUX,
                "OMO_TMUX_SOCKET": self.sock, "OMO_HERMES_ROOT": self.hermes_root,
                "OMO_HERMES_BIN": os.path.join(self.stub, "hermes"), "OMO_OPEN": os.path.join(self.stub, "open-url"),
+               "OMO_CLAUDE_BIN": os.path.join(self.stub, "claude"),
+               "OMO_CODEX_BIN": os.path.join(self.dir, "no-such-dir", "codex"),
                # Sleep after 2s idle, scanned only when a test asks (/api/sleep_scan).
                "OMO_SLEEP_AFTER": "2", "OMO_SLEEP_SCAN": "3600",
                # Never the desktop's clipboard: the private display, or one that does not exist.
@@ -548,6 +567,96 @@ async def auto_sleep(env):
     api(env, "delete", ws=ws["id"], force=1)
 
 
+async def agent_tabs(env, welcome):
+    """The "+" menu's other agents: Claude Code and Codex tabs. Each runs its
+    CLI in the tab's shell (so quitting it leaves a prompt), Claude keeps one
+    session per tab across revives and restores, and a CLI that is not
+    installed is said so in the tab, never a crash or a dead tab."""
+    agents = welcome.get("agents") or {}
+    check("the welcome says which agent CLIs this PC has",
+          agents.get("claude", {}).get("found") is True and agents.get("codex", {}).get("found") is False
+          and agents.get("hermes", {}).get("found") is True, str(agents))
+    check("the welcome lists the tab kinds this bridge can open",
+          welcome.get("tab_kinds") == ["shell", "hermes", "claude", "codex"], str(welcome.get("tab_kinds")))
+    check("a missing CLI comes with an install hint",
+          "npm" in agents.get("codex", {}).get("install", ""), str(agents.get("codex")))
+    ui = Client(env)
+    await ui.open(token=env.token, role="ui")
+    await ui.send(t="agents")
+    fresh = await ui.expect(lambda m: m["t"] == "agents")
+    check("the agents op re-checks on demand", fresh and fresh["agents"]["claude"]["found"] is True, str(fresh))
+
+    ws = api(env, "create", name="Agents", kind="terminal")
+    await ui.send(t="tab_new", ws=ws["id"], kind="claude")
+    claude = (await ui.expect(lambda m: m["t"] == "tab_created"))["tab"]
+    await ui.send(t="attach", ws=ws["id"], tab=claude, cols=70, rows=12)
+    await ui.expect(lambda m: m["t"] == "attached")
+    check("a Claude tab starts Claude Code", await ui.screen_has("stub claude --session-id"))
+    d = api(env, "get", ws=ws["id"])
+    tab = next(t for t in d["tabs"] if t["id"] == claude)
+    check("a Claude tab is named and kinded for its agent", (tab["name"], tab["kind"]) == ("Claude Code", "claude"),
+          str(tab))
+    check("running Claude reads as busy, by its own name", (tab["command"], tab["busy"]) == ("claude", True), str(tab))
+    calls = open(env.claude_calls).read().split()
+    session = calls[1] if len(calls) > 1 else ""
+    check("the Claude session id is a stable UUID per tab",
+          len(session) == 36 and session.count("-") == 4, str(calls))
+    await ui.send(t="in", d="/exit\r")
+    check("quitting Claude leaves a shell prompt in the tab", await ui.screen_has("stub claude bye"))
+    await ui.send(t="in", d='echo "agent=[$OMO_TAB_KIND] auto=[$OMO_AUTORUN]"\r')
+    check("the tab knows its kind; the autorun ran once", await ui.screen_has("agent=[claude] auto=[]"))
+
+    # Revive (the same path a restore after a session-server restart takes):
+    # Claude resumes the tab's own session instead of starting another.
+    await ui.send(t="detach")
+    win = next(t["window"] for t in api(env, "get", ws=ws["id"])["tabs"] if t["id"] == claude)
+    env.tmux("kill-window", "-t", f"=omo-{ws['id']}:{win}")
+    await asyncio.sleep(0.5)
+    await ui.send(t="tab_revive", ws=ws["id"], tab=claude, mode="claude")
+    await ui.expect(lambda m: m["t"] == "workspace")
+    await asyncio.sleep(1.5)
+    calls = open(env.claude_calls).read()
+    check("a revived Claude tab resumes its own session", f"--resume {session}" in calls, calls)
+
+    await ui.send(t="tab_new", ws=ws["id"], kind="claude")
+    second = (await ui.expect(lambda m: m["t"] == "tab_created"))["tab"]
+    await asyncio.sleep(1.5)
+    d = api(env, "get", ws=ws["id"])
+    names = {t["id"]: t["name"] for t in d["tabs"]}
+    calls = open(env.claude_calls).read().splitlines()
+    check("a second Claude tab is numbered and gets its own session",
+          names.get(second) == "Claude Code 2" and len({c.split()[1] for c in calls if c.startswith("--")}) == 2,
+          f"{names} {calls}")
+
+    await ui.send(t="tab_new", ws=ws["id"], kind="codex")
+    codex = (await ui.expect(lambda m: m["t"] == "tab_created"))["tab"]
+    await ui.send(t="attach", ws=ws["id"], tab=codex, cols=70, rows=12)
+    await ui.expect(lambda m: m["t"] == "attached")
+    check("a missing Codex says so in its tab, with how to install it", await ui.screen_has("codex not found"))
+    check("... and the install command", ui.row_of("npm install -g @openai/codex") is not None,
+          str([ui.line(y) for y in sorted(ui.runs)]))
+    await ui.send(t="in", d="echo still-a-shell-$((5*5))\r")
+    check("a tab whose CLI is missing is still a working shell", await ui.screen_has("still-a-shell-25"))
+    d = api(env, "get", ws=ws["id"])
+    tab = next(t for t in d["tabs"] if t["id"] == codex)
+    check("the Codex tab is named and kinded, and live", (tab["name"], tab["kind"], tab["state"]) ==
+          ("Codex", "codex", "live"), str(tab))
+
+    await ui.send(t="tab_new", ws=ws["id"], kind="rm -rf /")
+    odd = (await ui.expect(lambda m: m["t"] == "tab_created"))["tab"]
+    tab = next(t for t in api(env, "get", ws=ws["id"])["tabs"] if t["id"] == odd)
+    check("an unknown tab kind opens a plain shell", tab["kind"] == "shell" and tab["name"].startswith("Shell"),
+          str(tab))
+    preset = api(env, "create", name="Agent preset", kind="terminal",
+                 tabs=json.dumps([{"kind": "claude"}, {"name": "Review", "kind": "codex"}]))
+    check("a preset workspace can hold agent tabs",
+          [(t["name"], t["kind"]) for t in preset["tabs"]] == [("Claude Code", "claude"), ("Review", "codex")],
+          str(preset["tabs"]))
+    await ui.close()
+    for w in (ws, preset):
+        api(env, "delete", ws=w["id"], force=1)
+
+
 async def stalled_tmux(env, ui):
     """A session server that stops answering for a while (load, swap) is
     waited out: the screen stays attached and keeps working. On 28 Oct
@@ -655,6 +764,7 @@ async def run(env):
     confirm = await ui.expect(lambda m: m["t"] == "confirm", 4)
     check("closing a busy tab asks first", bool(confirm))
     await auto_sleep(env)
+    await agent_tabs(env, welcome)
 
     # -- screen tickets are scoped --------------------------------------------
     ticket = env.http(f"/ticket?token={env.token}&station=st-1&ws={term['id']}")

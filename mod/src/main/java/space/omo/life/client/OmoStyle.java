@@ -76,6 +76,10 @@ public final class OmoStyle {
         SPARK("...#...", "...#...", "..###..", "#######", "..###..", "...#...", "...#..."),
         /** A terminal workspace or shell tab: a prompt. */
         PROMPT("#......", ".#.....", "..#....", ".#.....", "#......", ".......", "...####"),
+        /** A Claude Code tab: a burst. */
+        BURST("#..#..#", ".#.#.#.", "..###..", "###.###", "..###..", ".#.#.#.", "#..#..#"),
+        /** A Codex tab: a ring round a point. */
+        RING("..###..", ".#...#.", "#.....#", "#..#..#", "#.....#", ".#...#.", "..###.."),
         CARET("#####", ".###.", "..#.."),
         CROSS("#...#", ".#.#.", "..#..", ".#.#.", "#...#"),
         PLUS("..#..", "..#..", "#####", "..#..", "..#.."),
@@ -101,6 +105,16 @@ public final class OmoStyle {
     /** The glyph for a workspace or tab kind. */
     public static Glyph kind(boolean hermes) {
         return hermes ? Glyph.SPARK : Glyph.PROMPT;
+    }
+
+    /** The glyph for a tab kind (the "+" menu and the tabs). */
+    public static Glyph glyph(TabKind kind) {
+        return switch (kind) {
+            case SHELL -> Glyph.PROMPT;
+            case HERMES -> Glyph.SPARK;
+            case CLAUDE -> Glyph.BURST;
+            case CODEX -> Glyph.RING;
+        };
     }
 
     /** Draw a glyph with its top-left corner at (x, y), one fill per run of pixels. */

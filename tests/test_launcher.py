@@ -465,7 +465,8 @@ class Units(unittest.TestCase):
         tmux.write_text("#!/bin/sh\n")
         tmux.chmod(0o755)
         subs = {"TMUX": tmux, "TMUX_CONF": odd / "tmux.conf", "PYTHON": S.pick_python(),
-                "BRIDGE": odd / "omobridge.py", "OMO_DATA": odd / "data", "HERMES": ""}
+                "BRIDGE": odd / "omobridge.py", "OMO_DATA": odd / "data", "HERMES": "",
+                "CLAUDE": odd / "claude", "CODEX": ""}
         out = ROOT / "units"
         out.mkdir(exist_ok=True)
         for unit in S.UNITS:
@@ -478,6 +479,26 @@ class Units(unittest.TestCase):
             p = subprocess.run(["systemd-analyze", "verify", str(out / "omo-tmux.service")],
                                capture_output=True, text=True)
             self.assertEqual(p.returncode, 0, p.stderr)
+
+    def test_bridge_unit_pins_agent_clis(self):
+        subs = {"TMUX": "/t", "TMUX_CONF": "/c", "PYTHON": "/p", "BRIDGE": "/b", "OMO_DATA": "/d",
+                "HERMES": "/h/hermes", "CLAUDE": "/h/claude", "CODEX": ""}
+        text = S.render_unit((S.REPO / "scripts/omo-bridge.service").read_text(), subs)
+        self.assertIn('Environment="OMO_CLAUDE_BIN=/h/claude" "OMO_CODEX_BIN="', text)
+
+    def test_find_agent_cli(self):
+        home = Path(tempfile.mkdtemp(dir=ROOT))
+        cli = home / ".local/bin/claude"
+        cli.parent.mkdir(parents=True)
+        cli.write_text("#!/bin/sh\n")
+        cli.chmod(0o755)
+        old_home, old_path = S.HOME, os.environ.get("PATH", "")
+        S.HOME, os.environ["PATH"] = home, str(home / "nothing")
+        try:
+            self.assertEqual(S.find_agent_cli("claude"), cli)
+            self.assertIsNone(S.find_agent_cli("codex"))
+        finally:
+            S.HOME, os.environ["PATH"] = old_home, old_path
 
     def test_refuses_ambiguous_paths_and_leftovers(self):
         for bad in ('/a"b', "/a$b", "/a\\b", "/a\nb"):

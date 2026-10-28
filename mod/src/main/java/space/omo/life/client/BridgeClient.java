@@ -4,6 +4,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -48,6 +49,10 @@ public final class BridgeClient {
 
     private volatile WebSocket socket;
     private volatile boolean welcomed;
+    /** The welcome's tab_kinds; null for a bridge from before agent tabs. */
+    private volatile List<String> tabKinds;
+    /** {kind: {found, install}} from the welcome or a later "agents" reply; null when not known. */
+    private volatile JsonObject agents;
     private volatile String lastError = "";
     private volatile int generation; // written under lock
     private boolean connecting;      // guarded by lock
@@ -67,6 +72,30 @@ public final class BridgeClient {
 
     public String lastError() {
         return lastError;
+    }
+
+    /** Tab kinds this bridge opens; null when it predates agent tabs (shell and Hermes only). */
+    public List<String> tabKinds() {
+        return tabKinds;
+    }
+
+    /** Whether the bridge found this kind's CLI; null when it has not said. */
+    public Boolean agentFound(String kind) {
+        JsonObject a = agents;
+        if (a == null || !a.has(kind) || !a.get(kind).isJsonObject()) {
+            return null;
+        }
+        JsonObject k = a.getAsJsonObject(kind);
+        return k.has("found") ? k.get("found").getAsBoolean() : null;
+    }
+
+    /** The bridge's install hint for a kind's CLI ("" when none). */
+    public String agentInstall(String kind) {
+        JsonObject a = agents;
+        if (a == null || !a.has(kind) || !a.get(kind).isJsonObject() || !a.getAsJsonObject(kind).has("install")) {
+            return "";
+        }
+        return a.getAsJsonObject(kind).get("install").getAsString();
     }
 
     public void addListener(Consumer<JsonObject> l) {
@@ -225,6 +254,15 @@ public final class BridgeClient {
         }
     }
 
+    private static List<String> readKinds(JsonObject welcome) {
+        if (!welcome.has("tab_kinds") || !welcome.get("tab_kinds").isJsonArray()) {
+            return null;
+        }
+        List<String> out = new ArrayList<>();
+        welcome.getAsJsonArray("tab_kinds").forEach(e -> out.add(e.getAsString()));
+        return List.copyOf(out);
+    }
+
     private void deliver(String text) {
         JsonObject msg;
         try {
@@ -237,6 +275,10 @@ public final class BridgeClient {
         if ("welcome".equals(t)) {
             welcomed = true;
             lastError = "";
+            tabKinds = readKinds(msg);
+            agents = msg.has("agents") && msg.get("agents").isJsonObject() ? msg.getAsJsonObject("agents") : null;
+        } else if ("agents".equals(t) && msg.has("agents") && msg.get("agents").isJsonObject()) {
+            agents = msg.getAsJsonObject("agents");
         } else if ("error".equals(t) && !welcomed) {
             lastError = msg.has("m") ? msg.get("m").getAsString() : "refused";
         }

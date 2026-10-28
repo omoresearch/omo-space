@@ -12,7 +12,8 @@ import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.network.chat.Component;
 
 /**
- * One tab of the station header: its state dot, its name, and a close cross
+ * One tab of the station header: its state dot, the glyph of what it runs
+ * (Hermes, Claude Code, Codex; none for a shell), its name, and a close cross
  * that appears on hover. The active tab is filled with the bezel's colour
  * and open at the bottom, so it runs into the frame around the terminal it
  * shows. Click selects; double-click renames; the cross or a middle click
@@ -23,22 +24,27 @@ final class StationTab extends AbstractWidget {
     /** Bezel colour: the active tab and the frame around the terminal share it. */
     static final int FILL = OmoStyle.ESPRESSO;
     private static final int CLOSE_W = 11;
+    private static final int ICON_W = 10;
 
     private final Font font;
     private final int accent;
     private final int dot;
+    private final OmoStyle.Glyph icon;      // null: a shell, no glyph
+    private final int iconColour;
     private final boolean current;
     private final boolean armed;
     private final Runnable onSelect;
     private final Runnable onClose;
     private final Runnable onRename;
 
-    StationTab(Font font, int accent, String name, int dot, boolean current, boolean armed, int x, int y, int h,
-               Runnable onSelect, Runnable onClose, Runnable onRename) {
-        super(x, y, widthFor(font, name), h, Component.literal(name));
+    StationTab(Font font, int accent, String name, int dot, TabKind kind, boolean current, boolean armed, int x,
+               int y, int h, Runnable onSelect, Runnable onClose, Runnable onRename) {
+        super(x, y, widthFor(font, name, kind), h, Component.literal(name));
         this.font = font;
         this.accent = accent;
         this.dot = dot;
+        this.icon = kind == TabKind.SHELL ? null : OmoStyle.glyph(kind);
+        this.iconColour = kind.colour;
         this.current = current;
         this.armed = armed;
         this.onSelect = onSelect;
@@ -46,8 +52,8 @@ final class StationTab extends AbstractWidget {
         this.onRename = onRename;
     }
 
-    static int widthFor(Font font, String name) {
-        return 6 + 8 + font.width(name) + 3 + CLOSE_W + 1;
+    static int widthFor(Font font, String name, TabKind kind) {
+        return 6 + 8 + (kind == TabKind.SHELL ? 0 : ICON_W) + font.width(name) + 3 + CLOSE_W + 1;
     }
 
     StationTab tip(String text) {
@@ -74,7 +80,12 @@ final class StationTab extends AbstractWidget {
         int ty = y0 + (getHeight() - 7) / 2 + 1;
         OmoStyle.dot(g, x0 + 6, ty + 1, dot);
         int colour = current ? OmoStyle.CREAM_BRIGHT : hover ? OmoStyle.CREAM : OmoStyle.MUTED;
-        g.text(font, getMessage().getString(), x0 + 14, ty, colour, false);
+        int tx = x0 + 14;
+        if (icon != null) {
+            OmoStyle.glyph(g, icon, tx, ty, current || hover ? iconColour : OmoStyle.mix(iconColour, OmoStyle.GREY, 0.35F));
+            tx += ICON_W;
+        }
+        g.text(font, getMessage().getString(), tx, ty, colour, false);
         if (hover || armed) {
             boolean hot = hover && overClose(mouseX, mouseY);
             int cx = x1 - CLOSE_W - 1;

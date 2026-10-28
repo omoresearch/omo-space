@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### Claude Code and Codex tabs
+
+- **"+" is a new-tab menu**: Shell, Hermes, **Claude Code** (`claude`) and
+  **Codex** (`codex`). The last pick is remembered and preselected, so "+"
+  then Enter opens another of the same. Tabs show a glyph for what they run
+  (Hermes spark, Claude burst, Codex ring).
+- Agent tabs run the CLI once in an ordinary Omo shell, in the tab's folder,
+  inside the `omo-tmux` session server, so they survive closing the screen and
+  quitting Minecraft. Quitting the agent leaves a shell prompt.
+- Claude Code keeps one session per tab: a revived or restored tab runs
+  `claude --resume` on it. Codex starts fresh after a restore.
+- A missing CLI never fails: the tab says it is not installed and prints the
+  install command, the menu marks the row *not installed*, and the tab stays a
+  shell. A bridge from before this release is detected and the menu says
+  *update bridge* instead of opening a plain shell by mistake.
+- Bridge: `tab_new`/`tab_revive`/presets take `claude` and `codex`; the
+  welcome carries `tab_kinds` and `agents` ({found, install}); new `agents` op.
+  `OMO_CLAUDE_BIN` / `OMO_CODEX_BIN` override the binaries; the launcher pins
+  what it finds into the bridge service, like `OMO_HERMES_BIN`, and setup
+  reports both.
+
 ## v1.2.0 — 2026-10-28
 
 ### Agent bodies join your world

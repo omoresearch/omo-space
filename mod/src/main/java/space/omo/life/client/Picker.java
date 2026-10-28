@@ -43,6 +43,15 @@ final class Picker {
         static Row kind(boolean hermes, String label, String detail, Runnable action) {
             return new Row(label, detail, OmoStyle.kind(hermes), OmoStyle.accent(hermes), 0, false, action);
         }
+
+        /** A row of the "+" menu: the kind's glyph and colour; {@code current} preselects it (Enter opens it). */
+        static Row tab(TabKind kind, String detail, boolean current, Runnable action) {
+            return new Row(kind.label, detail, OmoStyle.glyph(kind), kind.colour, 0, current, action);
+        }
+
+        Row withLabel(String text) {
+            return new Row(text, detail, icon, iconColour, dot, current, action);
+        }
     }
 
     private static final int ROW = 12;

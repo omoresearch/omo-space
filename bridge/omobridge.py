@@ -33,11 +33,12 @@ Trust
   * Loopback only. Requests naming another Host are refused (DNS rebinding).
 
 Protocol (JSON text frames over a loopback websocket; first frame is `hello`):
-  -> hello {token, role:"ui"} | {ticket, station, ws}   <- welcome {version, limits}
+  -> hello {token, role:"ui"} | {ticket, station, ws}   <- welcome {version, limits, tab_kinds, agents}
   ui only:
   -> ws_list | ws_create {name, kind} | ws_rename {ws, name} | ws_delete {ws, force?}
   -> ws_profile {ws, profile} | profiles                <- workspace | profiles {items}
-  -> tab_new {ws, kind, name?} | tab_rename {ws, tab, name}
+  -> tab_new {ws, kind: shell|hermes|claude|codex, name?} | tab_rename {ws, tab, name}
+  -> agents                                             <- agents {agents: {kind: {found, install}}}
   -> tab_close {ws, tab, force?}                        <- workspace | confirm
   -> tab_revive {ws, tab, mode} | hermes {ws, tab}
   -> station_status {station} | steer {station, ws, tab}
@@ -98,6 +99,19 @@ RCFILE = os.path.join(HERE, "mcshell.bashrc")
 BOARD_FILE = os.path.join(HERE, "board.html")
 HERMES_ROOT = os.environ.get("OMO_HERMES_ROOT", os.path.join(HOME, ".hermes"))
 HERMES_BIN = os.environ.get("OMO_HERMES_BIN") or "hermes"   # the launcher pins the one it found
+
+# What a tab can run. A shell and Hermes as before; Claude Code and Codex
+# start their CLI in the tab's shell, the same way a Hermes tab does.
+TAB_KINDS = ("shell", "hermes", "claude", "codex")
+TAB_NAMES = {"shell": "Shell", "hermes": "Hermes", "claude": "Claude Code", "codex": "Codex"}
+# The agent CLIs: binary name, the env override (the launcher pins what it
+# found, as with OMO_HERMES_BIN; set one to a path to use another build), and
+# how to install it when it is missing.
+AGENTS = {
+    "claude": {"bin": "claude", "env": "OMO_CLAUDE_BIN",
+               "install": "curl -fsSL https://claude.ai/install.sh | bash  (or npm install -g @anthropic-ai/claude-code)"},
+    "codex": {"bin": "codex", "env": "OMO_CODEX_BIN", "install": "npm install -g @openai/codex"},
+}
 
 HOST = os.environ.get("OMO_HOST", "127.0.0.1")
 PORT = int(os.environ.get("OMO_PORT", "8780"))
@@ -513,6 +527,67 @@ def hermes_command(ws, tab_id):
     return f"{shell_quote(HERMES_BIN)} {flag}chat --tui -c {shell_quote(hermes_title(ws['id'], tab_id))} --create-if-missing"
 
 
+def tab_kind(kind):
+    """A kind the bridge can open; anything else is a plain shell."""
+    return kind if kind in TAB_KINDS else "shell"
+
+
+def _runnable(path):
+    return bool(path) and os.path.isfile(path) and os.access(path, os.X_OK)
+
+
+def find_agent(kind):
+    """Absolute path of an agent CLI, or None. An explicit OMO_<AGENT>_BIN is
+    the only answer when set (a wrong path reads as missing, never as some
+    other copy); otherwise the bridge's PATH, then the usual install spots,
+    because a user service's PATH is often shorter than a login shell's."""
+    spec = AGENTS[kind]
+    pinned = os.environ.get(spec["env"], "").strip()
+    if pinned:
+        found = pinned if os.sep in pinned else shutil.which(pinned)
+        return found if _runnable(found) else None
+    name = spec["bin"]
+    for cand in (shutil.which(name), os.path.join(HOME, ".local", "bin", name),
+                 os.path.join(HOME, ".claude", "local", name), os.path.join(HOME, ".npm-global", "bin", name),
+                 os.path.join(HOME, ".bun", "bin", name), "/opt/homebrew/bin/" + name, "/usr/local/bin/" + name):
+        if _runnable(cand):
+            return cand
+    return None
+
+
+def agents_info():
+    """Which agents this PC can run, for the "+" menu: {kind: {found, install}}."""
+    hermes = HERMES_BIN if os.sep in HERMES_BIN else shutil.which(HERMES_BIN)
+    info = {"hermes": {"found": _runnable(hermes), "install": "https://hermes-agent.nousresearch.com/docs"}}
+    for kind, spec in AGENTS.items():
+        info[kind] = {"found": find_agent(kind) is not None, "install": spec["install"]}
+    return info
+
+
+def claude_session(ws_id, tab_id):
+    # Claude Code wants a UUID; derive it from the tab so a revive or a
+    # restore after a session-server restart finds the same conversation.
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"omo:{ws_id}:{tab_id}"))
+
+
+def agent_command(ws, tab):
+    """The autorun line of a Claude Code / Codex tab (see omo_agent in
+    mcshell.bashrc: it resumes Claude's session when one exists and prints
+    an install hint instead of failing when the CLI is missing)."""
+    kind = tab["kind"]
+    path = find_agent(kind) or ""
+    session = claude_session(ws["id"], tab["id"]) if kind == "claude" else ""
+    return f"omo_agent {kind} {shell_quote(path)} {shell_quote(session)}"
+
+
+def autorun_command(ws, tab):
+    if tab["kind"] == "hermes":
+        return hermes_command(ws, tab["id"])
+    if tab["kind"] in AGENTS:
+        return agent_command(ws, tab)
+    return ""
+
+
 def tab_env(ws, tab, autorun=True):
     hermes = tab["kind"] == "hermes"
     env = {
@@ -522,7 +597,7 @@ def tab_env(ws, tab, autorun=True):
         "TERM": "xterm-256color",
         # Always set, even empty: a session's -e environment is inherited by
         # later windows, and a shell tab must never pick up a Hermes autorun.
-        "OMO_AUTORUN": hermes_command(ws, tab["id"]) if hermes and autorun else "",
+        "OMO_AUTORUN": autorun_command(ws, tab) if autorun else "",
         "OMO_HERMES_TITLE": hermes_title(ws["id"], tab["id"]) if hermes else "",
     }
     return [a for k, v in env.items() for a in ("-e", f"{k}={v}")]
@@ -639,7 +714,7 @@ class Workspaces:
                   "last_station": station, "last_world": world}
             wanted = [t for t in tabs or [] if isinstance(t, dict)][:LIMITS["tabs_per_workspace"]]
             for t in wanted or [{"kind": "hermes" if kind == "hermes" else "shell"}]:
-                tkind = "hermes" if t.get("kind") == "hermes" else "shell"
+                tkind = tab_kind(t.get("kind"))
                 tab = {"id": new_id(), "name": self._tab_name(ws, t.get("name"), tkind), "kind": tkind}
                 self._open_window_locked(ws, tab)
                 ws["tabs"].append(tab)
@@ -753,7 +828,7 @@ class Workspaces:
             ws = self._ws(ws_id)
             if len(ws["tabs"]) >= LIMITS["tabs_per_workspace"]:
                 raise BridgeError(f"tab limit reached ({LIMITS['tabs_per_workspace']} per workspace)")
-            kind = "hermes" if kind == "hermes" else "shell"
+            kind = tab_kind(kind)
             tab = {"id": new_id(), "name": self._tab_name(ws, name, kind), "kind": kind}
             self._open_window_locked(ws, tab)
             ws["tabs"].append(tab)
@@ -763,8 +838,9 @@ class Workspaces:
 
     @staticmethod
     def _tab_name(ws, name, kind):
-        """The asked-for name (or Hermes / Shell), numbered when the workspace already has it."""
-        base = clean_name(name, 24).strip() or ("Hermes" if kind == "hermes" else "Shell")
+        """The asked-for name (or the kind's: Shell, Hermes, Claude Code, Codex),
+        numbered when the workspace already has it."""
+        base = clean_name(name, 24).strip() or TAB_NAMES[tab_kind(kind)]
         existing = {t["name"] for t in ws["tabs"]}
         final, n = base, 2
         while final in existing:
@@ -820,7 +896,7 @@ class Workspaces:
             desc = self._describe_locked(ws, TM.server_id())
             if next(t for t in desc["tabs"] if t["id"] == tab_id)["state"] == "live":
                 raise BridgeError("that tab is already running")
-            tab["kind"] = "hermes" if mode == "hermes" else "shell"
+            tab["kind"] = tab_kind(mode)
             tab.pop("asleep", None)
             self._open_window_locked(ws, tab)
             META.save()
@@ -1605,7 +1681,8 @@ class Conn:
         self.authed, self.station, self.world = True, station, clean(msg.get("world") or "-")
         CONNS.add(self)
         await self.send({"t": "welcome", "version": VERSION, "limits": LIMITS, "palette": termcore.PALETTE,
-                         "tmux": await asyncio.to_thread(TM.alive)})
+                         "tmux": await asyncio.to_thread(TM.alive), "tab_kinds": list(TAB_KINDS),
+                         "agents": await asyncio.to_thread(agents_info)})
         log(f"hello {self.role} station={self.station}")
         return True
 
@@ -1650,6 +1727,8 @@ class Conn:
             await self.broadcast(desc)
             await self.toast(f"new Hermes tabs use the {desc['profile'] or 'default'} profile; "
                              "running tabs are unchanged")
+        elif kind == "agents":
+            await self.send({"t": "agents", "agents": await call(agents_info)})
         elif kind == "profiles":
             await self.send({"t": "profiles", "items": await call(hermes_profiles)})
         elif kind == "tab_new":

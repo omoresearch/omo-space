@@ -1044,12 +1044,14 @@ def launch_agent(label, argv, env, log):
 def launch_agents(tmux):
     path = f"{Path(tmux).parent}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
     hermes = find_hermes()
+    claude, codex = find_agent_cli("claude"), find_agent_cli("codex")
     return {
         "omo-tmux.service": launch_agent(LABELS["omo-tmux.service"], [tmux, "-D", "-L", "omo", "-f", TMUX_CONF],
                                          {"OMO_SESSION_SERVER": "1", "PATH": path, "LANG": "en_US.UTF-8"},
                                          OMO / "tmux.log"),
         "omo-bridge.service": launch_agent(LABELS["omo-bridge.service"], [pick_python(), REPO / "bridge/omobridge.py"],
                                            {"OMO_DATA": OMO, "OMO_TMUX": tmux, "OMO_HERMES_BIN": hermes or "",
+                                            "OMO_CLAUDE_BIN": claude or "", "OMO_CODEX_BIN": codex or "",
                                             "PATH": path, "OMO_OPEN": "open", "LANG": "en_US.UTF-8"},
                                            OMO / "bridge.log"),
     }
@@ -1162,7 +1164,8 @@ def ensure_services(tmux):
     if write_if_changed(TMUX_CONF, (REPO / "config/omo-tmux.conf").read_bytes()):
         changed.add("tmux.conf")
     subs = {"TMUX": tmux, "TMUX_CONF": TMUX_CONF, "PYTHON": pick_python(),
-            "BRIDGE": REPO / "bridge/omobridge.py", "OMO_DATA": OMO, "HERMES": find_hermes() or ""}
+            "BRIDGE": REPO / "bridge/omobridge.py", "OMO_DATA": OMO, "HERMES": find_hermes() or "",
+            "CLAUDE": find_agent_cli("claude") or "", "CODEX": find_agent_cli("codex") or ""}
     for unit in UNITS:
         if write_if_changed(SYSTEMD_USER / unit, render_unit((REPO / "scripts" / unit).read_text(), subs).encode()):
             changed.add(unit)
@@ -1189,6 +1192,17 @@ def ensure_services(tmux):
 def find_hermes():
     for cand in (shutil.which("hermes"), HOME / ".local/bin/hermes", HOME / ".hermes/hermes-agent/hermes"):
         if cand and Path(cand).exists():
+            return Path(cand)
+    return None
+
+
+def find_agent_cli(name):
+    """Claude Code ("claude") or Codex ("codex") for the "+" menu's agent tabs,
+    pinned into the bridge's service like Hermes. None: the bridge looks again
+    by itself, so one installed later still works."""
+    for cand in (shutil.which(name), HOME / ".local/bin" / name, HOME / ".claude/local" / name,
+                 HOME / ".npm-global/bin" / name, HOME / ".bun/bin" / name):
+        if cand and Path(cand).is_file() and os.access(cand, os.X_OK):
             return Path(cand)
     return None
 
@@ -1221,6 +1235,10 @@ def report_hermes():
     else:
         say("Hermes: NOT found. Install it from https://hermes-agent.nousresearch.com then run setup again.")
         say("        Terminal blocks work without Hermes; Hermes Computers will show a shell instead.")
+    for name, label, how in (("claude", "Claude Code", "curl -fsSL https://claude.ai/install.sh | bash"),
+                             ("codex", "Codex", "npm install -g @openai/codex")):
+        found = find_agent_cli(name)
+        say(f"{label}: {found}" if found else f"{label}: not found (optional, for '+' > {label} tabs: {how})")
 
 
 # --------------------------------------------------------------------------- guards

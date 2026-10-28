@@ -2,8 +2,8 @@
 
 **For now, an agent in Omo Space is a persistent terminal.** Each desk in
 the world is a workspace on your PC: a set of tabs that keep running when you
-close the screen, walk away or quit Minecraft. A Hermes tab is an agent. A
-shell tab is a plain terminal. Nothing in the world thinks or moves on its own
+close the screen, walk away or quit Minecraft. A Hermes, Claude Code or
+Codex tab is an agent. A shell tab is a plain terminal. Nothing in the world thinks or moves on its own
 yet.
 
 ---
@@ -65,6 +65,57 @@ keeps running after you close the screen.
 Inside any Omo shell, a bare `hermes` starts Hermes in the workspace's
 profile.
 
+### Claude Code and Codex tabs
+
+Click **+** at the end of a station's tabs. The menu has four rows:
+
+| Row | Runs in the new tab |
+| --- | --- |
+| **Shell** (Ctrl+Shift+T) | bash |
+| **Hermes** (Ctrl+Shift+H) | Hermes, in the workspace's profile |
+| **Claude Code** | `claude`, Anthropic's Claude Code CLI |
+| **Codex** | `codex`, OpenAI's Codex CLI |
+
+The menu remembers your last pick and preselects it, so **+** then **Enter**
+opens another tab of the same kind (the choice is kept in
+`config/omolife-newtab.txt`). Tabs show what they run: Hermes has a gold
+spark, Claude Code an orange burst, Codex a blue ring; a shell has no glyph.
+New tabs are named **Claude Code** and **Codex** (then *Claude Code 2*, ...);
+double-click a tab to rename it.
+
+An agent tab is an ordinary Omo shell that starts the CLI once, in the tab's
+folder (your home folder for a new tab, the last folder after a restore).
+Quit the agent and you are at the shell prompt; type `claude` or `codex` to
+start it again. Like every Omo tab it lives in the `omo-tmux` session server,
+so it keeps running when you close the screen or quit Minecraft.
+
+- **Claude Code** gets one session per tab (`--session-id`, a UUID made from
+  the workspace and tab). If the tab is revived, or restored after a PC
+  restart, it runs `claude --resume <that id>` and you are back in the same
+  conversation.
+- **Codex** starts fresh after a revive or restore (`codex resume` inside the
+  tab gets an older session back).
+- **Not installed?** The tab says so and prints the install command
+  (`curl -fsSL https://claude.ai/install.sh | bash` or
+  `npm install -g @anthropic-ai/claude-code`; `npm install -g @openai/codex`),
+  then stays a normal shell. The menu marks the row *not installed*. Install,
+  then open a new tab; no restart is needed.
+- **Which binary**: the launcher pins the `claude` and `codex` it finds into
+  the bridge service (`OMO_CLAUDE_BIN`, `OMO_CODEX_BIN`, like
+  `OMO_HERMES_BIN`). Set one to another path to use another build. When unset
+  the bridge looks on its `PATH`, then `~/.local/bin`, `~/.claude/local`,
+  `~/.npm-global/bin`, `~/.bun/bin`, `/opt/homebrew/bin` and `/usr/local/bin`.
+- **Older bridge**: a mod this new against a bridge from before agent tabs
+  marks Claude Code and Codex *update bridge* and does not open them (that
+  bridge would quietly open a plain shell). Update Omo Space and restart
+  `omo-bridge`; open terminals keep running.
+
+Signing in is the CLI's own business: run `claude` or `codex` once in any
+terminal (in game or not) and follow its login.
+
+Presets and the bridge API take the same kinds: `tabs=[{"kind": "claude"},
+{"name": "Review", "kind": "codex"}]`, and `tab_new {ws, kind: "claude"}`.
+
 ## 4. Give an agent a task
 
 Type into its Hermes tab, as in any Hermes chat. Then walk away. To see it
@@ -84,6 +135,7 @@ from across the room:
 | Close the screen, walk away | Keep running | Keeps running |
 | Quit Minecraft | Keep running | Keeps running |
 | Restart the bridge or the launcher | Keep running | Keeps running |
+| Claude Code tab after a PC restart | — | Its session resumes (`claude --resume`) when the tab is restored. Codex starts a new session |
 | Hermes tab idle and unseen for 20 min | — | Sleeps: Hermes exits cleanly, the conversation is saved, and it resumes when a screen shows the tab again |
 | PC restart, or `omo-tmux` stops | **Lost**. The tabs come back (same names and order, shells in their last folder) the next time a screen opens the workspace | Saved. It resumes in its reopened tab (a tab that was asleep stays asleep until you look at it) |
 

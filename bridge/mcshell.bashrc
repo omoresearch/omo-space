@@ -29,6 +29,40 @@ hermes() {
     fi
 }
 
+# A Claude Code or Codex tab: `omo_agent <claude|codex> <path> [session]`.
+# The bridge passes the CLI it found (empty when none) and, for Claude, the
+# tab's own session id: the first start creates that session, a revive or a
+# restore after a restart resumes it. A missing CLI is explained here, with
+# how to install it, and the tab stays an ordinary shell.
+omo_agent() {
+    local kind="$1" bin="$2" session="$3" name install
+    case "$kind" in
+        claude) name="Claude Code"
+                install="curl -fsSL https://claude.ai/install.sh | bash   (or: npm install -g @anthropic-ai/claude-code)" ;;
+        codex)  name="Codex"; install="npm install -g @openai/codex" ;;
+        *)      return 1 ;;
+    esac
+    if [ -z "$bin" ] || [ ! -x "$bin" ]; then
+        printf '\e[33m%s not found: %s is not installed (or not on the PATH of the Omo services).\e[0m\n' "$kind" "$name"
+        printf 'Install it with:\n  %s\n' "$install"
+        printf '\e[2mThen run %s here, or open a new %s tab from +. To use another copy, set OMO_%s_BIN for omo-bridge.\e[0m\n' \
+            "$kind" "$name" "$(printf %s "$kind" | tr '[:lower:]' '[:upper:]')"
+        return 127
+    fi
+    if [ "$kind" = claude ] && [ -n "$session" ]; then
+        if ls "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/*/"$session".jsonl >/dev/null 2>&1; then
+            printf '\e[2m%s: resuming this tab'"'"'s session\e[0m\n' "$name"
+            "$bin" --resume "$session"
+        else
+            printf '\e[2m%s\e[0m\n' "$name"
+            "$bin" --session-id "$session"
+        fi
+    else
+        printf '\e[2m%s\e[0m\n' "$name"
+        "$bin"
+    fi
+}
+
 # A CC screen is small; keep output readable.
 export PAGER="less -R"
 export LESS="-R"
@@ -43,14 +77,17 @@ if [ -n "$OMO_WORKSPACE" ]; then
     PS1='\[\e[38;5;208m\]${OMO_WORKSPACE_NAME:-omo}\[\e[0m\]:\[\e[38;5;39m\]\w\[\e[0m\]\$ '
 fi
 
-# A Hermes tab starts its conversation the first time the shell opens.
+# A Hermes, Claude Code or Codex tab starts its agent the first time the shell opens.
 # ONLY on the first start: OMO_AUTORUN is cleared right away, so if Hermes
 # exits (or the user quits it) they land in a normal shell rather than an
 # endless relaunch loop, and an interrupted tab is never silently re-run.
 if [ -n "$OMO_AUTORUN" ]; then
     _omo_cmd="$OMO_AUTORUN"
     unset OMO_AUTORUN
-    printf '\e[2m%s\e[0m\n' "$_omo_cmd"
+    case "$_omo_cmd" in
+        omo_agent\ *) ;;                # says what it starts itself
+        *) printf '\e[2m%s\e[0m\n' "$_omo_cmd" ;;
+    esac
     eval "$_omo_cmd"
     unset _omo_cmd
 fi

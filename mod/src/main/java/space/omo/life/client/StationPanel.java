@@ -1,5 +1,6 @@
 package space.omo.life.client;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -11,6 +12,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ComponentPath;
 import net.minecraft.client.gui.Font;
@@ -43,7 +45,7 @@ import space.omo.life.station.StationTarget;
  * tiers, workspace over tabs:
  * <pre>
  *   ✦ Hermes 11 ▾  ◆ default        [Revive shell]  toast        ● Live  ⋯
- *   ● Hermes  ● Shell 2 ✕  +
+ *   ● ✦Hermes  ● Shell 2 ✕  ● ✳Claude Code  +
  *  ┌──────────────────────── terminal ────────────────────────┐
  * </pre>
  * The name opens the workspace switcher (every workspace on the host; search
@@ -51,6 +53,8 @@ import space.omo.life.station.StationTarget;
  * stops anything). Tabs are real tabs: the active one opens into the bezel
  * around the terminal it shows. The pill is the screen's connection (click to
  * reconnect); the dots open the rest (rename, profile, Start Hermes, ...).
+ * "+" opens the new-tab menu: Shell, Hermes, Claude Code, Codex. The last
+ * pick is remembered and preselected, so "+" then Enter repeats it.
  *
  * <p>Tab controls go over {@link BridgeClient}'s "ui" connection and the
  * header repaints from the bridge's broadcasts, so two screens on one
@@ -76,6 +80,9 @@ public final class StationPanel {
     private static final int TAB_H = 15;
     private static final int TAB_NAME_MAX = 84;
     private static final long CONFIRM_MS = 5000L;
+    /** The last kind picked from "+", kept across games. */
+    private static final Path LAST_KIND_FILE = FabricLoader.getInstance().getConfigDir().resolve("omolife-newtab.txt");
+    private static TabKind lastKind;
 
     private static final int KEY_TAB = 258;
     private static final int KEY_1 = 49;
@@ -238,6 +245,11 @@ public final class StationPanel {
             case "station" -> {
                 if (msg.get("station").getAsString().equals(station())) {
                     onScreens(msg.getAsJsonArray("screens"));
+                }
+            }
+            case "agents" -> {
+                if (popup == Popup.NEW_TAB && picker != null) {
+                    picker.rows(newTabRows());
                 }
             }
             case "profiles" -> {
@@ -492,11 +504,16 @@ public final class StationPanel {
             // A dead tab's way back is the one thing worth a button up here.
             OmoButton revive = OmoButton.of(font, OmoButton.Style.ACTION, OmoStyle.COPPER, "Revive shell", toastX0, y,
                 ROW_H, () -> revive("shell"));
-            OmoButton resume = OmoButton.of(font, OmoButton.Style.ACTION, OmoStyle.GOLD, "Resume Hermes",
-                revive.getRight() + 4, y, ROW_H, () -> revive("hermes"));
+            TabKind dead = kindOf(cur);
+            boolean agent = dead.agent() && dead.supportedBy(BridgeClient.get().tabKinds());
+            OmoButton resume = OmoButton.of(font, OmoButton.Style.ACTION, agent ? dead.colour : OmoStyle.GOLD,
+                agent ? reviveLabel(dead) : "Resume Hermes", revive.getRight() + 4, y, ROW_H,
+                () -> revive(agent ? dead.id : "hermes"));
             if (tips) {
                 revive.tip("Start a fresh shell in this tab. Nothing from before re-runs.");
-                resume.tip("Reopen this tab's saved Hermes conversation");
+                resume.tip(!agent ? "Reopen this tab's saved Hermes conversation"
+                    : dead == TabKind.CLAUDE ? "Reopen this tab's Claude Code session"
+                    : "Start Codex again in this tab (a new session)");
             }
             if (resume.getRight() < toastX1) {
                 add(revive);
@@ -522,7 +539,7 @@ public final class StationPanel {
         if (tabs.isEmpty()) {
             if (ws != null) {
                 OmoButton none = OmoButton.of(font, OmoButton.Style.LINK, accent, "No tabs: open one with +", x0,
-                    ty + 2, ROW_H - 2, () -> newTab("shell"));
+                    ty + 2, ROW_H - 2, () -> newTab(TabKind.SHELL, false));
                 add(none);
                 addPlus(none.getRight() + 6, ty, accent, tips);
             }
@@ -533,7 +550,7 @@ public final class StationPanel {
         int total = 0;
         for (int i = 0; i < tabs.size(); i++) {
             names.add(OmoStyle.fit(font, tabs.get(i).getAsJsonObject().get("name").getAsString(), TAB_NAME_MAX));
-            widths[i] = StationTab.widthFor(font, names.get(i));
+            widths[i] = StationTab.widthFor(font, names.get(i), kindOf(tabs.get(i).getAsJsonObject()));
             total += widths[i] + 2;
         }
         int room = x1 - x0 - 20;                  // "+" stays
@@ -561,7 +578,7 @@ public final class StationPanel {
         for (int i : visible) {
             JsonObject t = tabs.get(i).getAsJsonObject();
             String id = t.get("id").getAsString();
-            StationTab tab = new StationTab(font, accent, names.get(i), tabDot(t), id.equals(currentTab),
+            StationTab tab = new StationTab(font, accent, names.get(i), tabDot(t), kindOf(t), id.equals(currentTab),
                 id.equals(confirmTab), bx, ty, TAB_H, () -> selectTab(id), () -> closeTab(id),
                 () -> beginRenameTab(id));
             if (tips) {
@@ -587,7 +604,8 @@ public final class StationPanel {
         OmoButton plus = OmoButton.icon(font, OmoButton.Style.GHOST, accent, Glyph.PLUS, "New tab", x, ty + 1,
             ROW_H - 1, () -> openPopup(Popup.NEW_TAB)).selected(popup == Popup.NEW_TAB);
         if (tips) {
-            plus.tip("New tab: a shell (Ctrl+Shift+T) or Hermes (Ctrl+Shift+H)");
+            plus.tip("New tab: Shell (Ctrl+Shift+T), Hermes (Ctrl+Shift+H), Claude Code or Codex. "
+                + "Your last pick is preselected: + then Enter opens another.");
         }
         add(plus);
     }
@@ -642,9 +660,11 @@ public final class StationPanel {
             }
             case NEW_TAB -> {
                 anchor(plusX(), top + HEIGHT + 1);
-                yield new Picker(font, accent, null, 150, null, close).rows(List.of(
-                    Picker.Row.kind(false, "Shell", "Ctrl+Shift+T", () -> newTab("shell")),
-                    Picker.Row.kind(true, "Hermes", "Ctrl+Shift+H", () -> newTab("hermes"))));
+                if (TabKind.CLAUDE.supportedBy(BridgeClient.get().tabKinds())) {
+                    BridgeClient.get().send("agents");    // installed since the welcome? the reply refreshes the rows
+                }
+                yield new Picker(font, accent, "New tab", 170, null, close).rows(newTabRows())
+                    .note("Agents run on this PC, in the tab's shell.");
             }
             case TABS -> {
                 anchor(plusX() - 60, top + HEIGHT + 1);
@@ -734,6 +754,29 @@ public final class StationPanel {
         return rows;
     }
 
+    /** The "+" menu: every kind, the last pick preselected, with why a row may not work as it says. */
+    private List<Picker.Row> newTabRows() {
+        TabKind last = lastKind();
+        List<String> kinds = BridgeClient.get().tabKinds();
+        List<Picker.Row> rows = new ArrayList<>();
+        for (TabKind k : TabKind.values()) {
+            String detail = k.menuDetail(k.supportedBy(kinds), BridgeClient.get().agentFound(k.id));
+            rows.add(Picker.Row.tab(k, detail, k == last, () -> newTab(k, true)));
+        }
+        return rows;
+    }
+
+    private static TabKind lastKind() {
+        if (lastKind == null) {
+            lastKind = TabKind.readLast(LAST_KIND_FILE);
+        }
+        return lastKind;
+    }
+
+    private static TabKind kindOf(JsonObject tab) {
+        return TabKind.of(str(tab, "kind"));
+    }
+
     private List<Picker.Row> tabRows() {
         List<Picker.Row> rows = new ArrayList<>();
         JsonArray tabs = tabs();
@@ -762,6 +805,10 @@ public final class StationPanel {
         }
         if (cur != null && !isLive(cur)) {
             rows.add(Picker.Row.kind(false, "Revive shell", "", () -> revive("shell")));
+            TabKind k = kindOf(cur);
+            if (k.agent() && k.supportedBy(BridgeClient.get().tabKinds())) {
+                rows.add(Picker.Row.tab(k, "", false, () -> revive(k.id)).withLabel(reviveLabel(k)));
+            }
             rows.add(Picker.Row.kind(true, "Resume Hermes", "", () -> revive("hermes")));
         }
         if (cur != null) {
@@ -785,12 +832,31 @@ public final class StationPanel {
         focus.accept(null);
     }
 
-    private void newTab(String kind) {
+    /** Open a tab of this kind; {@code fromMenu} remembers it as the "+" menu's next preselection. */
+    private void newTab(TabKind kind, boolean fromMenu) {
         if (workspace.isEmpty()) {
             toast("No workspace yet: the bridge has not created one.", 3000, OmoStyle.AMBER);
             return;
         }
-        BridgeClient.get().send("tab_new", "ws", workspace, "kind", kind);
+        if (!kind.supportedBy(BridgeClient.get().tabKinds())) {
+            // An older bridge would open a plain shell named "Shell": say so instead.
+            toast("This Omo bridge predates " + kind.label + " tabs: update Omo Space and restart omo-bridge "
+                + "(open terminals keep running).", 7000, OmoStyle.AMBER);
+            return;
+        }
+        if (fromMenu && kind != lastKind()) {
+            lastKind = kind;
+            TabKind.writeLast(LAST_KIND_FILE, kind);
+        }
+        BridgeClient.get().send("tab_new", "ws", workspace, "kind", kind.id);
+        if (kind.agent() && Boolean.FALSE.equals(BridgeClient.get().agentFound(kind.id))) {
+            toast(kind.label + " is not installed on this PC: the new tab says how to install it.", 5000,
+                OmoStyle.AMBER);
+        }
+    }
+
+    private static String reviveLabel(TabKind k) {
+        return (k == TabKind.CLAUDE ? "Resume " : "Restart ") + k.label;
     }
 
     private void revive(String mode) {
@@ -923,8 +989,8 @@ public final class StationPanel {
         }
         switch (key) {
             case 79 -> openPopup(Popup.WORKSPACES);    // O
-            case 84 -> newTab("shell");                // T
-            case 72 -> newTab("hermes");               // H
+            case 84 -> newTab(TabKind.SHELL, false);   // T
+            case 72 -> newTab(TabKind.HERMES, false);  // H
             case 87 -> closeTab(currentTab);           // W
             case 82 -> reconnect();                    // R
             case 78 -> openPopup(Popup.RENAME_WORKSPACE); // N

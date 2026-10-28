@@ -39,6 +39,7 @@ to rename), and **+** for a new Shell or Hermes tab.
 | Ctrl+C / D / Z / L / W / T … | terminal | exactly what they do in any terminal (Ctrl+W deletes a word) |
 | Ctrl+Shift+O | panel | workspace switcher (type to search, Enter switches) |
 | Ctrl+Shift+T / H | panel | new shell tab / new Hermes tab |
+| + (end of the tabs) | panel | new tab menu: Shell, Hermes, Claude Code, Codex; your last pick is preselected (+ then Enter repeats it) |
 | Ctrl+Tab, Ctrl+Shift+Tab | panel | next / previous tab |
 | Alt+1 … 8, Alt+9 | panel | jump to that tab / the last tab |
 | Ctrl+Shift+W | panel | close tab (always asks; a second press within 5 s confirms) |
@@ -240,9 +241,10 @@ starter scene in a running test game.
 ## Tests
 
 ```bash
-python3 tests/test_bridge.py     # 58 checks: real bridge on a disposable tmux server + private Xvfb clipboard, stub hermes (~90 s)
+python3 tests/test_bridge.py     # 99 checks: real bridge on a disposable tmux server + private Xvfb clipboard, stub hermes (~90 s)
 python3 tests/test_platforms.py  # 28 checks: macOS + Windows paths, archives, launchd, WSL, argfile; any host
-python3 tests/test_launcher.py   # 56 checks: downloads, sign-in, launch args, world copy, repair; fake HOME, offline
+python3 tests/test_launcher.py   # 58 checks: downloads, sign-in, launch args, world copy, repair; fake HOME, offline
+python3 tests/test_tab_kinds.py  # the "+" menu's kinds, details and remembered pick (needs a JDK)
 tests/launch-test.sh &           # OmoTest instance on Xvfb :98 against an isolated bridge (port 8794)
 python3 tests/acceptance.py      # the PRD's release checks 1-8 in-game (OMO_TEST_NO_HERMES=1 skips inference)
 ```

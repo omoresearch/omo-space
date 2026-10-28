@@ -11,6 +11,8 @@ Type=simple
 Environment="OMO_DATA=@OMO_DATA@" "OMO_TMUX=@TMUX@"
 # The Hermes the launcher detected; empty means "hermes" on the service PATH.
 Environment="OMO_HERMES_BIN=@HERMES@"
+# Claude Code and Codex for agent tabs; empty means the bridge looks on its PATH.
+Environment="OMO_CLAUDE_BIN=@CLAUDE@" "OMO_CODEX_BIN=@CODEX@"
 ExecStart="@PYTHON@" "@BRIDGE@"
 # Only the bridge's own attach clients live in this cgroup; the shells are in
 # omo-tmux.service, so a restart here never ends a running command.

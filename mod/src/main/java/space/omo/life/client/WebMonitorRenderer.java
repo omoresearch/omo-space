@@ -68,6 +68,8 @@ public final class WebMonitorRenderer
         String url;
         int zoom;
         double inset;
+        /** How far the screen's layers stand off the glass, x their near spacing (see {@link #depthSpread}). */
+        float spread = 1;
         MonitorBlockEntityRenderer.State terminalState;
         ClientMonitor monitor;
     }
@@ -106,6 +108,7 @@ public final class WebMonitorRenderer
         state.width = be.getWidth();
         state.height = be.getHeight();
         state.origin = be.origin();
+        state.spread = depthSpread(cameraPos.distanceTo(Vec3.atCenterOf(state.origin)));
         // Only the origin panel draws, for terminals as for pages: CC:T's
         // renderer draws the whole wall relative to the panel it is given, so
         // delegating from every panel stacked one copy per panel.
@@ -146,6 +149,7 @@ public final class WebMonitorRenderer
         pose.mulPose(Axis.YN.rotationDegrees(state.direction.toYRot()));
         pose.mulPose(Axis.XP.rotationDegrees(DirectionUtil.toPitchAngle(state.front)));
         pose.translate(-0.5 + border, state.height - 0.5 - border, 0.5);
+        pose.scale(1, 1, state.spread);          // layers stay apart in depth from far away
         if (!state.web) {
             terminalQuads(pose, collector, state.monitor == null ? null : state.monitor.getTerminal(), w, h);
             pose.popPose();
@@ -190,6 +194,18 @@ public final class WebMonitorRenderer
         pose.scale(xScale, -yScale, 1);
         collector.submitCustomGeometry(pose, FixedWidthFontRenderer.TERMINAL_TEXT, (p, vc) ->
             FixedWidthFontRenderer.drawTerminal(p.pose(), vc, 0, 0, term, yMargin, yMargin, xMargin, xMargin));
+    }
+
+    /**
+     * The screen's layers (glass at 0.5 mm, page or text at 1 mm off the
+     * block face) z-fight from afar: depth precision falls with distance
+     * squared, and shader packs (Iris) make it worse, so at certain angles the
+     * page flickers through the block. Spread the layers out with distance:
+     * 1x up close, ~8x (4 mm) at 40 blocks, capped at 40x (2 cm), which is
+     * invisible from where it applies.
+     */
+    static float depthSpread(double blocks) {
+        return (float) Math.max(1.0, Math.min(40.0, blocks * blocks * 0.0048));
     }
 
     /** An opaque, depth-writing, full-bright rectangle just in front of the block face. */

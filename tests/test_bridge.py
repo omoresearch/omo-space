@@ -11,6 +11,7 @@ import asyncio
 import json
 import os
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -278,6 +279,19 @@ async def clipboard(env, ui, y):
     await ui.send(t="sel", x1=0, y1=y - 1, x2=0, y2=y, unit="line")
     check("a line wrapped on screen copies as one line", *await copied("W" * 100))
 
+    # A TUI redraws on its own (Hermes streaming): the highlight must not sit
+    # on new text, and a later copy takes what was highlighted.
+    await ui.send(t="in", d="clear; echo keep-this-$((3*3)); sleep 1.5; clear; echo other-text-$((2*2))\r")
+    await ui.screen_has("keep-this-9")
+    await ui.settle(0.3)
+    y = ui.row_of("keep-this-9") - 1
+    await ui.send(t="sel", x1=0, y1=y, x2=10, y2=y, unit="char")
+    await ui.screen_has("other-text-4")
+    await ui.settle(0.6)
+    moved = ui.run_of("other-text-4")
+    check("a redraw under a selection drops the highlight", moved and moved[3] != "3", str(moved))
+    check("a copy after the redraw takes the text that was highlighted", *await copied("keep-this-9"))
+
     env.clip("echo pasted-$((40+2))\necho second-$((1+1))")
     await ui.send(t="in", d="clear\r")
     await ui.settle()
@@ -534,6 +548,23 @@ async def auto_sleep(env):
     api(env, "delete", ws=ws["id"], force=1)
 
 
+async def stalled_tmux(env, ui):
+    """A session server that stops answering for a while (load, swap) is
+    waited out: the screen stays attached and keeps working. On 28 Oct
+    every open screen detached at once when `tmux display` timed out."""
+    pid = int(env.tmux("display", "-p", "#{pid}").stdout.strip())
+    await ui.send(t="in", d="echo before-stall\r")
+    await ui.screen_has("before-stall")
+    os.kill(pid, signal.SIGSTOP)
+    try:
+        detached = await ui.expect(lambda m: m["t"] == "detached", 12)
+    finally:
+        os.kill(pid, signal.SIGCONT)
+    check("a stalled session server does not detach the screen", not detached, str(detached))
+    await ui.send(t="in", d="echo after-stall\r")
+    check("the screen works again once tmux answers", await ui.screen_has("after-stall", 10) is True)
+
+
 async def run(env):
     units()
     env.start_display()
@@ -574,6 +605,7 @@ async def run(env):
     await ui.send(t="size", cols=60, rows=12)
     await ui.send(t="in", d="echo still-painting\r")
     check("combining marks do not freeze the screen", await ui.screen_has("still-painting"))
+    await stalled_tmux(env, ui)
     # A stand-in for Ink/prompt_toolkit TUIs: Enter only counts when a read
     # returns it alone. Keys arrive one message each, as the Lua client sends.
     tui = os.path.join(env.dir, "tui.py")
@@ -712,6 +744,34 @@ async def run(env):
     env.start_bridge()
     late = Client(env)
     check("tickets minted before a restart are refused", (await late.open(ticket=old, station="st-9", ws=term["id"]))["t"] == "error")
+
+    # -- session server restart -> coming back to a screen restores the tabs --
+    env.stop_bridge()
+    env.tmux("kill-server")
+    time.sleep(0.5)
+    env.start_server()
+    env.start_bridge()
+    before = api(env, "get", ws=term["id"])
+    open(env.calls, "w").close()
+    ui = Client(env)
+    await ui.open(token=env.token, role="ui")
+    await ui.send(t="attach", ws=term["id"], tab=shell_tab, cols=60, rows=12)
+    toast = await ui.expect(lambda m: m["t"] == "toast" and "restored" in m.get("m", ""), 6)
+    att = await ui.expect(lambda m: m["t"] == "attached", 6)
+    d = api(env, "get", ws=term["id"])
+    check("attaching after a server restart restores every interrupted tab, same ids and order",
+          toast and att and att["state"] == "live" and att["tab"] == shell_tab
+          and [t["id"] for t in d["tabs"]] == [t["id"] for t in before["tabs"]]
+          and all(t["state"] == "live" for t in d["tabs"]), str(d["tabs"]))
+    await ui.send(t="in", d='echo "back pwd=$PWD"\r')
+    check("a restored shell opens in its last directory", await ui.screen_has("back pwd=/tmp"))
+    await ui.send(t="attach", ws=herm["id"], tab="", cols=60, rows=12)
+    await ui.expect(lambda m: m["t"] == "attached", 6)
+    await asyncio.sleep(1.5)
+    calls = open(env.calls).read()
+    check("a restored Hermes tab resumes its own conversation",
+          f"-c omo:{herm['id']}:{herm['tabs'][0]['id']} --create-if-missing" in calls, calls)
+    await ui.close()
 
     # -- an authored world's preset: name, kind, profile and tabs in one create --
     preset = api(env, "create", name="Website · Dev", kind="hermes", profile="omo-dev",

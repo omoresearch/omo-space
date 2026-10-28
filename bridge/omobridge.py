@@ -60,6 +60,7 @@ status page for web monitors), and token-guarded /ticket and /api/<op>.
 """
 import asyncio
 import base64
+import glob
 import concurrent.futures
 import hashlib
 import hmac
@@ -122,6 +123,7 @@ ENTER_GAP = 0.04
 # screen on the tab resumes that same conversation. 0 turns it off.
 SLEEP_AFTER = float(os.environ.get("OMO_SLEEP_AFTER", "1200"))
 SLEEP_SCAN = float(os.environ.get("OMO_SLEEP_SCAN", "60"))
+REMEMBER_EVERY = float(os.environ.get("OMO_REMEMBER_EVERY", "20"))
 SLEEP_PER_SCAN = 4                  # never put a crowd to sleep in one burst
 EXIT_WAIT = 15.0                    # seconds a /exit may take before we give up on that tab
 # Processes a quiet Hermes may own (its UI, its gateway, MCP servers via uv).
@@ -138,6 +140,10 @@ AWAKE_MARKS = re.compile(r"⊙ goal|⏳ goal|⏸ goal|⛓|\b\d+ bg\b|resumes whe
 # and keystrokes share it; the asyncio default (cpu+4) queues typing behind polls.
 WORKERS = 64
 POLL_ACTIVE, POLL_QUIET = 0.5, 2.0   # tmux state checks per open screen: in use / quiet
+# A state check tmux has not answered by then is skipped, not fatal: under load
+# or swap the session server can stall for seconds, and the screen's text comes
+# from its own PTY meanwhile. (A 10 s timeout used to end every open screen.)
+POLL_TIMEOUT = 2.0
 
 LIMITS = {"workspaces": 128, "tabs_per_workspace": 12, "views": 192}   # sized for a built world: one desk per room, two views where a wall is attached
 SHELLS = {"bash", "sh", "zsh", "fish", "dash"}
@@ -256,14 +262,14 @@ class Tmux:
     def argv(self, *args):
         return [self.bin, "-L", self.sock, *args]
 
-    def run(self, *args):
-        return subprocess.run(self.argv(*args), capture_output=True, text=True, timeout=10)
+    def run(self, *args, timeout=10.0):
+        return subprocess.run(self.argv(*args), capture_output=True, text=True, timeout=timeout)
 
     def ok(self, *args):
         return self.run(*args).returncode == 0
 
-    def out(self, *args):
-        p = self.run(*args)
+    def out(self, *args, timeout=10.0):
+        p = self.run(*args, timeout=timeout)
         return p.stdout if p.returncode == 0 else ""
 
     def server_id(self):
@@ -280,14 +286,14 @@ class Tmux:
         return self.out("list-sessions", "-F", "#{session_name}").splitlines()
 
     def windows(self, session):
-        """[{id, tab, cmd, pid}] for every window of a session."""
+        """[{id, tab, cmd, pid, cwd}] for every window of a session."""
         raw = self.out("list-windows", "-t", "=" + session, "-F",
-                       "#{window_id}\t#{@omo_tab}\t#{pane_current_command}\t#{pane_pid}")
+                       "#{window_id}\t#{@omo_tab}\t#{pane_current_command}\t#{pane_pid}\t#{pane_current_path}")
         rows = []
         for line in raw.splitlines():
             parts = line.split("\t")
-            if len(parts) == 4:
-                rows.append({"id": parts[0], "tab": parts[1], "cmd": parts[2], "pid": parts[3]})
+            if len(parts) == 5:
+                rows.append({"id": parts[0], "tab": parts[1], "cmd": parts[2], "pid": parts[3], "cwd": parts[4]})
         return rows
 
 
@@ -507,7 +513,7 @@ def hermes_command(ws, tab_id):
     return f"{shell_quote(HERMES_BIN)} {flag}chat --tui -c {shell_quote(hermes_title(ws['id'], tab_id))} --create-if-missing"
 
 
-def tab_env(ws, tab):
+def tab_env(ws, tab, autorun=True):
     hermes = tab["kind"] == "hermes"
     env = {
         "OMO_WORKSPACE": ws["id"], "OMO_WORKSPACE_NAME": ws["name"],
@@ -516,7 +522,7 @@ def tab_env(ws, tab):
         "TERM": "xterm-256color",
         # Always set, even empty: a session's -e environment is inherited by
         # later windows, and a shell tab must never pick up a Hermes autorun.
-        "OMO_AUTORUN": hermes_command(ws, tab["id"]) if hermes else "",
+        "OMO_AUTORUN": hermes_command(ws, tab["id"]) if hermes and autorun else "",
         "OMO_HERMES_TITLE": hermes_title(ws["id"], tab["id"]) if hermes else "",
     }
     return [a for k, v in env.items() for a in ("-e", f"{k}={v}")]
@@ -585,6 +591,7 @@ class Workspaces:
     def _describe_locked(self, ws, server):
         alive = bool(server) and self._recover_base_locked(ws["id"])
         wins = self._windows_locked(ws, server) if alive else {}
+        self._remember_cwds_locked(ws, wins)
         tabs = []
         for t in ws["tabs"]:
             win = wins.get(t["id"])
@@ -641,11 +648,61 @@ class Workspaces:
             log(f"workspace create {ws['id']} '{name}' kind={kind} profile={ws['profile'] or 'default'}")
             return self._describe_locked(ws, TM.server_id())
 
-    def _open_window_locked(self, ws, tab):
+    @staticmethod
+    def _remember_cwds_locked(ws, wins):
+        """Keep each live tab's working directory in the metadata, so a tab
+        restored after a session-server restart opens where it was."""
+        changed = False
+        for t in ws["tabs"]:
+            cwd = (wins.get(t["id"]) or {}).get("cwd")
+            if cwd and os.path.isabs(cwd) and t.get("cwd") != cwd:
+                t["cwd"], changed = cwd, True
+        if changed:
+            META.save()
+
+    def remember_cwds(self):
+        """One pass over every workspace (worker thread, periodic)."""
+        with self.lock:
+            server = TM.server_id()
+            if not server:
+                return
+            for ws in META.workspaces.values():
+                if TM.has_session(ws_session(ws["id"])):
+                    self._remember_cwds_locked(ws, self._windows_locked(ws, server))
+
+    def restore(self, ws_id):
+        """Reopen every interrupted tab of a workspace, as it was: same tab
+        ids, names and order, shells in their last directory, Hermes tabs on
+        their own conversation (asleep ones stay asleep until looked at).
+        Only tabs the session server lost; a tab the user exited stays exited.
+        Commands that were running are never re-run. Returns tabs reopened."""
+        with self.lock:
+            ws = META.workspaces.get(ws_id)
+            server = TM.server_id()
+            if not ws or not server:
+                return 0            # never start a tmux server outside its service
+            desc = self._describe_locked(ws, server)
+            lost = {t["id"] for t in desc["tabs"] if t["state"] == "interrupted"}
+            n = 0
+            for tab in ws["tabs"]:
+                if tab["id"] not in lost:
+                    continue
+                try:
+                    self._open_window_locked(ws, tab, autorun=not tab.get("asleep"))
+                    n += 1
+                except BridgeError as exc:
+                    log(f"restore {ws_id}/{tab['id']}: {exc}")
+            if n:
+                META.save()
+                log(f"restore {ws_id} '{ws['name']}': reopened {n} tab(s)")
+            return n
+
+    def _open_window_locked(self, ws, tab, autorun=True):
         """Start this tab's window, creating the session when it is gone.
         Reviving one tab of an interrupted workspace starts only that tab."""
         session = ws_session(ws["id"])
-        common = ("-n", tab["name"], "-c", HOME, *tab_env(ws, tab), SHELL_CMD)
+        cwd = tab.get("cwd") if tab.get("cwd") and os.path.isdir(tab["cwd"]) else HOME
+        common = ("-n", tab["name"], "-c", cwd, *tab_env(ws, tab, autorun), SHELL_CMD)
         if TM.has_session(session):
             p = TM.run("new-window", "-d", "-P", "-F", "#{window_id}", "-t", "=" + session, *common)
         else:
@@ -941,9 +998,14 @@ class View:
 
     def poll(self):
         """Refresh scroll position, history size and alternate screen; returns
-        the window id now shown ("" when tmux did not answer)."""
-        out = TM.out("display", "-p", "-t", self.target,
-                     "#{pane_in_mode}\t#{scroll_position}\t#{history_size}\t#{alternate_on}\t#{window_id}")
+        the window id now shown ("" when tmux did not answer in time: the
+        last known state stands and the next poll asks again)."""
+        try:
+            out = TM.out("display", "-p", "-t", self.target,
+                         "#{pane_in_mode}\t#{scroll_position}\t#{history_size}\t#{alternate_on}\t#{window_id}",
+                         timeout=POLL_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            return ""
         parts = out.strip().split("\t")
         if len(parts) != 5:
             return ""
@@ -1115,6 +1177,16 @@ class Sleeper:
 SLEEPER = Sleeper()
 
 
+async def remember_loop():
+    """Note where every tab is working, so a restore can put it back there."""
+    while True:
+        await asyncio.sleep(REMEMBER_EVERY)
+        try:
+            await asyncio.to_thread(WS.remember_cwds)
+        except Exception as exc:
+            log(f"remember error: {exc!r}")
+
+
 async def sleep_loop():
     if SLEEP_AFTER <= 0:
         log("auto-sleep off (OMO_SLEEP_AFTER=0)")
@@ -1133,33 +1205,66 @@ async def sleep_loop():
 # bridge is a user service without a display of its own, so it finds the live
 # X display (OMO_DISPLAY pins one: the test stack uses its private Xvfb, so a
 # test never touches the player's clipboard).
+def _xauthority():
+    """The X cookie for this user's desktop. A user service inherits no
+    XAUTHORITY, and GNOME/mutter's Xwayland refuses clients without its
+    cookie (a fresh /run/user/<uid>/.mutter-Xwaylandauth.* per login), so
+    find it rather than fall through to some other display."""
+    if os.environ.get("XAUTHORITY"):
+        return os.environ["XAUTHORITY"]
+    run = os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+    found = []
+    for pattern in (".mutter-Xwaylandauth.*", "xauth_*", "gdm/Xauthority"):
+        found += glob.glob(os.path.join(run, pattern))
+    found = [p for p in found if os.path.isfile(p) and os.stat(p).st_uid == os.getuid()]
+    if found:
+        return max(found, key=os.path.getmtime)
+    home = os.path.expanduser("~/.Xauthority")
+    return home if os.path.isfile(home) else ""
+
+
+def _x_env(disp):
+    env = {**os.environ, "DISPLAY": disp,
+           "XDG_RUNTIME_DIR": os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")}
+    xauth = _xauthority()
+    if xauth:
+        env["XAUTHORITY"] = xauth
+    return env
+
+
 def _live_display():
     if DISPLAY:
         return DISPLAY
     cached = getattr(_live_display, "_cache", None)
-    if cached:
+    if cached and _x_ok(cached):
         return cached
     candidates = [os.environ["DISPLAY"]] if os.environ.get("DISPLAY") else []
+    # Only this user's own X servers: another account's open Xvfb accepts
+    # anyone, and copying there sends the player's text to that account.
     try:
-        candidates += [":" + s[1:] for s in sorted(os.listdir("/tmp/.X11-unix"))
-                       if s.startswith("X") and s[1:].isdigit()]
+        for s in sorted(os.listdir("/tmp/.X11-unix")):
+            if s.startswith("X") and s[1:].isdigit() and \
+                    os.stat(os.path.join("/tmp/.X11-unix", s)).st_uid == os.getuid():
+                candidates.append(":" + s[1:])
     except OSError:
         pass
     for disp in candidates:
-        try:
-            probe = subprocess.run(["xdpyinfo", "-display", disp], capture_output=True, timeout=3,
-                                   env={**os.environ, "DISPLAY": disp})
-            if probe.returncode == 0:
-                _live_display._cache = disp
-                return disp
-        except (OSError, subprocess.SubprocessError):
-            continue
+        if _x_ok(disp):
+            _live_display._cache = disp
+            return disp
     return os.environ.get("DISPLAY") or ":0"
 
 
+def _x_ok(disp):
+    try:
+        return subprocess.run(["xdpyinfo", "-display", disp], capture_output=True, timeout=3,
+                              env=_x_env(disp)).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def _desktop_env():
-    env = {**os.environ, "DISPLAY": _live_display(),
-           "XDG_RUNTIME_DIR": os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")}
+    env = _x_env(_live_display())
     if DISPLAY:
         env.pop("WAYLAND_DISPLAY", None)
     return env
@@ -1275,6 +1380,7 @@ class Conn:
         self.ws_id = None
         self.current_tab = None
         self.sel = None             # normalised (x1, y1, x2, y2) on this view's screen
+        self.sel_text = None        # the text under `sel` when it was made: what a copy takes
         self.find = None            # (query, row of the current match)
         self.find_at = None         # (history line, x) of the current match
         self.dirty_all = False
@@ -1341,6 +1447,12 @@ class Conn:
                 if pty.bells != bells and now - last_bell > 1.0:
                     bells, last_bell = pty.bells, now
                     await self.send({"t": "bell"})
+                if self.sel and self.sel_text is not None and \
+                        termcore.selection_text(pty.text_lines(), self.sel, pty.cols) != self.sel_text:
+                    # The app redrew under the highlight (a TUI streaming or
+                    # scrolling): drop the highlight rather than leave it on
+                    # other text. A copy still takes what was highlighted.
+                    self.sel = None
                 frame = pty.frame(self.sel, self.find)
                 size = (frame["cols"], frame["rows"])
                 full = size != prev_size or self.dirty_all
@@ -1389,6 +1501,14 @@ class Conn:
     async def attach(self, ws_id, tab_id, cols, rows):
         async with self.attach_lock:
             desc = await asyncio.to_thread(WS.describe, ws_id)
+            if any(t["state"] == "interrupted" for t in desc["tabs"]):
+                # The session server restarted (OOM, reboot): coming back to
+                # the screen brings the workspace's terminals back as they were.
+                restored = await asyncio.to_thread(WS.restore, ws_id)
+                if restored:
+                    desc = await asyncio.to_thread(WS.describe, ws_id)
+                    await self.toast(f"restored {restored} terminal{'s' if restored != 1 else ''} after a restart")
+                    Sleeper.announce(ws_id, desc)
             tab = next((t for t in desc["tabs"] if t["id"] == tab_id), None)
             if tab is None or (not tab_id and tab["state"] != "live"):
                 tab = next((t for t in desc["tabs"] if t["state"] == "live"), None) or tab \
@@ -1397,7 +1517,7 @@ class Conn:
                 raise BridgeError("workspace has no tabs")
             await self._detach_locked()
             self.ws_id, self.current_tab = ws_id, tab["id"]
-            self.sel = self.find = self.find_at = None
+            self.sel = self.sel_text = self.find = self.find_at = None
             if self.subscribed != ws_id:
                 if self.subscribed:
                     WS.unsubscribe(self.subscribed, self.on_workspace_change)
@@ -1614,8 +1734,8 @@ class Conn:
     async def _screen_op(self, kind, msg):
         view, call = self.view, asyncio.to_thread
         pty = view.pty
-        if kind in ENDS_SELECTION and self.sel:     # typing or moving ends a selection, as in any terminal
-            self.sel = None
+        if kind in ENDS_SELECTION and (self.sel or self.sel_text is not None):
+            self.sel = self.sel_text = None         # typing or moving ends a selection, as in any terminal
             self.wake.set()
         if kind in ("in", "paste", "wheel", "scroll", "sel"):
             self.last_active = LAST_INPUT[(self.ws_id, self.current_tab)] = time.monotonic()
@@ -1638,13 +1758,18 @@ class Conn:
             await self._wheel(view, int(msg.get("by", 0)), *self._cell(msg))
         elif kind == "sel":
             if msg.get("x1") is None:
-                self.sel = None
+                self.sel = self.sel_text = None
             else:
                 corners = (*self._cell(msg, "x1", "y1"), *self._cell(msg, "x2", "y2"))
-                self.sel = termcore.expand(pty.text_lines(), corners, str(msg.get("unit", "char")), pty.cols)
+                lines = pty.text_lines()
+                self.sel = termcore.expand(lines, corners, str(msg.get("unit", "char")), pty.cols)
+                self.sel_text = termcore.selection_text(lines, self.sel, pty.cols)
             self.wake.set()
         elif kind == "copy":
-            text = termcore.selection_text(pty.text_lines(), self.sel, pty.cols)
+            # What was highlighted, not what is under those cells now: a TUI
+            # may have redrawn since (Hermes streaming a reply).
+            text = self.sel_text if self.sel_text is not None else \
+                termcore.selection_text(pty.text_lines(), self.sel, pty.cols)
             if not text.strip():
                 await self.toast("nothing selected")
                 return
@@ -1860,10 +1985,12 @@ async def main():
     async with serve(handler, HOST, PORT, max_size=2 ** 20, ping_interval=20,
                      process_request=process_request):
         sleeper = asyncio.create_task(sleep_loop())
+        rememberer = asyncio.create_task(remember_loop())
         try:
             await asyncio.Future()
         finally:
             sleeper.cancel()
+            rememberer.cancel()
 
 
 if __name__ == "__main__":

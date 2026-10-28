@@ -87,7 +87,7 @@ from websockets.http11 import Response
 
 import termcore
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 HOME = os.path.expanduser("~")
 DATA_DIR = os.environ.get("OMO_DATA", os.path.join(HOME, ".local", "share", "omo"))
 TOKEN_FILE = os.path.join(DATA_DIR, "token")

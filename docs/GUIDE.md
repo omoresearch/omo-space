@@ -85,6 +85,22 @@ controls: **Terminal** or **Web page**, an address, **Pin page**, zoom, and
 `http://127.0.0.1:8780/board`: the **Hermes Board**, a live view of every
 workspace and what it is running.
 
+**Web walls** behave like a browser. Links that open a new window
+(target=_blank, middle or Ctrl+click, `window.open`) open as **tabs** of that
+wall: up to 6, with a tab strip in Interact and Ctrl+T / Ctrl+W /
+Ctrl+(Shift+)Tab. Each wall has its own **sound**: the Sound row in its
+controls and the Interact bar have [−] [♪ 80%] [+]; click the middle to mute,
+scroll on it, or press Ctrl+M. A wall's volume is also scaled by Minecraft's
+Master and Jukebox/Note Blocks sliders and fades with distance (full within 6
+blocks, silent from 40). Up to 12 pages run at once; past that, the page
+nobody has looked at for longest closes and reopens when you look back. A
+memory guard pauses new pages when the machine runs low and closes runaway
+Chromium processes. Logged-in pages: `-Domo.firefoxCookies=true` (or
+`OMO_FIREFOX_COOKIES=1`) copies your Firefox cookies in, one way, at start
+and when Firefox changes them. It is off by default, because every page a
+wall shows, including one another player pinned, would then browse with
+those logins.
+
 Chat commands (world owner or op): `/omo status`, `/omo workspaces` (click one
 to bind the station you look at), `/omo rebind <id>`, `/omo rename <name>`,
 `/omo profile [<name>]`, `/omo forget <id> [force]`.
@@ -176,8 +192,11 @@ Hermes Board and Hermes docs on the walls.
 - **Restarting the bridge, the game or the launcher never touches a shell.**
   Stopping the session server or rebooting does, and the UI says so:
   **INTERRUPTED** (host or session server restarted), **ENDED** (every tab
-  exited on its own), **TAB ENDED** (this tab's process finished). Nothing is
-  re-run automatically; *Revive shell* and *Resume Hermes* are explicit.
+  exited on its own), **TAB ENDED** (this tab's process finished). When a
+  screen next opens an interrupted workspace, its lost tabs are reopened as
+  they were (names, order, each shell's last folder, Hermes on its own
+  conversation). A command that was running is never re-run; *Revive shell*
+  and *Resume Hermes* still work per tab.
 - **Hermes, the Hermes way.** A Hermes tab runs
   `hermes [-p <profile>] chat --tui -c omo:<workspace>:<tab> --create-if-missing`:
   a titled conversation in that profile's own session store, so resuming never
@@ -238,6 +257,10 @@ Desktop attach for diagnostics: `~/.local/share/omo/bin/tmux -L omo attach -t om
   the world owner (or ops).
 - Web pages keep running while the game is open. Closing the game ends the
   browser; the page binding is restored on return, in-page state is not.
+- MCEF's Chromium has no proprietary codecs: VP8/VP9/AV1/Opus/MP3 play
+  (YouTube works), H.264/AAC/HLS do not (most Instagram, X and Reddit video).
+  It runs without GPU acceleration (`--disable-gpu`), because GPU-process
+  restarts used to take the whole game down.
 - CC:T's font is ASCII with 16 colours; TUIs are faithful ASCII renderings.
 - macOS uses Homebrew tmux under launchd; Windows runs the session server and
   Hermes in WSL2. Both are tested offline only so far: see docs/PLATFORMS.md.

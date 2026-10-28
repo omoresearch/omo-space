@@ -85,10 +85,14 @@ from across the room:
 | Quit Minecraft | Keep running | Keeps running |
 | Restart the bridge or the launcher | Keep running | Keeps running |
 | Hermes tab idle and unseen for 20 min | — | Sleeps: Hermes exits cleanly, the conversation is saved, and it resumes when a screen shows the tab again |
-| PC restart, or `omo-tmux` stops | **Lost** | Saved. The tab shows **INTERRUPTED** and offers **Resume Hermes** |
+| PC restart, or `omo-tmux` stops | **Lost**. The tabs come back (same names and order, shells in their last folder) the next time a screen opens the workspace | Saved. It resumes in its reopened tab (a tab that was asleep stays asleep until you look at it) |
 
-Nothing is ever re-run without you. **Revive shell** and **Resume Hermes**
-are buttons you press.
+When a screen opens a workspace whose tabs were lost, the bridge reopens
+those tabs and says *restored N terminals after a restart*. Commands that
+were running are never re-run, and shell scrollback is gone. A tab you
+exited yourself stays closed. **Revive shell** and **Resume Hermes** still
+work for single tabs. The bridge never starts a session server of its own:
+while `omo-tmux` is down, nothing is restored.
 
 A tab that is working never sleeps: Hermes must be `ready`, with an empty
 input line, no goal or question on screen and no process of its own. To change
@@ -117,10 +121,33 @@ under **Agents** gets a preset: a name, a profile and its tabs. The desk has
 no workspace until someone opens it, so a shared map never carries your
 sessions.
 
-## 8. What is not built yet
+## 8. Agent bodies in your world (LAN join)
 
-- An agent does not act in the world. It cannot walk, place blocks or press
-  buttons. It works in its terminal on your PC.
+A Hermes desk agent works in its terminal. A separate agent runtime on your
+PC (for example the Omo Teacher's Mineflayer body) can also join your
+single-player world as a player:
+
+- When you open a single-player world and have joined it, the mod opens it to
+  LAN on port 25566 (the next free one up to 25570) and writes
+  `~/.config/omo/lan.json` (`host`, `port`, `world`, `version`) so the runtime
+  can find it. The file is removed when the world closes.
+- A bot has no Microsoft account, so the world accepts offline logins. Those
+  players may join **from this computer only**: anyone else connecting
+  without authentication is disconnected. Your LAN still sees the world in
+  its server list.
+- The agent bodies (`omo` and `teacher` by default) skip Fabric's registry
+  check (they are plain Mineflayer clients), wear the bundled Omo skin and show
+  as **ChatGPT - <name>** over their heads, in the tab list and in chat.
+- JVM flags: `-Domo.agents.lan=false` turns it all off,
+  `-Domo.agents.port=<n>` picks the port, `-Domo.agents.names=a,b` sets the
+  agent names, `-Domo.agents.allowRemote=true` also lets unauthenticated
+  players in from other computers (only on a network you trust).
+
+## 9. What is not built yet
+
+- A Hermes desk agent does not act in the world. It cannot walk, place
+  blocks or press buttons. It works in its terminal on your PC (an agent body
+  joined over LAN, above, is a separate runtime).
 - Agents do not talk to each other through the world. Hand work between them
   the normal Hermes way.
 - Workspaces live on the PC that opened them. A friend on another PC gets

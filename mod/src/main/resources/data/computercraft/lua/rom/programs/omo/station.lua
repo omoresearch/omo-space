@@ -697,11 +697,17 @@ local function mouse(s, kind, button, x, y)
   -- An app that asked for the mouse (Hermes, vim, htop) still gets clicks and
   -- the wheel, but a left-button DRAG selects text, as in the plain shell: the
   -- press is held back until we know whether it is a click or a drag. Shift
-  -- still reaches past the app for Shift+click / Shift+drag selection.
+  -- still reaches past the app for Shift+click / Shift+drag selection. A
+  -- double or triple click selects a word or line here too, so what is
+  -- highlighted is always ours and Ctrl+Shift+C / Ctrl+C copy it.
   if s.mouse and not shift then
     if y > s.h then return end
     local held = s.heldPress
-    if kind == "click" and button == 1 then
+    local last = s.lastClick
+    local again = last and os.epoch("utc") - last.at < DOUBLE_MS and last.y == y - 1 and math.abs(last.x - (x - 1)) <= 1
+    if kind == "click" and button == 1 and again then
+      s.heldPress = nil                        -- a second/third click: falls through to word/line selection
+    elseif kind == "click" and button == 1 then
       s.heldPress = { x = x, y = y }
       return
     elseif kind == "drag" and held then
@@ -713,6 +719,7 @@ local function mouse(s, kind, button, x, y)
       return sendSel(s)
     elseif kind == "up" and held then
       s.heldPress = nil                        -- no movement: a plain click for the app
+      s.lastClick = { at = os.epoch("utc"), x = held.x - 1, y = held.y - 1, count = 1 }
       report(s, 0, held.x, held.y, false)
       return report(s, 0, held.x, held.y, true)
     elseif s.dragging and (kind == "drag" or kind == "up") then

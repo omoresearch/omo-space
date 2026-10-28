@@ -436,10 +436,34 @@ def runtime_stamp():
     return f"{MANIFEST['minecraft']['sha1']} fabric {MANIFEST['fabric']['loader']}\n"
 
 
+LOCAL_JVM = RUNTIME / "local-jvm.json"   # per-machine overrides, kept by every entry point
+
+
+def local_jvm():
+    """Optional {"jvm_args": [...], "memory_mb": {"min": n, "max": n}} so tuning
+    (e.g. ZGC + more heap for Distant Horizons) survives launches from any
+    entry point, not only ones that export OMO_JVM_ARGS."""
+    try:
+        data = json.loads(LOCAL_JVM.read_text())
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def memory_mb():
+    mem = dict(MANIFEST["memory_mb"])
+    mem.update({k: int(v) for k, v in (local_jvm().get("memory_mb") or {}).items() if k in ("min", "max")})
+    return mem
+
+
 def extra_jvm_args():
     """OMO_JVM_ARGS: extra game JVM options, e.g. -Domo.port=... to point the
-    mod at an isolated test bridge."""
-    return os.environ.get("OMO_JVM_ARGS", "").split()
+    mod at an isolated test bridge. Local overrides come first, env wins after."""
+    out = []
+    for a in [*(local_jvm().get("jvm_args") or []), *os.environ.get("OMO_JVM_ARGS", "").split()]:
+        if a not in out:
+            out.append(a)
+    return out
 
 
 def argfile_line(arg):
@@ -475,7 +499,7 @@ def launch_args(v, account, java):
                 out.append(re.sub(r"\$\{(\w+)\}", lambda m: subs.get(m.group(1), m.group(0)), piece))
         return out
 
-    mem = MANIFEST["memory_mb"]
+    mem = memory_mb()
     # omo.game marks the process as Omo's (instance_pids reads it on macOS/Windows);
     # omo.data tells the mod where the bridge token lives.
     jvm = [f"-Xms{mem['min']}m", f"-Xmx{mem['max']}m", "-Dfile.encoding=UTF-8",
@@ -843,7 +867,7 @@ def ensure_prism_runtime(java):
         "AutomaticJavaSwitch": "false",
         "UserAskedAboutAutomaticJavaDownload": "true", "ShowConsole": "false", "ShowConsoleOnError": "false",
         "CloseAfterLaunch": "false", "QuitAfterGameStop": "true", "AutoCloseConsole": "true"})
-    mem = MANIFEST["memory_mb"]
+    mem = memory_mb()
     ini_set(INSTANCE / "instance.cfg", "General", {
         "ConfigVersion": "1.3", "InstanceType": "OneSix", "name": MANIFEST["name"], "iconKey": "default",
         "JavaPath": Path(java).as_posix(), "OverrideJavaLocation": "true", "OverrideMemory": "true",

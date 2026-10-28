@@ -1,11 +1,8 @@
 package space.omo.life.client;
 
 import java.lang.reflect.Method;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.function.Consumer;
 
 import com.mojang.blaze3d.textures.GpuTextureView;
@@ -16,11 +13,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
-import org.cef.CefClient;
 import org.cef.browser.CefBrowser;
-import org.cef.browser.CefFrame;
-import org.cef.handler.CefLoadHandlerAdapter;
-import org.cef.network.CefRequest;
 
 import space.omo.life.OmoLife;
 
@@ -32,17 +25,18 @@ import space.omo.life.OmoLife;
 final class McefRuntime {
 
     private static boolean initRequested;
+    /** Published only by the completion callback on the client thread. */
+    private static MCEFApi api;
     /** JCEF's own key entry point, to send keys MCEF translates wrongly on Linux (see {@link PageKeys}). */
     private static final Method SEND_KEY = sendKeyMethod();
-    /** Our pages, for the per-frame key-code fix (MCEF's client may also serve other mods' browsers). */
-    private static final Set<CefBrowser> OURS = Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
-    private static boolean loadHookTried;
 
     private McefRuntime() {
     }
 
     static boolean ready() {
-        return MCEFApi.getInstance() != null;
+        // MCEF's getInstance() starts initialization and joins its future.
+        // A readiness probe must never download/wait on the render thread.
+        return api != null;
     }
 
     /**
@@ -56,12 +50,14 @@ final class McefRuntime {
         initRequested = true;
         MCEFApi.Initialization init = MCEFApi.initialize();
         status.accept("Starting Chromium: " + init.getStage());
-        init.getFuture().whenComplete((api, err) -> Minecraft.getInstance().execute(() -> {
-            if (err != null || api == null) {
+        init.getFuture().whenComplete((readyApi, err) -> Minecraft.getInstance().execute(() -> {
+            if (err != null || readyApi == null) {
                 status.accept("Chromium failed to start: " + (err == null ? "unknown error" : err.getMessage()));
                 return;
             }
+            api = readyApi;
             status.accept("");
+            CefHooks.started();
             onReady.run();
         }));
     }
@@ -72,10 +68,25 @@ final class McefRuntime {
      * nothing (a transparent page let the world show through the glass).
      */
     static WebView create(String url) {
-        MCEFBrowser browser = MCEFApi.getInstance().createBrowser(url, false);
-        OURS.add(browser.getCefBrowser());
-        hookLoads(browser.getCefBrowser().getClient());
-        return new View(browser);
+        return create(url, null);
+    }
+
+    /**
+     * A new page whose new-tab requests go to {@code events} (may be null:
+     * ignored). {@link CefHooks} also gives every frame of it, on Linux,
+     * {@link PageKeys#CODE_SHIM} as it starts loading.
+     */
+    static WebView create(String url, WebView.Events events) {
+        View view = new View(api.createBrowser(url, false));
+        if (view.browser != null) {
+            CefHooks.attach(view.browser.getCefBrowser(), title -> view.title = title == null ? "" : title,
+                target -> {
+                    if (events != null) {
+                        Minecraft.getInstance().execute(() -> events.newTab(target));
+                    }
+                });
+        }
+        return view;
     }
 
     private static Method sendKeyMethod() {
@@ -95,28 +106,6 @@ final class McefRuntime {
     }
 
     /**
-     * Once, on MCEF's shared client, right after the first page is created
-     * (CEF creates the page asynchronously, so it has not started loading
-     * yet): every frame of our pages gets {@link PageKeys#CODE_SHIM} as it
-     * starts loading, Linux only. JCEF keeps the first load handler it is
-     * given; if another mod set one first, pages just keep Chromium's codes.
-     */
-    private static void hookLoads(CefClient client) {
-        if (loadHookTried || !PageKeys.LINUX) {
-            return;
-        }
-        loadHookTried = true;
-        client.addLoadHandler(new CefLoadHandlerAdapter() {
-            @Override
-            public void onLoadStart(CefBrowser browser, CefFrame frame, CefRequest.TransitionType type) {
-                if (OURS.contains(browser)) {
-                    frame.executeJavaScript(PageKeys.CODE_SHIM, frame.getURL(), 0);
-                }
-            }
-        });
-    }
-
-    /**
      * One page. Keys go through {@link PageKeys} (MCEF's own mapping only
      * when the JCEF entry point is missing or off Linux), Enter also types
      * its character, and keys held down are remembered so a page that loses
@@ -127,9 +116,16 @@ final class McefRuntime {
         private final MCEFBrowser browser;
         /** GLFW key -> its modifiers when pressed, for keys the page saw go down and not up. */
         private final Map<Integer, Integer> held = new LinkedHashMap<>();
+        /** Written by CEF's UI thread (title changes), read by the client thread. */
+        private volatile String title = "";
 
         View(MCEFBrowser browser) {
             this.browser = browser;
+        }
+
+        @Override
+        public String title() {
+            return title;
         }
 
         @Override
@@ -170,6 +166,11 @@ final class McefRuntime {
         @Override
         public void frameRate(int fps) {
             browser.getCefBrowser().setWindowlessFrameRate(fps);
+        }
+
+        @Override
+        public void volume(double level) {
+            CefHooks.setVolume(browser.getCefBrowser(), level);
         }
 
         @Override
@@ -254,7 +255,7 @@ final class McefRuntime {
         @Override
         public void close() {
             held.clear();
-            OURS.remove(browser.getCefBrowser());
+            CefHooks.detach(browser.getCefBrowser());
             browser.close();
         }
     }

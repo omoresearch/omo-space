@@ -31,6 +31,7 @@ public final class OmoLifeClient implements ClientModInitializer {
     @Override
     @SuppressWarnings("deprecation") // Fabric's renderer registry: vanilla's register() is private without an access widener
     public void onInitializeClient() {
+        AgentLan.register(); // local AI agents can join this single-player world as players
         BlockEntityRendererRegistry.register(OmoLife.MONITOR_BE, WebMonitorRenderer::new);
         BlockEntityRendererRegistry.register(OmoLife.STATUS_BE, NamePlateRenderer::new);
         BlockColorRegistry.register(List.of(new BlockTintSource() {       // a Slim Screen's frame finish
@@ -58,12 +59,15 @@ public final class OmoLifeClient implements ClientModInitializer {
             BridgeClient.get().close();
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
-            WebPages.closeAll();
+            WebPages.shutdown();
             BridgeClient.get().close();
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (++tickCounter % 20 == 0) {
                 WebPages.tick();
+            }
+            if (tickCounter % 4 == 0) {
+                WebPages.audioTick();
             }
         });
         RemoteWall.init();

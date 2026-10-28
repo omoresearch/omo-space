@@ -1,0 +1,11 @@
+{
+  "required": false,
+  "package": "space.omo.life.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "McefArgsMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

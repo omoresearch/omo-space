@@ -11,7 +11,8 @@
     "ScreenAccessor",
     "StationScreenMixin",
     "TerminalShortcutsMixin",
-    "WindowTitleMixin"
+    "WindowTitleMixin",
+    "AgentSkinMixin"
   ],
   "injectors": {
     "defaultRequire": 1
@@ -26,6 +27,7 @@
     "MonitorWallMixin",
     "MonitorMirrorAccessor",
     "ServerComputerMixin",
-    "ServerMonitorAccessor"
+    "ServerMonitorAccessor",
+    "AgentRegistrySyncMixin"
   ]
 }

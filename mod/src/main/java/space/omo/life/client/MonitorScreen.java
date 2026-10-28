@@ -38,8 +38,14 @@ import space.omo.life.net.OmoNetworking;
 public final class MonitorScreen extends Screen {
 
     private static final int BAR_H = 20;
+    /** The tab strip under the address bar while interacting. */
+    private static final int TAB_H = 14;
+    /** Where the page starts while interacting. */
+    private static final int TOP = BAR_H + TAB_H;
     private static final int CARD_W = 320;
     private static final int CARD_H = 128;
+    /** The settings card of a web wall has one more row: Sound. */
+    private static final int WEB_CARD_H = 152;
     private static final int ROW_H = 16;
 
     private final BlockPos origin;
@@ -58,6 +64,9 @@ public final class MonitorScreen extends Screen {
     private int zoomCentre;
     private boolean dirty;
     private OmoButton interactButton;
+    /** The address the bar last showed for the active tab, to follow navigation. */
+    private String shownUrl;
+    private OmoButton soundButton;
 
     public MonitorScreen(BlockPos origin, String source, String url, int zoom, int cols, int rows) {
         super(Component.literal("Omo Monitor"));
@@ -67,6 +76,10 @@ public final class MonitorScreen extends Screen {
         this.zoom = zoom <= 0 ? 100 : zoom;
         this.cols = cols;
         this.rows = rows;
+    }
+
+    private int cardH() {
+        return web() ? WEB_CARD_H : CARD_H;
     }
 
     private boolean web() {
@@ -104,11 +117,12 @@ public final class MonitorScreen extends Screen {
 
     private void initSettings() {
         cardX = (width - CARD_W) / 2;
-        cardY = (height - CARD_H) / 2;
+        cardY = (height - cardH()) / 2;
         int x = cardX + 10;
         int y = cardY + 26;
 
         interactButton = null;
+        soundButton = null;
         OmoButton term = button(OmoButton.Style.TAB, "Terminal", x + 52, y, ROW_H, () -> {
             source = OmoMonitorBlockEntity.SOURCE_TERMINAL;
             apply();
@@ -145,18 +159,20 @@ public final class MonitorScreen extends Screen {
                 dirty = true;
             }).tip("Click, scroll and type in the page (Esc returns)");
             interactButton.active = page() != null && page().ready();
+            soundControls(x + 52, by + ROW_H + 8, ROW_H);
         } else if (linkedTo() != null) {
             button(OmoButton.Style.ACTION, "Unlink", x + 52, y + ROW_H + 40, ROW_H, () -> {
                 ClientPlayNetworking.send(new LinkPackets.Unlink(origin));
                 note = "Unlinked";
             }).tip("Stop mirroring the station; a station next to the wall can use it again.");
         }
-        OmoButton done = button(OmoButton.Style.ACTION, "Done", 0, cardY + CARD_H - ROW_H - 8, ROW_H, this::onClose);
+        OmoButton done = button(OmoButton.Style.ACTION, "Done", 0, cardY + cardH() - ROW_H - 8, ROW_H, this::onClose);
         done.setX(cardX + CARD_W - 10 - done.getWidth());
     }
 
     private void initInteract() {
         interactButton = null;
+        soundButton = null;
         int h = BAR_H - 6;
         int y = 3;
         OmoButton back = button(OmoButton.Style.ACTION, "‹", 4, y, h, () -> act(WebView::back)).tip("Back");
@@ -179,13 +195,14 @@ public final class MonitorScreen extends Screen {
         OmoButton go = button(OmoButton.Style.ACTION, "Go", 0, y, h, this::navigate).tip("Open the address (Enter)");
         go.setX(pin.getX() - 3 - go.getWidth());
 
-        int bx = reload.getRight() + 8;
+        int bx = soundControls(reload.getRight() + 6, y, h) + 8;
         urlBox = new EditBox(font, bx + 4, y + 3, go.getX() - bx - 14, 10, Component.literal("Address"));
         urlBox.setBordered(false);
         urlBox.setMaxLength(2000);
         urlBox.setTextColor(OmoStyle.CREAM_BRIGHT);
         WebPages.Page p = page();
-        urlBox.setValue(p == null ? url : p.currentUrl());
+        shownUrl = p == null ? url : p.currentUrl();
+        urlBox.setValue(barText(shownUrl));
         addRenderableWidget(urlBox);
         if (p != null) {
             p.setInteractive(true);
@@ -197,6 +214,187 @@ public final class MonitorScreen extends Screen {
         WebView v = view();
         if (v != null) {
             action.accept(v);
+        }
+    }
+
+    // -- sound ------------------------------------------------------------------------------
+
+    private static final String[] SOUND_LABELS = {"♪ 100%", "Muted"};
+
+    /** [−] [♪ 80%] [+] at x; returns the right edge. Click the middle to mute, scroll on it to change. */
+    private int soundControls(int x, int y, int h) {
+        OmoButton minus = button(OmoButton.Style.ACTION, "−", x, y, h, () -> nudgeVolume(-10)).tip("Quieter");
+        minus.setWidth(16);
+        int w = 0;
+        for (String l : SOUND_LABELS) {
+            w = Math.max(w, font.width(l) + 10);
+        }
+        soundButton = button(OmoButton.Style.ACTION, SOUND_LABELS[0], minus.getRight() + 2, y, h, this::toggleMute)
+            .tip("This wall's sound: click to mute, scroll to change (Ctrl+M mutes). "
+                + "Also follows Minecraft's Jukebox/Note Blocks volume, and fades with distance.");
+        soundButton.setWidth(w);
+        OmoButton plus = button(OmoButton.Style.ACTION, "+", soundButton.getRight() + 2, y, h, () -> nudgeVolume(10))
+            .tip("Louder");
+        plus.setWidth(16);
+        refreshSound();
+        return plus.getRight();
+    }
+
+    private void refreshSound() {
+        if (soundButton == null) {
+            return;
+        }
+        WebPages.Page p = page();
+        soundButton.active = p != null;
+        String label = p == null ? "♪ –" : p.muted() || p.volume() == 0 ? "Muted" : "♪ " + p.volume() + "%";
+        if (!label.equals(soundButton.getMessage().getString())) {
+            soundButton.setMessage(Component.literal(label));
+        }
+        soundButton.selected(p != null && (p.muted() || p.volume() == 0));
+    }
+
+    private void nudgeVolume(int delta) {
+        WebPages.Page p = page();
+        if (p != null) {
+            int base = p.muted() ? 0 : p.volume();
+            p.setVolume(Math.round((base + delta) / 10f) * 10);
+            refreshSound();
+        }
+    }
+
+    private void toggleMute() {
+        WebPages.Page p = page();
+        if (p != null) {
+            if (p.volume() == 0) {
+                p.setVolume(50);                // unmuting a wall turned all the way down
+            } else {
+                p.toggleMute();
+            }
+            refreshSound();
+        }
+    }
+
+    private static String barText(String u) {
+        return u == null || u.startsWith("about:") ? "" : u;
+    }
+
+    // -- tabs -------------------------------------------------------------------------------
+
+    private int tabWidth(int n) {
+        return Math.max(48, Math.min(170, (width - 8 - 20) / Math.max(1, n)));
+    }
+
+    private int tabX(int i, int n) {
+        return 4 + i * tabWidth(n);
+    }
+
+    /** Show tab {@code i}: the bar follows it and typing goes to the page. */
+    private void showTab(WebPages.Page p, int i) {
+        p.selectTab(i);
+        lastW = lastH = -1;
+        followTab(p);
+        setFocused(null);
+        if (p.view() != null) {
+            p.view().focus(true);
+        }
+    }
+
+    private void followTab(WebPages.Page p) {
+        shownUrl = p.currentUrl();
+        if (urlBox != null) {
+            urlBox.setValue(barText(shownUrl));
+        }
+    }
+
+    private void newTab() {
+        WebPages.Page p = page();
+        if (p == null || p.tabCount() == 0) {
+            return;
+        }
+        if (p.tabCount() >= WebPages.MAX_TABS) {
+            return;
+        }
+        p.openTab("about:blank");
+        lastW = lastH = -1;
+        shownUrl = p.currentUrl();
+        if (urlBox != null) {
+            urlBox.setValue("");
+            setFocused(urlBox);                 // like a browser: a new tab starts in the address bar
+        }
+    }
+
+    private void closeTab(int i) {
+        WebPages.Page p = page();
+        if (p != null && p.tabCount() > 1) {
+            p.closeTab(i);
+            lastW = lastH = -1;
+            followTab(p);
+        }
+    }
+
+    /** A click in the tab strip: switch, close (× or middle button), or new (+). */
+    private boolean clickTabs(MouseButtonEvent event) {
+        WebPages.Page p = page();
+        if (p == null || p.tabCount() == 0) {
+            return true;
+        }
+        int n = p.tabCount();
+        int x = (int) event.x();
+        for (int i = 0; i < n; i++) {
+            int x0 = tabX(i, n);
+            int x1 = x0 + tabWidth(n) - 2;
+            if (x >= x0 && x < x1) {
+                if (event.button() == 2 || (n > 1 && x >= x1 - 11)) {
+                    closeTab(i);
+                } else {
+                    showTab(p, i);
+                }
+                OmoStyle.click();
+                return true;
+            }
+        }
+        int px = tabX(n, n);
+        if (n < WebPages.MAX_TABS && x >= px && x < px + 16) {
+            newTab();
+            OmoStyle.click();
+        }
+        return true;
+    }
+
+    private void extractTabs(GuiGraphicsExtractor g, int mouseX, int mouseY) {
+        g.fill(0, BAR_H, width, TOP, OmoStyle.ESPRESSO_DEEP);
+        g.fill(0, TOP - 1, width, TOP, OmoStyle.GOLD);
+        WebPages.Page p = page();
+        if (p == null || p.tabCount() == 0) {
+            return;
+        }
+        int n = p.tabCount();
+        int tw = tabWidth(n);
+        int y0 = BAR_H + 1;
+        int y1 = TOP - 1;
+        for (int i = 0; i < n; i++) {
+            int x0 = tabX(i, n);
+            int x1 = x0 + tw - 2;
+            boolean on = i == p.activeTab();
+            boolean hover = mouseY >= y0 && mouseY < y1 && mouseX >= x0 && mouseX < x1;
+            int bg = on ? OmoStyle.mix(OmoStyle.ESPRESSO, OmoStyle.GOLD, 0.25F) : hover ? OmoStyle.ESPRESSO_HOVER : OmoStyle.ESPRESSO;
+            g.fill(x0, y0, x1, y1, bg);
+            if (on) {
+                g.fill(x0, y0, x1, y0 + 1, OmoStyle.GOLD);
+            }
+            int textRoom = tw - 8 - (n > 1 ? 12 : 0);
+            g.text(font, OmoStyle.fit(font, p.tabLabel(i), textRoom), x0 + 4, y0 + 3,
+                on ? OmoStyle.CREAM_BRIGHT : OmoStyle.MUTED, false);
+            if (n > 1) {
+                boolean overX = hover && mouseX >= x1 - 11;
+                g.text(font, "×", x1 - 9, y0 + 3, overX ? OmoStyle.RED : OmoStyle.FAINT, false);
+            }
+        }
+        if (n < WebPages.MAX_TABS) {
+            int px = tabX(n, n);
+            boolean hover = mouseY >= y0 && mouseY < y1 && mouseX >= px && mouseX < px + 16;
+            g.fill(px, y0, px + 16, y1, hover ? OmoStyle.ESPRESSO_HOVER : OmoStyle.ESPRESSO);
+            g.centeredText(font, "+", px + 8, y0 + 3, hover ? OmoStyle.GOLD_LIGHT : OmoStyle.GOLD);
         }
     }
 
@@ -266,7 +464,7 @@ public final class MonitorScreen extends Screen {
             extractInteract(g, mouseX, mouseY, partial);
             return;
         }
-        OmoStyle.card(g, cardX, cardY, cardX + CARD_W, cardY + CARD_H, OmoStyle.GOLD);
+        OmoStyle.card(g, cardX, cardY, cardX + CARD_W, cardY + cardH(), OmoStyle.GOLD);
         g.fill(cardX + 1, cardY + 1, cardX + CARD_W - 1, cardY + 2, OmoStyle.GOLD);
         g.text(font, OmoStyle.fit(font, title(), CARD_W - 80), cardX + 10, cardY + 9, OmoStyle.CREAM_BRIGHT, false);
         String pill = WebPages.count() + "/" + WebPages.MAX_PAGES + " pages";
@@ -290,6 +488,7 @@ public final class MonitorScreen extends Screen {
             }
             int by = ay + ROW_H + 8;
             g.text(font, "Page", x, by + 4, OmoStyle.MUTED, false);
+            g.text(font, "Sound", x, by + ROW_H + 12, OmoStyle.MUTED, false);
             g.centeredText(font, zoom + "%", zoomCentre, by + 4, OmoStyle.CREAM);
         } else if (linkedTo() != null) {
             BlockPos at = linkedTo();
@@ -306,12 +505,12 @@ public final class MonitorScreen extends Screen {
                 x, y + ROW_H + 10, CARD_W - 20, OmoStyle.MUTED, false);
         }
         g.text(font, web() ? "Tip: right-click the wall to use its page from afar."
-            : "Tip: right-click the wall to type into it from afar.", x, cardY + CARD_H - 35, OmoStyle.FAINT, false);
+            : "Tip: right-click the wall to type into it from afar.", x, cardY + cardH() - 35, OmoStyle.FAINT, false);
         String line = !note.isEmpty() ? note : WebPages.runtimeStatus();
         if (!line.isEmpty()) {
             int colour = note.isEmpty() ? OmoStyle.AMBER : OmoStyle.GREEN;
-            OmoStyle.dot(g, x, cardY + CARD_H - 19, colour);
-            g.text(font, OmoStyle.fit(font, line, CARD_W - 90), x + 9, cardY + CARD_H - 20, colour, false);
+            OmoStyle.dot(g, x, cardY + cardH() - 19, colour);
+            g.text(font, OmoStyle.fit(font, line, CARD_W - 90), x + 9, cardY + cardH() - 20, colour, false);
         }
         super.extractRenderState(g, mouseX, mouseY, partial);
     }
@@ -324,6 +523,7 @@ public final class MonitorScreen extends Screen {
             g.fill(bx0, 3, bx1, BAR_H - 3, OmoStyle.ESPRESSO);
             OmoStyle.frame(g, bx0, 3, bx1, BAR_H - 3, OmoStyle.alpha(OmoStyle.GOLD, urlBox.isFocused() ? 0xF0 : 0x70));
         }
+        extractTabs(g, mouseX, mouseY);
         super.extractRenderState(g, mouseX, mouseY, partial);
         WebPages.Page p = page();
         String wait = p == null ? "No page pinned" : p.view() == null ? p.status() : null;
@@ -335,7 +535,7 @@ public final class MonitorScreen extends Screen {
         // The page is sized to the window in real pixels while interacting, so it is sharp.
         int scale = Math.max(1, minecraft.getWindow().getGuiScale());
         int pw = width * scale;
-        int ph = (height - BAR_H) * scale;
+        int ph = (height - TOP) * scale;
         if (pw != lastW || ph != lastH) {
             p.resize(pw, ph);
             lastW = pw;
@@ -347,7 +547,7 @@ public final class MonitorScreen extends Screen {
             return;
         }
         g.blit(tex, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR),
-            0, BAR_H, width, height, 0.0F, 1.0F, 0.0F, 1.0F);              // x0, y0, x1, y1
+            0, TOP, width, height, 0.0F, 1.0F, 0.0F, 1.0F);              // x0, y0, x1, y1
     }
 
     /** Rebuilds requested by a button happen here, after the click that asked for them is over. */
@@ -361,12 +561,19 @@ public final class MonitorScreen extends Screen {
             WebPages.Page p = page();
             interactButton.active = p != null && p.ready();
         }
+        refreshSound();
+        if (interact && urlBox != null && getFocused() != urlBox) {
+            WebPages.Page p = page();
+            if (p != null && p.tabCount() > 0 && !p.currentUrl().equals(shownUrl)) {
+                followTab(p);                   // links, redirects, back/forward
+            }
+        }
     }
 
     // -- input ------------------------------------------------------------------------------
 
     private boolean inPage(double y) {
-        return interact && y >= BAR_H && view() != null;
+        return interact && y >= TOP && view() != null;
     }
 
     private int px(double v) {
@@ -374,7 +581,7 @@ public final class MonitorScreen extends Screen {
     }
 
     private int py(double y) {
-        return (int) ((y - BAR_H) * Math.max(1, minecraft.getWindow().getGuiScale()));
+        return (int) ((y - TOP) * Math.max(1, minecraft.getWindow().getGuiScale()));
     }
 
     /** The same click in page pixels: MCEF takes the position from the event itself. */
@@ -389,6 +596,9 @@ public final class MonitorScreen extends Screen {
                 setFocused(interact ? null : urlBox);    // typing goes to the address, never to a stale button
             }
             return true;
+        }
+        if (interact && event.y() >= BAR_H && event.y() < TOP) {
+            return clickTabs(event);
         }
         if (inPage(event.y())) {
             WebView v = view();
@@ -420,6 +630,10 @@ public final class MonitorScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double x, double y, double dx, double dy) {
+        if (soundButton != null && soundButton.isMouseOver(x, y) && dy != 0) {
+            nudgeVolume(dy > 0 ? 10 : -10);
+            return true;
+        }
         if (inPage(y)) {
             view().mouseScrolled(px(x), py(y), dy);
             return true;
@@ -430,6 +644,9 @@ public final class MonitorScreen extends Screen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         int key = event.key();
+        if (interact && event.hasControlDown() && tabKey(event)) {
+            return true;
+        }
         if (urlBox != null && getFocused() == urlBox) {
             if (key == 257 || key == 335) {
                 if (interact) {
@@ -463,6 +680,25 @@ public final class MonitorScreen extends Screen {
             return true;
         }
         return super.keyPressed(event);
+    }
+
+    /** Ctrl+T new tab, Ctrl+W close tab, Ctrl+(Shift+)Tab next/previous. */
+    private boolean tabKey(KeyEvent event) {
+        WebPages.Page p = page();
+        if (p == null || p.tabCount() == 0) {
+            return false;
+        }
+        int n = p.tabCount();
+        switch (event.key()) {
+            case 84 -> newTab();                                                     // T
+            case 87 -> closeTab(p.activeTab());                                      // W
+            case 258 -> showTab(p, (p.activeTab() + (event.hasShiftDown() ? n - 1 : 1)) % n);  // Tab
+            case 77 -> toggleMute();                                                 // M
+            default -> {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

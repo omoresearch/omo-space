@@ -13,6 +13,18 @@ import net.minecraft.client.input.MouseButtonEvent;
  */
 public interface WebView {
 
+    /**
+     * What a page asks of the browser around it. Called on the client
+     * thread; {@code url} is whatever the page asked for, unchecked.
+     */
+    interface Events {
+        /** A link with target=_blank, window.open, middle-/Ctrl+click: wants a new tab. */
+        void newTab(String url);
+    }
+
+    /** The page's {@code <title>}, or "" before it has one. */
+    String title();
+
     /** The page's live GPU texture, or null before the first paint. */
     GpuTextureView texture();
 
@@ -30,6 +42,9 @@ public interface WebView {
     void reload();
 
     void frameRate(int fps);
+
+    /** Audio level of everything the page plays: 0 silent .. 1 as the page wants. */
+    void volume(double level);
 
     /** Losing focus also releases every key the page saw go down (see {@link #releaseKeys()}). */
     void focus(boolean focused);

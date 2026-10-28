@@ -59,12 +59,15 @@ public final class OmoLifeClient implements ClientModInitializer {
             BridgeClient.get().close();
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
-            WebPages.closeAll();
+            WebPages.shutdown();
             BridgeClient.get().close();
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (++tickCounter % 20 == 0) {
                 WebPages.tick();
+            }
+            if (tickCounter % 4 == 0) {
+                WebPages.audioTick();
             }
         });
         RemoteWall.init();

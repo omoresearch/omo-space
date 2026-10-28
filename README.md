@@ -32,7 +32,7 @@ desk, and then one prompt that built an underground robotics lab while they
 talked. 15 minutes, one take.
 
 **[▶ Watch the demo](https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27)** ·
-[download the MP4](https://github.com/omoresearch/omo-space/releases/download/demo-2026-10-27/omo-space-demo-2026-10-27.mp4) (1080p, SIZE_MB MB) ·
+[download the MP4](https://github.com/omoresearch/omo-space/releases/download/demo-2026-10-27/omo-space-demo-2026-10-27.mp4) (1080p, 346 MB) ·
 [read the transcript](docs/demo/TRANSCRIPT.md)
 
 > *"Any product or idea goes from this terminal here, which is just a Hermes,
@@ -111,17 +111,21 @@ never replays a command on its own.
 
 ## Run it
 
-The code is public and MIT licensed. A packaged one-click release isn't
-published yet, so today you run Omo Space from source:
+The code is public and MIT licensed.
 
 1. Read [docs/PLATFORMS.md](docs/PLATFORMS.md). Linux x86_64 is tested end to
    end; macOS and Windows (WSL2) support is new and not yet tested on real
    hardware.
-2. Build and set up with [CONTRIBUTING.md](CONTRIBUTING.md#build-and-test) and
-   the [install guide](docs/GUIDE.md#install). The launcher downloads Minecraft
-   26.2, Fabric, CC: Tweaked, MCEF and Java from their official sources, with
-   pinned hashes, into its own folder. It never touches your own Minecraft or
-   Prism installs.
+2. Download the bundle for your platform and the installer from the
+   [latest release](https://github.com/omoresearch/omo-space/releases/latest)
+   (`SHA256SUMS` covers every file), then run
+   `bash install.sh omo-research-<version>-linux-x64.tar.gz` (or the macOS
+   tarball; `install.ps1` with the Windows zip).
+   Or build from source with [CONTRIBUTING.md](CONTRIBUTING.md#build-and-test)
+   and the [install guide](docs/GUIDE.md#install).
+   Either way the launcher downloads Minecraft 26.2, Fabric, CC: Tweaked, MCEF
+   and Java from their official sources, with pinned hashes, into its own
+   folder. It never touches your own Minecraft or Prism installs.
 3. You need your own Minecraft Java account, Python 3.11+, and about 2 GB free.
    Hermes Agent is optional (plain terminals work without it); model access is
    your own.

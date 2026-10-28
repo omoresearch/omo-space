@@ -26,10 +26,10 @@
 <br>
 
 Most AI agents live in a pile of terminal tabs. In **Omo Space**, every agent
-gets a desk in a world you build. Place a computer and a real Hermes Agent
-session, or a shell for Claude Code or Codex, starts on your own machine. Its
-terminal goes on the wall, real web pages go on the monitors, and the work keeps
-running after you walk away, or quit the game.
+gets a desk in a world you build. Place a computer and a real
+Hermes Agent, Claude Code, Codex or a plain shell starts on your own machine.
+Its terminal goes on the wall, real web pages go on the monitors, and the work
+keeps running after you walk away, or quit the game.
 
 And since v1.2.0, agents can also **walk in**: an AI agent on your PC can join
 your single-player world as a real player, with its own skin and a
@@ -58,6 +58,25 @@ talked. 15 minutes, one take.
 > we can just review here."*
 >
 > — Yifan, on stream ([1:03](docs/demo/TRANSCRIPT.md#103--the-loop-end-to-end))
+
+## Just landed: Claude Code and Codex tabs
+
+The **+** at the end of a station's tabs is now a menu: **Shell**, **Hermes**,
+**Claude Code** and **Codex**. Your last pick is preselected, so **+** then
+**Enter** opens another one. Each tab draws a glyph for what it runs (Hermes
+spark, Claude burst, Codex ring).
+
+- An agent tab is an ordinary persistent Omo shell that runs the CLI in the
+  tab's folder. Close the screen or quit Minecraft and it keeps going; quit the
+  agent and you are back at a prompt.
+- **Claude Code gets one session per tab.** After a reboot or a revive, the tab
+  runs `claude --resume` on the same session. Codex starts fresh.
+- CLI not installed? The menu says so, and the tab prints the install command
+  and stays a working shell.
+
+Merged to `main` on 28 October ([#8](https://github.com/omoresearch/omo-space/pull/8)).
+It ships in the next release; [build from source](CONTRIBUTING.md#build-and-test)
+to try it today. [Docs](docs/AGENTS-AND-TERMINALS.md#claude-code-and-codex-tabs)
 
 ## New in v1.2.0
 
@@ -149,7 +168,7 @@ from clips of the stream. The first is a real exchange with Omo from the stream:
 | Block | What it does |
 | --- | --- |
 | **Hermes Computer** | One named workspace with a Hermes conversation in the profile you choose. Give different agents different desks. |
-| **Terminal** | A persistent shell for tools, scripts, Claude Code or Codex, without starting a Hermes agent. |
+| **Terminal** | A persistent shell for tools and scripts, with Shell, Hermes, Claude Code and Codex tabs from the **+** menu. |
 | **Omo Monitor / Slim Screen** | A bigger view of a terminal, or a real Chromium web page pinned to the wall, with tabs and its own sound. |
 | **Omo Linker** | Mirror a station onto walls across the room, no wiring. |
 | **Omo Pocket** | Carry a Hermes or Terminal workspace on an item. |

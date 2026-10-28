@@ -6,7 +6,9 @@
   <a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27"><img src="docs/media/btn-demo.png" alt="Watch the demo" height="43"></a>&nbsp;
   <a href="#run-it"><img src="docs/media/btn-run.png" alt="Run it" height="43"></a>&nbsp;
   <a href="https://www.twitch.tv/yiifannn"><img src="docs/media/btn-live.png" alt="Live on Twitch" height="43"></a>&nbsp;
-  <a href="https://omo.sh"><img src="docs/media/btn-omo.png" alt="omo.sh" height="43"></a>
+  <a href="https://omo.sh"><img src="docs/media/btn-omo.png" alt="omo.sh" height="43"></a>&nbsp;
+  <a href="https://github.com/omoresearch/omo-space"><img src="https://img.shields.io/github/stars/omoresearch/omo-space?style=for-the-badge&logo=github&label=Star&color=1a1008&labelColor=4a3b2f" alt="Star Omo Space on GitHub" height="43"></a><br>
+  <sub>⭐ Star the repo to follow the build</sub>
 </p>
 
 <p align="center"><sub>Hermes Agent · Claude Code · Minecraft Java 26.2 · Linux, macOS, Windows (WSL2) · MIT</sub></p>
@@ -172,6 +174,11 @@ flowchart LR
   D --> E["Your shell<br/>tools, Claude Code"]
   D --> F["Hermes Agent<br/>your profile and conversation"]
 ```
+
+<p align="center">
+  <a href="https://github.com/omoresearch/omo-space"><img src="https://img.shields.io/github/stars/omoresearch/omo-space?style=for-the-badge&logo=github&label=Star&color=1a1008&labelColor=4a3b2f" alt="Star Omo Space on GitHub" height="43"></a><br>
+  <sub>⭐ Star the repo to follow the build</sub>
+</p>
 
 ---
 

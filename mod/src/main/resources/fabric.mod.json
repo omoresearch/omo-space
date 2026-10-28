@@ -16,7 +16,7 @@
     "main": ["space.omo.life.OmoLife"],
     "client": ["space.omo.life.client.OmoLifeClient"]
   },
-  "mixins": ["omolife.mixins.json"],
+  "mixins": ["omolife.mixins.json", "omolife.mcef.mixins.json"],
   "depends": {
     "fabricloader": ">=0.16.0",
     "fabric-api": "*",

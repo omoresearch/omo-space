@@ -67,29 +67,54 @@ Meet them in [Omo, brought to life](https://github.com/omoresearch/omo-brought-t
 
 ## Install
 
-> **Tested on:** Linux x86_64, end to end. macOS and Windows (WSL2) support is new and tested offline only, and a
-> clean-machine install through Microsoft sign-in is not tested yet. Read [docs/PLATFORMS.md](docs/PLATFORMS.md) first.
+**You need:** a Minecraft Java account, Python 3.11 or newer, and about 2 GB of free space.
+Omo Space brings its own copy of Minecraft, so your normal Minecraft stays untouched.
 
-Download the installer, your platform's bundle and `SHA256SUMS` from the
-[v1.2.0 release](https://github.com/omoresearch/omo-space/releases/tag/v1.2.0), check them, then install:
+> **Tested on:** Linux, end to end. macOS and Windows are new and only tested offline so far,
+> and a fresh-machine Microsoft sign-in hasn't been tested yet.
+
+### Linux
+
+**1. Download** the installer, the app and the checksum list:
 
 ```bash
-# Linux x86_64 (macOS: the -macos.tar.gz, after `brew install tmux python`)
 curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/install.sh
 curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/omo-research-1.2.0-linux-x64.tar.gz
 curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/SHA256SUMS
-sha256sum -c --ignore-missing SHA256SUMS   # both lines say OK (macOS: shasum -a 256 -c ...)
+```
+
+**2. Check** the downloads. Both lines should end in `OK`:
+
+```bash
+sha256sum -c --ignore-missing SHA256SUMS
+```
+
+**3. Install.** This downloads Minecraft, Fabric, the mods and Java (about 650 MB, around 5 minutes):
+
+```bash
 bash install.sh omo-research-1.2.0-linux-x64.tar.gz
 ```
 
+**4. Play.** Open **Omo Space** from your app menu, click **Sign in with Microsoft**, then **Play**.
+In the game, find the Omo Space tab in the creative inventory and place a **Hermes Computer** or a **Terminal**.
+
+### macOS
+
+Run `brew install tmux python` first, then follow the Linux steps with two changes:
+download `omo-research-1.2.0-macos.tar.gz` instead of the Linux file, and check it with
+`shasum -a 256 -c --ignore-missing SHA256SUMS`. Start the app with `omo-research`.
+
+### Windows 10/11
+
+Your shells and agents run in WSL2. Set it up once with the [Windows steps](docs/PLATFORMS.md#windows-wsl2),
+then download `install.ps1` and `omo-research-1.2.0-windows.zip` from the
+[v1.2.0 release](https://github.com/omoresearch/omo-space/releases/tag/v1.2.0) into one folder, and in PowerShell run:
+
 ```powershell
-# Windows 10/11 (the game runs natively, sessions and Hermes in WSL2)
 powershell -ExecutionPolicy Bypass -File .\install.ps1 omo-research-1.2.0-windows.zip
 ```
 
-You need your own Minecraft Java account, Python 3.11+ and about 2 GB free. The launcher downloads
-Minecraft and its mods from their official sources, hash-checked, into its own folder; your own Minecraft
-installs are never touched.
+Then open **Omo Space** from the Start menu.
 
 <details>
 <summary><b>Requirements, downloads and troubleshooting</b></summary>

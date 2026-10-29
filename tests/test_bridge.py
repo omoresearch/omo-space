@@ -485,6 +485,33 @@ async def two_surfaces(env, ui, term):
     ui.inbox.clear()
 
 
+async def far_screen_parks(env, term):
+    """A screen no player is near keeps its last picture with no view open
+    ("pause" parks it); "resume" brings the same tab back live."""
+    def views():
+        return [n for n in env.tmux("list-sessions", "-F", "#{session_name}").stdout.split()
+                if n.startswith(f"omo-{term['id']}-v")]
+    c = Client(env)
+    await c.open(ticket=env.http(f"/ticket?token={env.token}&station=st-far&ws={term['id']}"), station="st-far",
+                 ws=term["id"])
+    before = len(views())
+    await c.send(t="attach", ws=term["id"], tab="", cols=50, rows=10)
+    await c.expect(lambda m: m["t"] == "attached")
+    await c.send(t="pause")
+    await asyncio.sleep(3.0)
+    parked = len(views())
+    detached = any(m.get("t") == "detached" for m in c.inbox)
+    check("a paused screen keeps its frame and closes its view", parked == before and not detached
+          and c.frame is not None, f"views {before}->{parked} detached={detached}")
+    c.inbox.clear()
+    await c.send(t="resume")
+    back = await c.expect(lambda m: m["t"] == "attached", 6)
+    await c.send(t="in", d="echo resumed-$((2*21))\r")
+    check("resume re-attaches the same tab live", bool(back) and len(views()) == before + 1
+          and await c.screen_has("resumed-42"), f"{back} views={len(views())}")
+    await c.close()
+
+
 async def auto_sleep(env):
     """Idle, unwatched Hermes tabs sleep with a clean /exit and wake, on the
     same conversation, when a screen opens them. Everything that means
@@ -731,6 +758,7 @@ async def run(env):
     check("Enter typed right after text reaches a TUI as its own keypress", await ui.screen_has("SUBMIT hello"))
     await terminal_abilities(env, ui)
     await two_surfaces(env, ui, term)
+    await far_screen_parks(env, term)
 
     # -- Hermes workspace: autorun, profile, sibling tabs -------------------
     await ui.send(t="ws_create", name="Test Hermes", kind="hermes")

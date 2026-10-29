@@ -170,16 +170,29 @@ class PlayWatch:
 
 
 # --------------------------------------------------------------------------- terminal
+PRISM_SIGNIN = ("Choose 2) Play: a Microsoft sign-in window from Prism Launcher, the engine Omo "
+                "uses to start Minecraft for now, opens once. Sign in there; Omo remembers it.")
+
+
+def account_line(account):
+    """(state, text) for the terminal menu's Account line. Until Omo has its own
+    Microsoft client ID, sign-in happens in Prism's window on the first Play,
+    so "4) Sign in" cannot help yet and the menu has to say what will."""
+    if account.get("signed_in"):
+        return "ok", f"Signed in as {account.get('name')}"
+    if account.get("mode") == "prism":
+        return "warn", "Not signed in yet. " + PRISM_SIGNIN
+    return "warn", "Not signed in. Choose 4) Sign in."
+
+
 def tui():
     while True:
         s = status()
         lines, _ = readiness(s)
         account = s.get("account", {})
         print("\n  Omo Space\n")
-        for name, state, text in lines:
+        for name, state, text in [*lines, ("Account", *account_line(account))]:
             print(f"  [{'ok' if state == 'ok' else '--'}] {name:7s} {text}")
-        if account.get("signed_in"):
-            print(f"  Signed in as {account['name']}")
         print("\n  1) Set up   2) Play   3) Repair   4) Sign in   5) Sign out   q) Quit")
         try:
             c = input("  > ").strip().lower()
@@ -188,6 +201,9 @@ def tui():
         if c in ("q", "quit"):
             return
         op = {"1": "setup", "2": "play", "3": "repair", "4": "signin", "5": "signout"}.get(c)
+        if op == "signin" and account.get("mode") == "prism":
+            print(f"\n  {PRISM_SIGNIN}")         # not a failure: there is nothing to run yet
+            continue
         if op == "play":
             os.execvp(sys.executable, [sys.executable, str(SETUP), "play"])
         if op:

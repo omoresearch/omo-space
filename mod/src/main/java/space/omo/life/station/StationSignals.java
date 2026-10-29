@@ -9,7 +9,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+
+import dan200.computercraft.shared.computer.core.ServerComputer;
+import space.omo.life.link.LinkMirror;
 
 import space.omo.life.block.StationBlockEntity;
 
@@ -52,7 +57,59 @@ public final class StationSignals {
     private static final Map<String, Long> ASKED = new HashMap<>();
     private static final Map<StationBlockEntity, Integer> SHOWN = new WeakHashMap<>();
 
+    /**
+     * Nearness: a station no player is near (nor near a wall linked to it)
+     * hears {@code omo_near false}; station.lua then asks the bridge to park
+     * its views, so the screens keep their last picture while no tmux view,
+     * PTY or frame stream runs for them. Coming within {@link #WAKE} blocks
+     * sends {@code omo_near true} and the views come back live. The state is
+     * re-sent every {@link #RESEND} ticks so a freshly booted screen hears it.
+     */
+    static final double WAKE = 32;
+    static final double PARK = 40;
+    static final int NEAR_PERIOD = 20;
+    static final int RESEND = 100;
+    private static final Map<StationBlockEntity, Boolean> NEAR = new WeakHashMap<>();
+    private static final Map<StationBlockEntity, Long> NEAR_SENT = new WeakHashMap<>();
+
     private StationSignals() {
+    }
+
+    /** Whether a (non-spectator) player is within {@code range} blocks of {@code pos}. */
+    public static boolean playerWithin(Level level, BlockPos pos, double range) {
+        double x = pos.getX() + 0.5, y = pos.getY() + 0.5, z = pos.getZ() + 0.5, r2 = range * range;
+        for (Player p : level.players()) {
+            if (!p.isSpectator() && p.distanceToSqr(x, y, z) < r2) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Once a second per station: tell its screen when players come near or leave. */
+    public static void tickNear(StationBlockEntity be) {
+        Level level = be.getLevel();
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+        BlockPos pos = be.getBlockPos();
+        long now = level.getGameTime();
+        if (Math.floorMod(now + pos.hashCode(), NEAR_PERIOD) != 0) {
+            return;
+        }
+        ServerComputer computer = be.getServerComputer();
+        if (computer == null || !computer.isOn()) {
+            return;
+        }
+        Boolean was = NEAR.get(be);
+        double range = was == null || was ? PARK : WAKE;
+        boolean near = playerWithin(level, pos, range) || LinkMirror.watched(level, pos, range);
+        Long sent = NEAR_SENT.get(be);
+        if (was == null || was != near || sent == null || now - sent >= RESEND) {
+            NEAR.put(be, near);
+            NEAR_SENT.put(be, now);
+            computer.queueEvent("omo_near", new Object[]{near});
+        }
     }
 
     /** Every server tick of a station block: refresh the reading, tell neighbours when it changed. */

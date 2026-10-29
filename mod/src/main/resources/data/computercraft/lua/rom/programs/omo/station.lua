@@ -892,8 +892,12 @@ local function surfaceFor(url)
   end
 end
 
+-- No player near this station or its linked walls (the mod sends omo_near):
+-- every view keeps its last picture and the bridge closes it until one comes back.
+local far = false
 local function attach(s)
   send(s, { t = "attach", ws = wsId, tab = tabId, cols = s.w, rows = s.h })
+  if far then send(s, { t = "pause" }) end
 end
 
 local function learnTabs(ws)
@@ -1040,6 +1044,11 @@ local function handle(ev)
     -- The server created or rebound this station's workspace: (re)connect now.
     if ev[3] and ev[3] ~= "" then wsName = ev[3] end
     if ev[2] ~= wsId or not computer.sock then reconnectAll() end
+  elseif e == "omo_near" then
+    if far == (ev[2] and true or false) then
+      far = not ev[2]
+      each(function(s) send(s, { t = far and "pause" or "resume" }) end)
+    end
   elseif e == "omo_focus" then
     setFocus(ev[2] == "monitor" and wall and "monitor" or "computer")
   elseif e == "omo_release" then

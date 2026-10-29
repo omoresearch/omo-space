@@ -142,6 +142,7 @@ public class HermesComputerBlock extends ComputerBlock<StationBlockEntity> {
             computer.tick(l, pos, s, be);
             if (be instanceof StationBlockEntity station) {
                 StationSignals.tick(station);
+                StationSignals.tickNear(station);
             }
         };
     }

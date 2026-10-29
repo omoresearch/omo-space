@@ -557,6 +557,48 @@ class Units(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- guards, files, config
+class Memory(unittest.TestCase):
+    """Game heap from the machine's RAM; runtime/local-jvm.json still wins."""
+    BASE = {"min": 2048, "max": 6144}
+
+    def tearDown(self):
+        S.LOCAL_JVM.unlink(missing_ok=True)
+
+    def test_manifest_base(self):
+        self.assertEqual(S.MANIFEST["memory_mb"], self.BASE)
+
+    def test_heap_by_ram(self):
+        cases = {   # MemTotal MB (nominal and what such machines report) -> max heap MB
+            4096: 2048, 8192: 3072, 7800: 3072, 11 * 1024: 4096, 12 * 1024: 4864, 15 * 1024: 6144,
+            16384: 6144, 15900: 6144, 32768: 6144, 65536: 6144, 128 * 1024: 6144}
+        for total, top in cases.items():
+            self.assertEqual(S.default_memory_mb(self.BASE, total), {"min": 2048, "max": top}, total)
+        for unknown in (None, 0, -1):
+            self.assertEqual(S.default_memory_mb(self.BASE, unknown), self.BASE)
+        prev = 0
+        for total in range(1024, 256 * 1024, 64):
+            mem = S.default_memory_mb(self.BASE, total)
+            self.assertTrue(mem["min"] <= mem["max"] <= 6144 and mem["max"] >= prev, total)
+            self.assertTrue(mem["max"] <= max(2048, total * 0.4), total)
+            prev = mem["max"]
+
+    def test_this_machine(self):
+        total = S.total_ram_mb()
+        self.assertTrue(total is None or 256 <= total < 64 * 2**20, total)
+        with mock.patch.object(S, "total_ram_mb", return_value=8192):
+            self.assertEqual(S.memory_mb(), {"min": 2048, "max": 3072})
+
+    def test_local_jvm_wins(self):
+        with mock.patch.object(S, "total_ram_mb", return_value=8192):
+            S.LOCAL_JVM.parent.mkdir(parents=True, exist_ok=True)
+            S.LOCAL_JVM.write_text(json.dumps({"memory_mb": {"max": 7168}}))
+            self.assertEqual(S.memory_mb(), {"min": 2048, "max": 7168})
+            S.LOCAL_JVM.write_text(json.dumps({"memory_mb": {"min": 1024, "max": "2048"}}))
+            self.assertEqual(S.memory_mb(), {"min": 1024, "max": 2048})
+            S.LOCAL_JVM.write_text("not json")
+            self.assertEqual(S.memory_mb(), {"min": 2048, "max": 3072})
+
+
 class Guards(unittest.TestCase):
     def test_setup_lock_excludes_a_second_launcher(self):
         code = "import omo_setup as S\nwith S.setup_lock(): pass"
@@ -783,6 +825,28 @@ class LauncherUI(unittest.TestCase):
     def test_hermes_line_names_model_and_provider(self):
         s = {**self.BASE, "hermes": {"installed": True, "path": "/h", "model": "qwen3-coder", "provider": "local"}}
         self.assertIn("qwen3-coder via local", self.UI.readiness(s)[0][2][2])
+
+    def test_terminal_menu_explains_the_sign_in(self):
+        # The menu showed no account line until signed in, and "4) Sign in"
+        # without Omo's client ID printed "signin: FAILED" with no way forward.
+        line = self.UI.account_line
+        self.assertEqual(line({"mode": "omo", "signed_in": True, "name": "OmoTester"}),
+                         ("ok", "Signed in as OmoTester"))
+        state, text = line({"mode": "prism", "signed_in": False})
+        self.assertEqual(state, "warn")
+        self.assertIn("2) Play", text)
+        self.assertIn("Microsoft sign-in window", text)
+        self.assertIn("4) Sign in", line({"mode": "omo", "signed_in": False})[1])
+        s = {**self.BASE, "account": {"mode": "prism", "signed_in": False, "name": None}}
+        out = io.StringIO()
+        with mock.patch.object(self.UI, "status", return_value=s), \
+                mock.patch("builtins.input", side_effect=["4", "q"]), \
+                mock.patch.object(self.UI.subprocess, "run") as run, contextlib.redirect_stdout(out):
+            self.UI.tui()
+        run.assert_not_called()
+        self.assertIn("[--] Account", out.getvalue())
+        self.assertIn("Microsoft sign-in window", out.getvalue())
+        self.assertNotIn("FAILED", out.getvalue())
 
     def test_page_for_each_state(self):
         page = self.UI.page_for

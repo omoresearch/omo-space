@@ -44,6 +44,7 @@ Protocol (JSON text frames over a loopback websocket; first frame is `hello`):
   -> station_status {station} | steer {station, ws, tab}
   both roles (a screen only for its own workspace):
   -> ws_get {ws} | attach {ws, tab, cols, rows} | switch {tab} | detach
+  -> pause | resume                                     no player near: keep the last frame, close the view
   -> in {d} | size {cols, rows} | focus | redraw
   -> scroll {by} | wheel {by, x, y}                     history, or the app's own wheel
   -> sel {x1, y1, x2, y2, unit: char|word|line} | copy | paste {d?} | open {x, y}
@@ -165,7 +166,12 @@ LIMITS = {"workspaces": 128, "tabs_per_workspace": 12, "views": 192}   # sized f
 SHELLS = {"bash", "sh", "zsh", "fish", "dash"}
 PROFILE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 TERM_OPS = {"in", "size", "focus", "redraw", "scroll", "wheel", "sel", "copy", "paste", "open", "find", "clear"}
-SCREEN_OPS = {"ws_get", "attach", "switch", "detach", *TERM_OPS}
+SCREEN_OPS = {"ws_get", "attach", "switch", "detach", "pause", "resume", *TERM_OPS}
+# A screen nobody is near (the mod tells station.lua, which sends "pause")
+# keeps its last picture: after PARK_AFTER seconds on screen its view (tmux
+# client + PTY + frame pump) closes; "resume" re-attaches the same tab.
+# An unwatched tab may then auto-sleep like any other.
+PARK_AFTER = 1.5
 ENDS_SELECTION = {"in", "paste", "scroll", "wheel", "find", "clear"}
 PASTE_MAX = 256 * 1024
 # Session server options the views depend on, applied when a view opens so a
@@ -1479,6 +1485,8 @@ class Conn:
         self.claim_pending = False  # a "focus" came while (re)attaching: claim on the new view
         self.attach_lock = asyncio.Lock()
         self.last_active = 0.0      # last input or screen change on this view (monotonic)
+        self.paused = False         # no player near this screen: show the last frame, hold no view
+        self.size = (51, 19)        # the last size this screen asked for (resume re-attaches at it)
 
     async def send(self, obj):
         try:
@@ -1513,6 +1521,7 @@ class Conn:
         prev_rows, prev_cursor, prev_size, prev_scroll = {}, None, None, None
         last_poll, bells, last_bell = 0.0, pty.bells, 0.0
         first_frame = True
+        started = time.monotonic()
         try:
             while self.view is view and pty.alive:
                 try:
@@ -1523,6 +1532,9 @@ class Conn:
                 if self.view is not view:
                     return
                 now = time.monotonic()
+                if self.paused and now - started >= PARK_AFTER and not self.dirty_all:
+                    await self._park(view)
+                    return
                 # tmux state (scroll position, which window is shown) only moves
                 # when someone uses the screen or it repaints; a quiet screen is
                 # checked every 2s instead of every 0.5s, so a room full of
@@ -1587,6 +1599,18 @@ class Conn:
     def redraw(self):
         self.dirty_all = True
         self.wake.set()
+
+    async def _park(self, view):
+        """Paused: drop the view quietly. The screen keeps its last frame (no
+        "detached": nothing ended), and the tab counts as unwatched."""
+        async with self.attach_lock:
+            if self.view is not view:
+                return
+            self.view, self.sender = None, None
+            with VIEWS_LOCK:
+                VIEWS.discard(view)
+        await asyncio.to_thread(view.close)
+        log(f"park station={self.station} ws={self.ws_id} tab={self.current_tab} view={view.name}")
 
     # -- attach/switch -----------------------------------------------------
     async def attach(self, ws_id, tab_id, cols, rows):
@@ -1768,7 +1792,15 @@ class Conn:
             await self.toast("Hermes here stays awake" if desc["keep_awake"]
                              else f"idle Hermes here sleeps after {SLEEP_AFTER / 60:.0f} min unwatched")
         elif kind == "attach":
-            await self.attach(ws_id, tab_id, *self._size(msg))
+            self.size = self._size(msg)
+            await self.attach(ws_id, tab_id, *self.size)
+        elif kind == "pause":
+            self.paused = True
+            self.wake.set()                 # the pump parks once the screen has a picture
+        elif kind == "resume":
+            was, self.paused = self.paused, False
+            if was and self.view is None and self.ws_id and self.current_tab:
+                await self.attach(self.ws_id, self.current_tab, *self.size)
         elif kind == "switch":
             if not self.ws_id:
                 raise BridgeError("attach first")
@@ -1841,7 +1873,8 @@ class Conn:
             view.live_again()
             await self.type_in(str(msg.get("d", "")))
         elif kind == "size":
-            pty.resize(*self._size(msg))
+            self.size = self._size(msg)
+            pty.resize(*self.size)
             self.redraw()
             # A client that resizes becomes tmux's pick for the window size:
             # once tmux has seen it, hand the size back to the screen in use.

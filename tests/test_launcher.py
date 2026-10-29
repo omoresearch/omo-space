@@ -466,7 +466,7 @@ class Units(unittest.TestCase):
         tmux.chmod(0o755)
         subs = {"TMUX": tmux, "TMUX_CONF": odd / "tmux.conf", "PYTHON": S.pick_python(),
                 "BRIDGE": odd / "omobridge.py", "OMO_DATA": odd / "data", "HERMES": "",
-                "CLAUDE": odd / "claude", "CODEX": ""}
+                "CLAUDE": odd / "claude", "CODEX": "", "PORT": 8780}
         out = ROOT / "units"
         out.mkdir(exist_ok=True)
         for unit in S.UNITS:
@@ -482,9 +482,34 @@ class Units(unittest.TestCase):
 
     def test_bridge_unit_pins_agent_clis(self):
         subs = {"TMUX": "/t", "TMUX_CONF": "/c", "PYTHON": "/p", "BRIDGE": "/b", "OMO_DATA": "/d",
-                "HERMES": "/h/hermes", "CLAUDE": "/h/claude", "CODEX": ""}
+                "HERMES": "/h/hermes", "CLAUDE": "/h/claude", "CODEX": "", "PORT": 8780}
         text = S.render_unit((S.REPO / "scripts/omo-bridge.service").read_text(), subs)
         self.assertIn('Environment="OMO_CLAUDE_BIN=/h/claude" "OMO_CODEX_BIN="', text)
+
+    def test_bridge_port_reaches_the_unit_and_the_game(self):
+        # OMO_BRIDGE_PORT moved the CC:T rule and the readiness check, but the
+        # unit started the bridge on 8780 and the mod dialled 8780: setup waited
+        # on a port nothing listened on, then failed.
+        subs = {"TMUX": "/t", "TMUX_CONF": "/c", "PYTHON": "/p", "BRIDGE": "/b", "OMO_DATA": "/d",
+                "HERMES": "", "CLAUDE": "", "CODEX": "", "PORT": 18781}
+        text = S.render_unit((S.REPO / "scripts/omo-bridge.service").read_text(), subs)
+        self.assertIn('"OMO_PORT=18781"', text)
+        units = ROOT / "port-units"
+        units.mkdir(exist_ok=True)
+        with mock.patch.object(S, "PORT", 18781), mock.patch.object(S, "SYSTEMD_USER", units), \
+                mock.patch.object(S, "TMUX_CONF", units / "tmux.conf"), \
+                mock.patch.object(S, "systemctl"), mock.patch.object(S, "wait_ready", return_value=None), \
+                mock.patch.dict(os.environ, {"OMO_NO_SERVICES": ""}):
+            S.ensure_services("/t")
+        self.assertIn('"OMO_PORT=18781"', (units / "omo-bridge.service").read_text())
+        with mock.patch.object(S, "PORT", 18781), mock.patch.object(S, "local_jvm", return_value={}):
+            with mock.patch.dict(os.environ, {"OMO_BRIDGE_PORT": "18781", "OMO_JVM_ARGS": ""}):
+                self.assertIn("-Domo.port=18781", S.extra_jvm_args())
+            with mock.patch.dict(os.environ, {"OMO_BRIDGE_PORT": "18781", "OMO_JVM_ARGS": "-Domo.port=9"}):
+                self.assertEqual([a for a in S.extra_jvm_args() if "omo.port" in a], ["-Domo.port=9"])
+            with mock.patch.dict(os.environ, {"OMO_JVM_ARGS": ""}):
+                os.environ.pop("OMO_BRIDGE_PORT", None)
+                self.assertNotIn("-Domo.port=18781", S.extra_jvm_args())   # default: the mod's own default
 
     def test_find_agent_cli(self):
         home = Path(tempfile.mkdtemp(dir=ROOT))

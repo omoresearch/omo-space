@@ -1,69 +1,159 @@
 <p align="center">
-  <img src="docs/media/hero.webp" alt="Omo Space. The next interface isn't a chat window. Real AI agents at desks in a world you build." width="100%">
+  <sub><code>System</code> &nbsp; <code>v1.2.0</code> &nbsp; <code>MIT</code> &nbsp; <code>Minecraft Java 26.2</code></sub>
 </p>
 
-<p align="center">
-  Place a computer in Minecraft and a real <b>Hermes Agent</b>, <b>Claude Code</b>, <b>Codex</b> or plain shell starts on your own machine.<br>
-  Its terminal is painted on the wall, real web pages run on the monitors, and the work keeps going after you quit the game.
-</p>
+<h1 align="center"><i>Omo Space</i></h1>
 
 <p align="center">
-  <a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27"><img src="docs/media/btn-demo.png" alt="Watch the demo" height="44"></a>&nbsp;
+  Chat windows were built for one conversation. Now there are twenty, and they keep running when you look away.<br>
+  <b>So we gave every agent a room.</b>
+</p>
+
+<p align="center"><sub>
+  Place a computer block in Minecraft and a real Hermes Agent, Claude Code, Codex or plain shell starts on your own PC.<br>
+  Its terminal is on the wall, real web pages run on the monitors, and the work keeps going after you quit the game.
+</sub></p>
+
+<table align="center">
+<tr>
+<td align="center"><sub>RELEASE</sub><br><a href="https://github.com/omoresearch/omo-space/releases/tag/v1.2.0">v1.2.0</a>, 28 Oct 2026</td>
+<td align="center"><sub>RUNS ON</sub><br>Linux · macOS · Windows (WSL2)</td>
+<td align="center"><sub>LICENCE</sub><br><a href="LICENSE">MIT</a></td>
+<td align="center"><sub>LIVE</sub><br><a href="https://www.twitch.tv/yiifannn">twitch.tv/yiifannn</a></td>
+</tr>
+</table>
+
+<p align="center">
   <a href="#install"><img src="docs/media/btn-install.png" alt="Install" height="44"></a>&nbsp;
-  <a href="https://www.twitch.tv/yiifannn"><img src="docs/media/btn-live.png" alt="Live on Twitch" height="44"></a>
+  <a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27"><img src="docs/media/btn-demo.png" alt="Watch the demo" height="44"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/omoresearch/omo-space/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/omoresearch/omo-space?style=flat-square&color=1a1008&labelColor=4a3b2f"></a>
-  <a href="https://github.com/omoresearch/omo-space/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/omoresearch/omo-space/ci.yml?branch=main&style=flat-square&label=CI&labelColor=4a3b2f"></a>
-  <img alt="Minecraft Java 26.2" src="https://img.shields.io/badge/Minecraft_Java-26.2-1a1008?style=flat-square&labelColor=4a3b2f">
-  <a href="LICENSE"><img alt="licence MIT" src="https://img.shields.io/badge/licence-MIT-1a1008?style=flat-square&labelColor=4a3b2f"></a>
+  <a href="https://github.com/omoresearch/omo-space"><img alt="Star Omo Space on GitHub" src="https://img.shields.io/badge/%E2%AD%90%20Star%20Omo%20Space-on%20GitHub-f5f0e8?style=flat-square&labelColor=1a1008&logo=github&logoColor=white"></a>
+  <br><sub>Like it? A star helps other builders find it.</sub>
 </p>
+
+<p align="center">
+  <img src="docs/media/cover.webp" alt="Illustration: an open blocky world of islands, a lake and a waterfall, agents working wherever they like, their screens linked across the sky, a player wandering the path" width="100%">
+  <br><sub><code>ILLUSTRATION</code> Generated with ChatGPT image generation. Everything below is real footage from our stream.</sub>
+</p>
+
+> **Abstract.** People remember rooms better than tabs. Omo Space gives every long-running agent a place in a shared
+> 3D world, so finding one becomes walking to it, resuming becomes coming back to where you left it, and checking on
+> the team becomes a glance down the hallway. It is a Minecraft mod and a small local service. Walking away, or
+> quitting the game, stops nothing, because the sessions belong to a background session server, not to the game.
 
 <br>
 
-<a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27">
-  <img src="docs/media/demo-poster.webp" alt="Play the 15-minute demo: a viewer found Omo Space on Instagram, so Yifan showed him the whole loop, live" width="100%">
-</a>
+<sub>01</sub>
 
-<p align="center"><sub>
-  15 minutes, one take, live on stream: the rooms, the agents, the edit review, the publishing desk, and an underground robot lab built from one prompt.<br>
-  <a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27"><b>Watch</b></a> ·
-  <a href="https://github.com/omoresearch/omo-space/releases/download/demo-2026-10-27/omo-space-demo-2026-10-27.mp4">MP4, 1080p, 345 MB</a> ·
-  <a href="docs/demo/TRANSCRIPT.md">Transcript</a>
-</sub></p>
+## Introduction
 
-<p align="center">
-  <img src="docs/media/loop-references.webp" width="32%" alt="A web wall in the references room showing reference videos and scripts">
-  <img src="docs/media/loop-review.webp" width="32%" alt="The editing room: the review page for a cut on an in-world monitor wall">
-  <img src="docs/media/loop-publish.webp" width="32%" alt="The publish desk web page pinned to a monitor wall">
-  <br>
-  <img src="docs/media/loop-lab.webp" width="32%" alt="Walking into the underground lab an agent built from one prompt, with glass and water overhead">
-  <img src="docs/media/loop-robots.webp" width="32%" alt="The robot lab: the RP1 humanoid, a GLaDOS-style ceiling AI and a Microduck, simulated live in MuJoCo">
-  <img src="docs/media/loop-agent.webp" width="32%" alt="An agent player walking through the Batcave">
-  <br>
-  <sub>Find references · review the cut · publish · one prompt, one lab · the robot lab · an agent in the halls. All clips from the stream.</sub></p>
+Most agent interfaces disappear when you close the window. The agent is a tab, the tab looks like every other tab,
+and after a dozen of them it is hard to say which one is which, which one is working and which one is waiting for you.
+
+<p><img src="docs/media/s-white-hall.webp" alt="A hall of desks with screens on the walls" width="100%"><br>
+<sub><code>FROM OUR STREAM</code> A hall of desks with screens on the walls, 27 October</sub></p>
+
+Omo Space starts from the opposite end. Each agent gets a place: a desk in a room, with its terminal on the wall and
+its name on a plate. You find it by walking to it. You check on it by looking down the hallway. When you come back
+the next day, it is where you left it.
+
+<sub>02</sub>
+
+## What you can build
+
+Everything is an ordinary-looking game block. These are the whole kit:
+
+<p><img src="docs/media/s-hermes-terminal.webp" alt="A real Hermes session on an in-world screen, answering live on stream" width="100%"><br>
+<sub><code>FROM OUR STREAM</code> A real Hermes session on an in-world screen, answering live on stream</sub></p>
+
+| Block | What it does |
+| --- | --- |
+| **Hermes Computer** | One named workspace with a Hermes conversation in the profile you choose. Different agents, different desks. |
+| **Terminal** | A persistent shell. Its "+" menu opens Shell, Hermes, Claude Code or Codex tabs. |
+| **Omo Monitor / Slim Screen** | A bigger view of a terminal, or a real Chromium page: up to 6 tabs, its own sound, WASD for web games. |
+| **Omo Linker** | Mirrors a station onto walls across the room, with no wiring. |
+| **Omo Pocket** | A Hermes or Terminal workspace you carry as an item. |
+| **Name Plate / Status Lamp** | A name, and a live working / idle / interrupted light that also drives redstone. |
+
+<sub>Claude Code and Codex tabs are on `main` and ship in the next release ([changelog](CHANGELOG.md)).</sub>
+
+<sub>03</sub>
 
 ## How it works
+
+The game is only the view. Four steps describe the whole interaction:
+
+```mermaid
+flowchart LR
+  A["<b>You at a desk</b><br/>computer, pocket or wall<br/><i>in the game</i>"] --> B["<b>Local bridge</b><br/>paints screens, sends keys<br/><i>127.0.0.1 only</i>"]
+  B --> C["<b>tmux sessions</b><br/>owns every workspace<br/><i>background service</i>"]
+  C --> D["<b>Real agents</b><br/>Hermes, Claude Code, Codex, shell<br/><i>your PC</i>"]
+```
 
 1. **Place a desk.** A Hermes Computer or Terminal block opens a named workspace on your PC.
 2. **Type on the wall.** Your keys go to a real shell or agent, and its terminal is painted in the world.
 3. **Walk away.** tmux owns every session. Quit Minecraft and the work goes on while your PC is awake.
-4. **Come back.** It's on the wall where you left it. After a reboot, the desk reopens its tabs; nothing is re-run.
+4. **Come back.** It is on the wall where you left it. After a reboot, the desk reopens its tabs; nothing is re-run.
 
-## What you can build
+Web walls are real Chromium pages. Since v1.2.0 a world can show 12 pages at once. A guard rate-limits new pages and
+closes all but the nearest walls if memory runs high.
 
-| Block | What it does |
-| --- | --- |
-| **Hermes Computer** | A named workspace with its own Hermes conversation. One desk per agent. |
-| **Terminal** | A persistent shell with tabs. Claude Code and Codex tabs land in the [next release](docs/AGENTS-AND-TERMINALS.md#claude-code-and-codex-tabs). |
-| **Omo Monitor · Slim Screen** | A big wall for a terminal or a real web page, with tabs and sound. |
-| **Omo Linker** | Mirror a desk onto walls across the room, no wiring. |
-| **Omo Pocket** | Carry a workspace around as an item. |
-| **Name Plate · Status Lamp** | A name and a live working / idle / interrupted light that also drives redstone. |
+<sub>04</sub>
 
-**New in v1.2.0:** agents on your PC can [walk into your world as players](docs/AGENTS-AND-TERMINALS.md#8-agent-bodies-in-your-world-lan-join).
-Meet them in [Omo, brought to life](https://github.com/omoresearch/omo-brought-to-life) and [Omo Microduck](https://github.com/omoresearch/omo-microduck).
+## What survives what
+
+Persistence is the point, so it is worth being exact about it:
+
+<p><img src="docs/media/loop-review.webp" alt="Reviewing a cut on the wall: the editing agent's work, where you left it" width="100%"><br>
+<sub><code>STREAM CLIP</code> Reviewing a cut on the wall: the editing agent's work, where you left it</sub></p>
+
+| Event | Shells and running jobs | Hermes conversation |
+| --- | --- | --- |
+| Close the screen, walk away | Keep running | Keeps running |
+| Quit Minecraft | Keep running | Keeps running |
+| Restart the bridge or launcher | Keep running | Keeps running |
+| Hermes tab idle and unseen for 20 min | (no change) | Sleeps, saved, and resumes when a screen shows it |
+| PC restart | Lost; the tabs come back with the same names, shells in their last folder | Saved, and resumes in its reopened tab |
+
+Two rules hold throughout. State is reported honestly: if the session server stops, the screen says `INTERRUPTED`.
+And nothing is re-run on its own: commands that were running are never re-run.
+
+<sub>05</sub>
+
+## What we built with it this week
+
+We use Omo Space as our main workspace, live on stream. Between 25 and 29 October 2026 we ran a content pipeline
+from inside the game, with one room per stage: ideas, references, recording, editing, publishing and analytics.
+Each room has its own Hermes profile.
+
+<p><a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27"><img src="docs/media/demo-poster.webp" alt="Watch the 15-minute demo" width="100%"></a><br>
+<sub><code>▶ DEMO</code> <a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27">Watch the 15-minute demo</a>: one take, live on stream · <a href="docs/demo/TRANSCRIPT.md">transcript</a></sub></p>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/media/loop-batcave.webp" alt="Rooms going up, block by block, from one prompt"><br><sub><code>STREAM CLIP</code> Rooms going up, block by block, from one prompt</sub></td>
+<td width="50%"><img src="docs/media/loop-lab.webp" alt="An underground lab, built from one prompt"><br><sub><code>STREAM CLIP</code> An underground lab, built from one prompt</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/media/s-pipeline-wall.webp" alt="A pipeline room: one stage, one agent, its work on the wall"><br><sub><code>FROM OUR STREAM</code> A pipeline room: one stage, one agent, its work on the wall</sub></td>
+<td width="50%"><img src="docs/media/s-planning-wall.webp" alt="The planning wall in the underground base"><br><sub><code>FROM OUR STREAM</code> The planning wall in the underground base</sub></td>
+</tr>
+</table>
+
+The rooms themselves were built by agents: the main underground base, with one room per stage, came from one prompt,
+and so did an underground robot lab, live on stream. At the busiest point the builder ran 21 to 25 agent sessions at
+once, across 22 separate Hermes profiles.
+
+<p><img src="docs/media/s-agent-player.webp" alt="An AI agent joins the world as a player and follows you around" width="100%"><br>
+<sub><code>FROM OUR STREAM</code> An AI agent joins the world as a player and follows you around</sub></p>
+
+Since v1.2.0, agents running on the same computer can also join the world as players, over a LAN port that refuses
+offline logins from other machines ([how](docs/AGENTS-AND-TERMINALS.md#8-agent-bodies-in-your-world-lan-join)). Our robots and the Omo agent player are built
+on that: [Omo, brought to life](https://github.com/omoresearch/omo-brought-to-life) and [Omo Microduck](https://github.com/omoresearch/omo-microduck).
+
+<sub>06</sub>
 
 ## Install
 
@@ -130,71 +220,54 @@ Then open **Omo Space** from the Start menu.
 
 </details>
 
-## FAQ
+<sub>07</sub>
 
-<details>
-<summary><b>Real agents, or a Minecraft simulation?</b></summary>
+## Security model
 
-Real. Hermes runs on your machine with its own profiles, memory, tools and approval prompts, and so does
-anything you start in a shell. The mod sends your keys to them and paints their terminal in the game.
-</details>
+Omo Space puts real shells on your computer behind blocks in a world, so treat it with the same care as a terminal:
 
-<details>
-<summary><b>Do agents act in the world?</b></summary>
+- The bridge listens on `127.0.0.1` only and refuses foreign Host headers.
+- A computer's screen only ever holds a single-use ticket, bound to its station, its workspace and the running bridge.
+- Worlds store workspace ids and monitor URLs, never a credential.
+- Hermes' own approval prompts and permissions are untouched. Nothing here enables paid inference by itself.
 
-A desk agent works in its terminal on your PC; it doesn't walk or place blocks. An agent *body* (like Omo) is a
-separate program on the same PC that joins your world as a player over LAN port 25566. Logins from other
-machines are refused.
-</details>
+It is for singleplayer and trusted local worlds. A block, a room or a pocket dimension is a presentation boundary,
+not a sandbox. Details: [SECURITY.md](SECURITY.md).
 
-<details>
-<summary><b>Does it survive quitting the game?</b></summary>
+<sub>08</sub>
 
-Yes, while your PC stays awake and the session service runs. A reboot ends the processes; tabs come back when
-you next open the desk (shells in their last folder) and a saved Hermes conversation resumes, but in-flight shell
-commands don't.
-</details>
+## Limitations
 
-<details>
-<summary><b>Are the web pages live?</b></summary>
+<p><img src="docs/media/s-glass-villa.webp" alt="Part of our world, 27 October" width="100%"><br>
+<sub><code>FROM OUR STREAM</code> Part of our world, 27 October</sub></p>
 
-Yes, while the game is open: up to 12 pages at once, with a guard against runaway pages. Pinned pages come back
-after a restart; their in-page state doesn't. Chromium here has no H.264/AAC codecs, so YouTube plays but most
-Instagram, X and Reddit video doesn't.
-</details>
+- **Platforms.** Tested end to end on Linux. macOS and Windows support is new and tested offline only; a
+  clean-machine install through Microsoft sign-in has not been tested yet.
+- **Desk agents do not act in the world.** A Hermes desk agent cannot walk, place blocks or press buttons. Agent
+  bodies are a separate runtime.
+- **Agents do not talk to each other through the world.** Work is handed between them the normal Hermes way.
+- **Workspaces live on the PC that opened them.** A friend on another PC gets a fresh workspace from the same preset.
+- **Web video.** The bundled Chromium has no H.264/AAC codecs, so YouTube plays but most Instagram, X and Reddit
+  video does not.
+- **The game is heavier than the work.** In our own use, the game client crashed or froze more often than the agent
+  sessions failed; the sessions survived.
 
-<details>
-<summary><b>Can another player use my shell?</b></summary>
-
-This is for singleplayer and trusted local worlds. A block is not a security sandbox. Read the
-[security model](SECURITY.md) first.
-</details>
+<sub>09</sub>
 
 ## For builders
 
-```mermaid
-flowchart TB
-  P["You, in Minecraft"] --> S["Computer, pocket<br/>or monitor wall"]
-  S -->|keys and frames| B["Local bridge<br/>127.0.0.1 only"]
-  B --> T["tmux session server<br/>workspaces and tabs"]
-  T --> H["Hermes Agent<br/>your profile"]
-  T --> C["Your shell<br/>Claude Code, Codex, tools"]
-  S -.->|web walls| W["Chromium pages<br/>tabs, sound, guard"]
-  A["Agent bodies<br/>on this PC"] -.->|LAN join| P
-```
+The repo holds the Fabric mod, the Python bridge, the tmux session server, the launcher, room kits, tests and the
+release bundle builder. CI tests the bridge, launcher and platforms on Linux, macOS and Windows.
 
-The bridge listens on `127.0.0.1` only and the world never stores a credential. CI tests the bridge, launcher
-and platforms on Linux, macOS and Windows.
-
-[Guide](docs/GUIDE.md) · [Agents](docs/AGENTS-AND-TERMINALS.md) · [Building](docs/builders/README.md) ·
+[Guide](docs/GUIDE.md) · [Agents and terminals](docs/AGENTS-AND-TERMINALS.md) · [Building](docs/builders/README.md) ·
 [Maps](docs/MAPS.md) · [Platforms](docs/PLATFORMS.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) ·
 [Changelog](CHANGELOG.md)
 
 <br>
 
 <p align="center">
-  <a href="https://github.com/omoresearch/omo-space"><img alt="Star Omo Space on GitHub" src="https://img.shields.io/github/stars/omoresearch/omo-space?style=for-the-badge&logo=github&label=Star%20Omo%20Space&color=1a1008&labelColor=4a3b2f"></a>
-  <br><sub>If an agent at a desk in your own world sounds fun, a star tells us to keep going. We ship on stream almost every day.</sub>
+  <a href="https://github.com/omoresearch/omo-space"><img alt="Star Omo Space on GitHub" src="https://img.shields.io/badge/%E2%AD%90%20Star%20Omo%20Space-on%20GitHub-f5f0e8?style=for-the-badge&labelColor=1a1008&logo=github&logoColor=white"></a>
+  <br><sub>If you'd like an agent at a desk in your own world, a ⭐ helps more people find it. We build it live on stream almost every day.</sub>
 </p>
 
 ---

@@ -6,7 +6,11 @@
 #
 #   tests/launch-test.sh &      then   tests/acceptance.py
 #
-# Env: OMO_TEST_DISPLAY (:98), OMO_TEST_PRISM (Prism binary), OMO_TEST_INSTANCE
+# Env: OMO_TEST_BRIDGE_PORT (8794) and OMO_TEST_PORT (driver, 8793): set both to
+# free ports when other programs use the defaults; the launch refuses a port
+# held by anything but the test stack (tests/testenv.py), and bench.py,
+# acceptance.py and gamectl.py read the same variables.
+# OMO_TEST_DISPLAY (:98), OMO_TEST_PRISM (Prism binary), OMO_TEST_INSTANCE
 # (OmoTest; optionally a copy of a larger modpack), OMO_PRISM_DATA
 # (default ~/.local/share/omo-test-prism: a Prism data dir of its own, with
 # libraries/assets/meta linked from the real one, so the test Prism is a

@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Performance benchmark
+
+- `tests/bench.py`: fixed scenes (idle, 6 and 12 web walls, 6 live terminal
+  walls, mixed) on the isolated test stack, every frame recorded through the
+  test driver (`bench_start`/`bench_stop`). Reports fps, 1% low, p50-p99 frame
+  time, stutters, render/server CPU per frame, GC, RSS of the game and its
+  Chromium helpers, and bridge CPU. `bench.py compare` exits 1 on a regression
+  or on a metric the new run lost. See docs/PERFORMANCE.md.
+- The test stack refuses ports another program holds: the bench checks by pid
+  that the bridge and driver ports belong to the test bridge and the OmoTest
+  JVM, and `launch-test.sh` refuses a taken driver port. Use
+  `OMO_TEST_BRIDGE_PORT`/`OMO_TEST_PORT` when 8794/8793 are in use.
+
 ### Omo Space everywhere, a tidier installer
 
 - Release bundles are now `omo-space-<ver>-*` (v1.2.0's `omo-research-*`

@@ -784,6 +784,28 @@ class LauncherUI(unittest.TestCase):
         s = {**self.BASE, "hermes": {"installed": True, "path": "/h", "model": "qwen3-coder", "provider": "local"}}
         self.assertIn("qwen3-coder via local", self.UI.readiness(s)[0][2][2])
 
+    def test_terminal_menu_explains_the_sign_in(self):
+        # The menu showed no account line until signed in, and "4) Sign in"
+        # without Omo's client ID printed "signin: FAILED" with no way forward.
+        line = self.UI.account_line
+        self.assertEqual(line({"mode": "omo", "signed_in": True, "name": "OmoTester"}),
+                         ("ok", "Signed in as OmoTester"))
+        state, text = line({"mode": "prism", "signed_in": False})
+        self.assertEqual(state, "warn")
+        self.assertIn("2) Play", text)
+        self.assertIn("Microsoft sign-in window", text)
+        self.assertIn("4) Sign in", line({"mode": "omo", "signed_in": False})[1])
+        s = {**self.BASE, "account": {"mode": "prism", "signed_in": False, "name": None}}
+        out = io.StringIO()
+        with mock.patch.object(self.UI, "status", return_value=s), \
+                mock.patch("builtins.input", side_effect=["4", "q"]), \
+                mock.patch.object(self.UI.subprocess, "run") as run, contextlib.redirect_stdout(out):
+            self.UI.tui()
+        run.assert_not_called()
+        self.assertIn("[--] Account", out.getvalue())
+        self.assertIn("Microsoft sign-in window", out.getvalue())
+        self.assertNotIn("FAILED", out.getvalue())
+
     def test_page_for_each_state(self):
         page = self.UI.page_for
         self.assertEqual(page({**self.BASE, "installed": False}), "welcome")

@@ -246,6 +246,13 @@ def prepare_instance(inst):
     running = omo_setup.instance_pids(inst)
     if running:     # CC:T hot-reloads its config: editing it would rewire a live game
         raise SystemExit(f"testenv: {inst.name} is running (pid {running[0]}); quit it before a test launch")
+    # The game is not running, so anything on the driver port is someone else's
+    # (on some machines 8793 is another local service): the test driver would
+    # fail to bind and gamectl/acceptance/bench would talk to that program.
+    holder = omo_setup.port_holder(DRIVER_PORT)
+    if holder:
+        raise SystemExit(f"testenv: driver port {DRIVER_PORT} is held by {holder}; "
+                         "set OMO_TEST_PORT (and OMO_TEST_BRIDGE_PORT if needed) to free ports")
     ours = [f"-Domo.data={DATA}", f"-Domo.port={PORT}", f"-Domo.test.port={DRIVER_PORT}"]
     lines = cfg.read_text().splitlines()
     general = lines.index("[General]") if "[General]" in lines else None

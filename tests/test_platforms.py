@@ -326,6 +326,7 @@ class MacServices(unittest.TestCase):
         self.assertEqual((env["OMO_CLAUDE_BIN"], env["OMO_CODEX_BIN"]), ("/opt/homebrew/bin/claude", ""))
         self.assertTrue(env["OMO_DATA"].endswith("Library/Application Support/OmoResearch"))
         self.assertIn("/opt/homebrew/bin", env["PATH"])
+        self.assertEqual(env["OMO_PORT"], "8780")      # the bridge listens where setup will look
 
     def test_launchctl_flow_never_restarts_a_changed_tmux(self):
         """Fake launchctl: first run bootstraps both; a changed tmux.conf on a
@@ -612,6 +613,17 @@ class Installers(unittest.TestCase):
         self.assertIn("install.ps1", src)
         p = subprocess.run(["bash", "-n", str(REPO / "scripts/install.sh")], capture_output=True)
         self.assertEqual(p.returncode, 0, p.stderr)
+
+    def test_install_sh_help_lists_every_option(self):
+        # --help printed a fixed line range and dropped --uninstall, the last option.
+        p = subprocess.run(["bash", str(REPO / "scripts/install.sh"), "--help"],
+                           capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("--no-setup", p.stdout)
+        self.assertIn("--uninstall", p.stdout)
+        self.assertTrue(p.stdout.startswith("Omo Space installer"), p.stdout[:80])
+        self.assertNotIn("set -euo", p.stdout)
+        self.assertNotRegex(p.stdout, r"(?m)^#")
 
     def test_install_ps1_parses(self):
         pwsh = shutil.which("pwsh")

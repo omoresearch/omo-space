@@ -463,6 +463,9 @@ def extra_jvm_args():
     for a in [*(local_jvm().get("jvm_args") or []), *os.environ.get("OMO_JVM_ARGS", "").split()]:
         if a not in out:
             out.append(a)
+    # A bridge moved with OMO_BRIDGE_PORT is only reachable if the mod is told too.
+    if os.environ.get("OMO_BRIDGE_PORT") and not any(a.startswith("-Domo.port=") for a in out):
+        out.append(f"-Domo.port={PORT}")
     return out
 
 
@@ -1050,7 +1053,7 @@ def launch_agents(tmux):
                                          {"OMO_SESSION_SERVER": "1", "PATH": path, "LANG": "en_US.UTF-8"},
                                          OMO / "tmux.log"),
         "omo-bridge.service": launch_agent(LABELS["omo-bridge.service"], [pick_python(), REPO / "bridge/omobridge.py"],
-                                           {"OMO_DATA": OMO, "OMO_TMUX": tmux, "OMO_HERMES_BIN": hermes or "",
+                                           {"OMO_DATA": OMO, "OMO_TMUX": tmux, "OMO_PORT": PORT, "OMO_HERMES_BIN": hermes or "",
                                             "OMO_CLAUDE_BIN": claude or "", "OMO_CODEX_BIN": codex or "",
                                             "PATH": path, "OMO_OPEN": "open", "LANG": "en_US.UTF-8"},
                                            OMO / "bridge.log"),
@@ -1163,7 +1166,7 @@ def ensure_services(tmux):
     changed = set()
     if write_if_changed(TMUX_CONF, (REPO / "config/omo-tmux.conf").read_bytes()):
         changed.add("tmux.conf")
-    subs = {"TMUX": tmux, "TMUX_CONF": TMUX_CONF, "PYTHON": pick_python(),
+    subs = {"TMUX": tmux, "TMUX_CONF": TMUX_CONF, "PYTHON": pick_python(), "PORT": PORT,
             "BRIDGE": REPO / "bridge/omobridge.py", "OMO_DATA": OMO, "HERMES": find_hermes() or "",
             "CLAUDE": find_agent_cli("claude") or "", "CODEX": find_agent_cli("codex") or ""}
     for unit in UNITS:

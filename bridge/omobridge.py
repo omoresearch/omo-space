@@ -54,7 +54,9 @@ Protocol (JSON text frames over a loopback websocket; first frame is `hello`):
 A station shows one tab on up to two surfaces (its computer and an attached
 monitor wall), each its own screen socket and view at its own size. tmux sizes
 the window to the latest active client; `focus` (or any key) makes a view that
-client, so the surface in use drives the PTY size.
+client, so the surface in use drives the PTY size. The bridge remembers that
+surface per workspace and, when another view attaches or resizes later, sends
+the in-use view a focus-in so it takes the size back.
 
 Plain HTTP on the same port: /health, /board (+ /board.json, a read-only live
 status page for web monitors), and token-guarded /ticket and /api/<op>.
@@ -1161,6 +1163,14 @@ class View:
 VIEWS = set()
 VIEWS_LOCK = threading.Lock()
 CONNS = set()               # every authenticated connection
+# Which screen sizes each workspace's windows: the one a player last used
+# (its station sent "focus", typed or pasted). tmux gives a window the size of
+# its newest or most recently typed-on client, so any other view of the same
+# tab that attaches later (a wall coming back into range, a steer, a second
+# station) would shrink or grow the TUI and leave the screen in use cropped
+# until it got input again.
+SIZE_OWNER = {}             # ws_id -> Conn
+RECLAIM_AFTER_RESIZE = 0.3  # seconds for tmux to take a resized client's size before the owner claims it back
 LAST_INPUT = {}             # (ws_id, tab_id) -> monotonic time a player last typed there
 
 
@@ -1466,6 +1476,7 @@ class Conn:
         self.wake = asyncio.Event()
         self.last_text = 0.0        # when typed text last reached the PTY (see type_in)
         self.pending_input = []     # keys typed while a steer re-attaches this screen
+        self.claim_pending = False  # a "focus" came while (re)attaching: claim on the new view
         self.attach_lock = asyncio.Lock()
         self.last_active = 0.0      # last input or screen change on this view (monotonic)
 
@@ -1501,6 +1512,7 @@ class Conn:
         pty = view.pty
         prev_rows, prev_cursor, prev_size, prev_scroll = {}, None, None, None
         last_poll, bells, last_bell = 0.0, pty.bells, 0.0
+        first_frame = True
         try:
             while self.view is view and pty.alive:
                 try:
@@ -1547,6 +1559,9 @@ class Conn:
                                  "cursor": frame["cursor"], "cursor_hidden": frame["cursor_hidden"],
                                  "full": full, "rows_changed": changed, "scroll": scroll[0],
                                  "max_scroll": scroll[1], "mouse": frame["mouse"]})
+                if first_frame:
+                    first_frame = False         # this view's tmux client is attached by now
+                    self.reclaim_size()
                 await asyncio.sleep(1.0 / FPS)
         except asyncio.CancelledError:
             raise
@@ -1786,7 +1801,11 @@ class Conn:
                     await c.error(str(exc))
             await self.send({"t": "steered", "station": station, "screens": len(screens)})
         elif kind in TERM_OPS:
-            if kind == "in" and self.attach_lock.locked():
+            if kind in ("focus", "in", "paste") and self.ws_id:
+                SIZE_OWNER[self.ws_id] = self   # the player uses this screen: it sizes the tabs
+            if kind == "focus" and (self.attach_lock.locked() or not self.view):
+                self.claim_pending = True       # the old view is going away: claim on the new one
+            elif kind == "in" and self.attach_lock.locked():
                 # A tab switch (steer) is re-attaching this screen: what the player
                 # types now belongs to the new tab, so keep it for the new view
                 # (never block this socket, never send it to the old tab).
@@ -1824,6 +1843,9 @@ class Conn:
         elif kind == "size":
             pty.resize(*self._size(msg))
             self.redraw()
+            # A client that resizes becomes tmux's pick for the window size:
+            # once tmux has seen it, hand the size back to the screen in use.
+            self.loop.call_later(RECLAIM_AFTER_RESIZE, self.reclaim_size)
         elif kind == "focus":
             # A focus-in report makes this view tmux's latest client, so the
             # window takes this surface's size (and apps that track focus hear it).
@@ -1915,9 +1937,37 @@ class Conn:
     async def close(self):
         self.closed = True
         CONNS.discard(self)
+        for ws_id, owner in list(SIZE_OWNER.items()):
+            if owner is self:
+                SIZE_OWNER.pop(ws_id, None)
         if self.subscribed:
             WS.unsubscribe(self.subscribed, self.on_workspace_change)
         await self.detach()
+
+    def reclaim_size(self):
+        """A view of this connection just painted for the first time (or just
+        resized), so its tmux client has taken the window's size. Give the
+        size back to the screen the player uses when that one shows the same
+        tab."""
+        if self.claim_pending and self.view:
+            self.claim_pending = False
+            SIZE_OWNER[self.ws_id] = self
+            owner = self
+        else:
+            owner = SIZE_OWNER.get(self.ws_id)
+            if owner is self:
+                return                          # the newest client already is the owner
+        if owner is None or owner.closed or owner.view is None \
+                or (owner is not self and owner.attach_lock.locked()) \
+                or owner.ws_id != self.ws_id or owner.current_tab != self.current_tab:
+            return
+        try:
+            owner.view.pty.write(b"\x1b[I")     # a focus-in report: tmux's latest client again
+        except OSError:
+            return
+        owner.redraw()
+        log(f"size reclaimed ws={self.ws_id} tab={self.current_tab} by station={owner.station} "
+            f"{owner.view.pty.cols}x{owner.view.pty.rows}")
 
     def status(self):
         """What a UI wants to know about this screen connection."""

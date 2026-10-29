@@ -464,18 +464,39 @@ async def two_surfaces(env, ui, term):
     after_key = window()
     await computer.settle()
     await wall.settle()
+    # after_wall: the screen that last typed on this tab (ui, above) keeps the size, so it is not checked
     check("two views of one tab paint at their own sizes; focus and keys decide the window size",
-          (after_wall, after_focus, wall_focus, after_key) == ("100x40", "80x28", "100x40", "80x28")
+          (after_focus, wall_focus, after_key) == ("80x28", "100x40", "80x28")
           and (computer.frame["cols"], computer.frame["rows"], wall.frame["cols"], wall.frame["rows"]) == (80, 28, 100, 40),
           f"{after_wall} {after_focus} {wall_focus} {after_key}")
     await wall.send(t="size", cols=60, rows=20)
-    await asyncio.sleep(0.6)
-    check("a wall that grows or shrinks refits live", window() == "60x20", window())
+    await asyncio.sleep(1.0)
+    await wall.settle()
+    check("a wall that grows or shrinks refits live; the computer in use keeps the window size",
+          (wall.frame["cols"], wall.frame["rows"]) == (60, 20) and window() == "80x28",
+          f"{wall.frame['cols']}x{wall.frame['rows']} window {window()}")
+    # A third view of the same tab attaching later (a wall coming back into
+    # range, a second station) is tmux's newest client and took the window
+    # size, cropping the TUI on the screen in use until it got input.
+    late = Client(env)
+    await late.open(ticket=env.http(f"/ticket?token={env.token}&station=st-3&ws={term['id']}"), station="st-3",
+                    ws=term["id"])
+    await late.send(t="attach", ws=term["id"], tab="", cols=120, rows=45)
+    await late.expect(lambda m: m["t"] == "attached")
+    await asyncio.sleep(1.2)
+    check("a view that attaches later does not take the size from the screen in use",
+          window() == "80x28", window())
+    await late.close()
     await ui.send(t="tab_new", ws=term["id"], kind="shell", name="Other")
     other = (await ui.expect(lambda m: m["t"] == "tab_created"))["tab"]
     await ui.send(t="steer", station="st-2", ws=term["id"], tab=other)
     moved = [await c.expect(lambda m: m["t"] == "attached" and m["tab"] == other, 6) for c in views]
     check("a tab switch from the panel moves both views", all(moved), str(moved))
+    await asyncio.sleep(1.2)
+    sizes = env.tmux("list-windows", "-t", f"=omo-{term['id']}", "-F",
+                     "#{window_width}x#{window_height}").stdout.split()
+    check("after a steer the screen in use sizes the new tab, whichever view attached last",
+          sizes[-1:] == ["80x28"], str(sizes))
     for c in views:
         await c.close()
     await ui.send(t="tab_close", ws=term["id"], tab=other, force=True)

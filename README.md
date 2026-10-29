@@ -82,16 +82,21 @@ Built on it, live on stream: [Omo, brought to life](https://github.com/omoresear
 
 1. Read [docs/PLATFORMS.md](docs/PLATFORMS.md). Linux x86_64 is tested end to end; macOS and Windows (WSL2)
    support is new and tested offline only. A clean-machine install through Microsoft sign-in is not tested yet.
-2. Grab the installer and the bundle for your platform from the
-   [v1.2.0 release](https://github.com/omoresearch/omo-space/releases/tag/v1.2.0)
-   (`SHA256SUMS` there covers every file) and run it:
+2. Grab the installer, the bundle for your platform and `SHA256SUMS` from the
+   [v1.2.0 release](https://github.com/omoresearch/omo-space/releases/tag/v1.2.0),
+   check them, and run the installer:
 
    ```bash
    # Linux x86_64 (macOS: the -macos.tar.gz, after `brew install tmux python`)
    curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/install.sh
    curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/omo-research-1.2.0-linux-x64.tar.gz
+   curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/SHA256SUMS
+   sha256sum -c --ignore-missing SHA256SUMS   # macOS: shasum -a 256 -c --ignore-missing SHA256SUMS
    bash install.sh omo-research-1.2.0-linux-x64.tar.gz
    ```
+
+   `SHA256SUMS` lists every platform's files; `--ignore-missing` checks the
+   ones you downloaded. Both lines must say `OK`.
 
    ```powershell
    # Windows 10/11 (the game runs natively, sessions and Hermes in WSL2)

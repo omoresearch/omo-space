@@ -55,17 +55,15 @@
 
 | Block | What it does |
 | --- | --- |
-| **Hermes Computer** | One named workspace with a Hermes conversation in the profile you choose. Different agents, different desks. |
-| **Terminal** | A persistent shell with Shell and Hermes tabs. Claude Code and Codex tabs are on `main` ([#8](https://github.com/omoresearch/omo-space/pull/8)) and ship in the next release ([docs](docs/AGENTS-AND-TERMINALS.md#claude-code-and-codex-tabs)). |
-| **Omo Monitor / Slim Screen** | A bigger view of a terminal, or a real Chromium page: up to 6 tabs, its own sound, WASD for web games. |
-| **Omo Linker** | Mirror a station onto walls across the room, no wiring. |
-| **Omo Pocket** | Carry a Hermes or Terminal workspace on an item. |
-| **Name Plate / Status Lamp** | A name and a live working / idle / interrupted light that also drives redstone. |
+| **Hermes Computer** | A named workspace with its own Hermes conversation. One desk per agent. |
+| **Terminal** | A persistent shell with tabs. Claude Code and Codex tabs land in the [next release](docs/AGENTS-AND-TERMINALS.md#claude-code-and-codex-tabs). |
+| **Omo Monitor · Slim Screen** | A big wall for a terminal or a real web page, with tabs and sound. |
+| **Omo Linker** | Mirror a desk onto walls across the room, no wiring. |
+| **Omo Pocket** | Carry a workspace around as an item. |
+| **Name Plate · Status Lamp** | A name and a live working / idle / interrupted light that also drives redstone. |
 
-Since v1.2.0, AI agents running on *this* computer can also [join your world as players](docs/AGENTS-AND-TERMINALS.md#8-agent-bodies-in-your-world-lan-join)
-(LAN port 25566; offline logins from other machines are refused). Built on it, live on stream:
-[Omo, brought to life](https://github.com/omoresearch/omo-brought-to-life) and [Omo Microduck](https://github.com/omoresearch/omo-microduck).
-Every change: [changelog](CHANGELOG.md).
+**New in v1.2.0:** agents on your PC can [walk into your world as players](docs/AGENTS-AND-TERMINALS.md#8-agent-bodies-in-your-world-lan-join).
+Meet them in [Omo, brought to life](https://github.com/omoresearch/omo-brought-to-life) and [Omo Microduck](https://github.com/omoresearch/omo-microduck).
 
 ## Install
 
@@ -80,7 +78,7 @@ Download the installer, your platform's bundle and `SHA256SUMS` from the
 curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/install.sh
 curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/omo-research-1.2.0-linux-x64.tar.gz
 curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/SHA256SUMS
-sha256sum -c --ignore-missing SHA256SUMS   # macOS: shasum -a 256 -c --ignore-missing SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS   # both lines say OK (macOS: shasum -a 256 -c ...)
 bash install.sh omo-research-1.2.0-linux-x64.tar.gz
 ```
 
@@ -89,20 +87,23 @@ bash install.sh omo-research-1.2.0-linux-x64.tar.gz
 powershell -ExecutionPolicy Bypass -File .\install.ps1 omo-research-1.2.0-windows.zip
 ```
 
-`SHA256SUMS` lists every platform's files and `--ignore-missing` checks the ones you downloaded: both lines must say `OK`.
+You need your own Minecraft Java account, Python 3.11+ and about 2 GB free. The launcher downloads
+Minecraft and its mods from their official sources, hash-checked, into its own folder; your own Minecraft
+installs are never touched.
 
-- **Your installs stay untouched:** the launcher fetches Minecraft 26.2, Fabric, CC: Tweaked, MCEF and Java from
-  their official sources, with pinned hashes, into its own folder. It never touches your Minecraft or Prism installs.
-- **You need** your own Minecraft Java account, Python 3.11+ and about 2 GB free. Hermes Agent is optional (plain
-  terminals work without it); model access is your own.
-- **Downloads:** setup fetches about 650 MB (about 1 GB on disk); the in-game browser fetches about 360 MB the first
-  time a web wall opens.
-- **Ubuntu 22.04:** `sudo apt install python3.11` first (the installer finds it). The Linux window needs GTK 4 +
-  libadwaita (`sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1`); without them Omo Space opens as a menu in
-  a terminal.
+<details>
+<summary><b>Requirements, downloads and troubleshooting</b></summary>
+
+- **Hermes Agent** is optional: plain terminals work without it. Model access is your own.
+- **Downloads:** setup fetches about 650 MB (about 1 GB on disk); the in-game browser fetches about 360 MB
+  the first time a web wall opens.
+- **Ubuntu 22.04:** `sudo apt install python3.11` first (the installer finds it). The Linux window needs
+  GTK 4 + libadwaita (`sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1`); without them Omo Space
+  opens as a menu in a terminal.
 - **From source:** [CONTRIBUTING.md](CONTRIBUTING.md#build-and-test) and the [install guide](docs/GUIDE.md#install).
+- **Stuck?** Write to [harry@omo.space](mailto:harry@omo.space?subject=Omo%20Space) or ask on the [live stream](https://www.twitch.tv/yiifannn).
 
-Stuck? Write to [harry@omo.space](mailto:harry@omo.space?subject=Omo%20Space) or ask on the [live stream](https://www.twitch.tv/yiifannn).
+</details>
 
 ## FAQ
 
@@ -117,7 +118,8 @@ anything you start in a shell. The mod sends your keys to them and paints their 
 <summary><b>Do agents act in the world?</b></summary>
 
 A desk agent works in its terminal on your PC; it doesn't walk or place blocks. An agent *body* (like Omo) is a
-separate program that joins over the agent LAN and plays as a player.
+separate program on the same PC that joins your world as a player over LAN port 25566. Logins from other
+machines are refused.
 </details>
 
 <details>
@@ -156,12 +158,12 @@ flowchart TB
   A["Agent bodies<br/>on this PC"] -.->|LAN join| P
 ```
 
-The bridge listens on loopback only, and a computer's screen holds just a single-use ticket for its own workspace;
-the world never stores a credential. CI runs the bridge checks against a real bridge on a disposable tmux server,
-plus the launcher and platform tests on Linux, macOS and Windows.
+The bridge listens on `127.0.0.1` only and the world never stores a credential. CI tests the bridge, launcher
+and platforms on Linux, macOS and Windows.
 
-[Guide](docs/GUIDE.md) · [Agents and terminals](docs/AGENTS-AND-TERMINALS.md) · [Building](docs/builders/README.md) ·
-[Maps with Claude Code](docs/MAPS.md) · [Platforms](docs/PLATFORMS.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+[Guide](docs/GUIDE.md) · [Agents](docs/AGENTS-AND-TERMINALS.md) · [Building](docs/builders/README.md) ·
+[Maps](docs/MAPS.md) · [Platforms](docs/PLATFORMS.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) ·
+[Changelog](CHANGELOG.md)
 
 <br>
 

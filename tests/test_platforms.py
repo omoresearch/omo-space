@@ -613,6 +613,17 @@ class Installers(unittest.TestCase):
         p = subprocess.run(["bash", "-n", str(REPO / "scripts/install.sh")], capture_output=True)
         self.assertEqual(p.returncode, 0, p.stderr)
 
+    def test_install_sh_help_lists_every_option(self):
+        # --help printed a fixed line range and dropped --uninstall, the last option.
+        p = subprocess.run(["bash", str(REPO / "scripts/install.sh"), "--help"],
+                           capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, p.stderr)
+        self.assertIn("--no-setup", p.stdout)
+        self.assertIn("--uninstall", p.stdout)
+        self.assertTrue(p.stdout.startswith("Omo Space installer"), p.stdout[:80])
+        self.assertNotIn("set -euo", p.stdout)
+        self.assertNotRegex(p.stdout, r"(?m)^#")
+
     def test_install_ps1_parses(self):
         pwsh = shutil.which("pwsh")
         if not pwsh:

@@ -1,120 +1,108 @@
 <p align="center">
-  <img src="docs/media/hero.png" alt="Omo Space. The next interface isn't a chat window. Real AI agents at desks in a world you build." width="100%">
+  <img src="docs/media/hero.webp" alt="Omo Space. The next interface isn't a chat window. Real AI agents at desks in a world you build." width="100%">
 </p>
 
-Most AI agents live in a pile of terminal tabs. In **Omo Space**, every agent gets a desk in a world you build:
-place a computer and a real Hermes Agent, Claude Code, Codex or plain shell starts on your own machine, and keeps working after you quit the game.
+<p align="center">
+  Place a computer in Minecraft and a real <b>Hermes Agent</b>, <b>Claude Code</b>, <b>Codex</b> or plain shell starts on your own machine.<br>
+  Its terminal is painted on the wall, real web pages run on the monitors, and the work keeps going after you quit the game.
+</p>
 
 <p align="center">
-  <a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27"><img src="docs/media/btn-demo.png" alt="Watch the demo" height="43"></a>&nbsp;
-  <a href="#run-it"><img src="docs/media/btn-run.png" alt="Run it" height="43"></a>&nbsp;
-  <a href="https://www.twitch.tv/yiifannn"><img src="docs/media/btn-live.png" alt="Live on Twitch" height="43"></a>&nbsp;
-  <a href="https://omo.sh"><img src="docs/media/btn-omo.png" alt="omo.sh" height="43"></a>
+  <a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27"><img src="docs/media/btn-demo.png" alt="Watch the demo" height="44"></a>&nbsp;
+  <a href="#install"><img src="docs/media/btn-install.png" alt="Install" height="44"></a>&nbsp;
+  <a href="https://www.twitch.tv/yiifannn"><img src="docs/media/btn-live.png" alt="Live on Twitch" height="44"></a>
 </p>
 
 <p align="center">
   <a href="https://github.com/omoresearch/omo-space/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/omoresearch/omo-space?style=flat-square&color=1a1008&labelColor=4a3b2f"></a>
   <a href="https://github.com/omoresearch/omo-space/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/omoresearch/omo-space/ci.yml?branch=main&style=flat-square&label=CI&labelColor=4a3b2f"></a>
   <img alt="Minecraft Java 26.2" src="https://img.shields.io/badge/Minecraft_Java-26.2-1a1008?style=flat-square&labelColor=4a3b2f">
-  <img alt="Linux, macOS, Windows (WSL2)" src="https://img.shields.io/badge/runs_on-Linux_·_macOS_·_Windows-1a1008?style=flat-square&labelColor=4a3b2f">
   <a href="LICENSE"><img alt="licence MIT" src="https://img.shields.io/badge/licence-MIT-1a1008?style=flat-square&labelColor=4a3b2f"></a>
 </p>
 
-## The demo
+<br>
 
 <a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27">
-  <img src="docs/media/demo-poster.jpg" alt="Play the 15-minute demo: a viewer found Omo Space on Instagram, so Yifan showed him the whole loop, live" width="100%">
+  <img src="docs/media/demo-poster.webp" alt="Play the 15-minute demo: a viewer found Omo Space on Instagram, so Yifan showed him the whole loop, live" width="100%">
 </a>
 
-A viewer found one of our reels on Instagram and dropped into the stream, so Yifan walked him through the
-rooms, the agents, the edit review and the publishing desk, then built an underground robotics lab from one
-prompt while they talked. 15 minutes, one take.
+<p align="center"><sub>
+  15 minutes, one take, live on stream: the rooms, the agents, the edit review, the publishing desk, and an underground robot lab built from one prompt.<br>
+  <a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27"><b>Watch</b></a> ·
+  <a href="https://github.com/omoresearch/omo-space/releases/download/demo-2026-10-27/omo-space-demo-2026-10-27.mp4">MP4, 1080p, 345 MB</a> ·
+  <a href="docs/demo/TRANSCRIPT.md">Transcript</a>
+</sub></p>
 
-**[▶ Watch](https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27)** ·
-[MP4](https://github.com/omoresearch/omo-space/releases/download/demo-2026-10-27/omo-space-demo-2026-10-27.mp4) (1080p, 345 MB) ·
-[transcript](docs/demo/TRANSCRIPT.md)
-
-<table>
-<tr>
-<td width="33%"><img src="docs/media/loop-references.webp" alt="A web wall in the references room showing reference videos and scripts"></td>
-<td width="33%"><img src="docs/media/loop-review.webp" alt="The editing room: the review page for a cut on an in-world monitor wall"></td>
-<td width="33%"><img src="docs/media/loop-publish.webp" alt="The publish desk web page pinned to a monitor wall"></td>
-</tr>
-<tr>
-<td><img src="docs/media/loop-lab.webp" alt="Walking into the underground lab an agent built from one prompt, with glass and water overhead"></td>
-<td><img src="docs/media/loop-robots.webp" alt="The robot lab: the RP1 humanoid, a GLaDOS-style ceiling AI and a Microduck, simulated live in MuJoCo"></td>
-<td><img src="docs/media/loop-agent.webp" alt="An agent player walking through the Batcave"></td>
-</tr>
-</table>
-<p align="center"><sub>Find references · review the cut · publish · one prompt, one lab · the robot lab · an agent in the halls. All clips from the stream.</sub></p>
+<p align="center">
+  <img src="docs/media/loop-references.webp" width="32%" alt="A web wall in the references room showing reference videos and scripts">
+  <img src="docs/media/loop-review.webp" width="32%" alt="The editing room: the review page for a cut on an in-world monitor wall">
+  <img src="docs/media/loop-publish.webp" width="32%" alt="The publish desk web page pinned to a monitor wall">
+  <br>
+  <img src="docs/media/loop-lab.webp" width="32%" alt="Walking into the underground lab an agent built from one prompt, with glass and water overhead">
+  <img src="docs/media/loop-robots.webp" width="32%" alt="The robot lab: the RP1 humanoid, a GLaDOS-style ceiling AI and a Microduck, simulated live in MuJoCo">
+  <img src="docs/media/loop-agent.webp" width="32%" alt="An agent player walking through the Batcave">
+  <br>
+  <sub>Find references · review the cut · publish · one prompt, one lab · the robot lab · an agent in the halls. All clips from the stream.</sub></p>
 
 ## How it works
 
 1. **Place a desk.** A Hermes Computer or Terminal block opens a named workspace on your PC.
-2. **Type on the wall.** Your keys go to a real shell or agent; its terminal is painted in the world. Tabs come from the **+** menu.
-3. **Walk away.** tmux owns every session. Close the screen or quit Minecraft and the work continues while your PC is awake.
-4. **Come back.** It's on the wall where you left it. After a reboot, walking up to a desk reopens its tabs (shells in their last folder, Hermes on its own conversation). Nothing is ever re-run.
+2. **Type on the wall.** Your keys go to a real shell or agent, and its terminal is painted in the world.
+3. **Walk away.** tmux owns every session. Quit Minecraft and the work goes on while your PC is awake.
+4. **Come back.** It's on the wall where you left it. After a reboot, the desk reopens its tabs; nothing is re-run.
 
 ## What you can build
 
 | Block | What it does |
 | --- | --- |
 | **Hermes Computer** | One named workspace with a Hermes conversation in the profile you choose. Different agents, different desks. |
-| **Terminal** | A persistent shell with Shell and Hermes tabs. **Claude Code** and **Codex** tabs are on `main` ([#8](https://github.com/omoresearch/omo-space/pull/8)) and ship in the next release. [Docs](docs/AGENTS-AND-TERMINALS.md#claude-code-and-codex-tabs) |
-| **Omo Monitor / Slim Screen** | A bigger view of a terminal, or a real Chromium page on the wall: up to 6 tabs, its own sound, WASD for web games, 12 pages at once, with a guard against runaway pages. |
+| **Terminal** | A persistent shell with Shell and Hermes tabs. Claude Code and Codex tabs are on `main` ([#8](https://github.com/omoresearch/omo-space/pull/8)) and ship in the next release ([docs](docs/AGENTS-AND-TERMINALS.md#claude-code-and-codex-tabs)). |
+| **Omo Monitor / Slim Screen** | A bigger view of a terminal, or a real Chromium page: up to 6 tabs, its own sound, WASD for web games. |
 | **Omo Linker** | Mirror a station onto walls across the room, no wiring. |
 | **Omo Pocket** | Carry a Hermes or Terminal workspace on an item. |
-| **Name Plate / Status Lamp** | A name and a live working / idle / interrupted light. Status also drives redstone. |
+| **Name Plate / Status Lamp** | A name and a live working / idle / interrupted light that also drives redstone. |
 
-What changed in each release: [changelog](CHANGELOG.md).
+Since v1.2.0, AI agents running on *this* computer can also [join your world as players](docs/AGENTS-AND-TERMINALS.md#8-agent-bodies-in-your-world-lan-join)
+(LAN port 25566; offline logins from other machines are refused). Built on it, live on stream:
+[Omo, brought to life](https://github.com/omoresearch/omo-brought-to-life) and [Omo Microduck](https://github.com/omoresearch/omo-microduck).
+Every change: [changelog](CHANGELOG.md).
 
-## Agents walking in
+## Install
 
-Since v1.2.0 your single-player world opens to LAN for AI agents running on *this* computer (port 25566).
-They join as real players with the Omo skin and a `ChatGPT - <name>` tag; offline logins from other machines
-are refused. [How it works](docs/AGENTS-AND-TERMINALS.md#8-agent-bodies-in-your-world-lan-join)
+> **Tested on:** Linux x86_64, end to end. macOS and Windows (WSL2) support is new and tested offline only, and a
+> clean-machine install through Microsoft sign-in is not tested yet. Read [docs/PLATFORMS.md](docs/PLATFORMS.md) first.
 
-Built on it, live on stream: [Omo, brought to life](https://github.com/omoresearch/omo-brought-to-life)
-(talk out loud to an agent that plays in your world) and [Omo Microduck](https://github.com/omoresearch/omo-microduck)
-(Pollen Robotics' open robot duck, simulated in MuJoCo, walking on your blocks).
+Download the installer, your platform's bundle and `SHA256SUMS` from the
+[v1.2.0 release](https://github.com/omoresearch/omo-space/releases/tag/v1.2.0), check them, then install:
 
-## Run it
+```bash
+# Linux x86_64 (macOS: the -macos.tar.gz, after `brew install tmux python`)
+curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/install.sh
+curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/omo-research-1.2.0-linux-x64.tar.gz
+curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS   # macOS: shasum -a 256 -c --ignore-missing SHA256SUMS
+bash install.sh omo-research-1.2.0-linux-x64.tar.gz
+```
 
-1. Read [docs/PLATFORMS.md](docs/PLATFORMS.md). Linux x86_64 is tested end to end; macOS and Windows (WSL2)
-   support is new and tested offline only. A clean-machine install through Microsoft sign-in is not tested yet.
-2. Grab the installer, the bundle for your platform and `SHA256SUMS` from the
-   [v1.2.0 release](https://github.com/omoresearch/omo-space/releases/tag/v1.2.0),
-   check them, and run the installer:
+```powershell
+# Windows 10/11 (the game runs natively, sessions and Hermes in WSL2)
+powershell -ExecutionPolicy Bypass -File .\install.ps1 omo-research-1.2.0-windows.zip
+```
 
-   ```bash
-   # Linux x86_64 (macOS: the -macos.tar.gz, after `brew install tmux python`)
-   curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/install.sh
-   curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/omo-research-1.2.0-linux-x64.tar.gz
-   curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/SHA256SUMS
-   sha256sum -c --ignore-missing SHA256SUMS   # macOS: shasum -a 256 -c --ignore-missing SHA256SUMS
-   bash install.sh omo-research-1.2.0-linux-x64.tar.gz
-   ```
+`SHA256SUMS` lists every platform's files and `--ignore-missing` checks the ones you downloaded: both lines must say `OK`.
 
-   `SHA256SUMS` lists every platform's files; `--ignore-missing` checks the
-   ones you downloaded. Both lines must say `OK`.
+- **Your installs stay untouched:** the launcher fetches Minecraft 26.2, Fabric, CC: Tweaked, MCEF and Java from
+  their official sources, with pinned hashes, into its own folder. It never touches your Minecraft or Prism installs.
+- **You need** your own Minecraft Java account, Python 3.11+ and about 2 GB free. Hermes Agent is optional (plain
+  terminals work without it); model access is your own.
+- **Downloads:** setup fetches about 650 MB (about 1 GB on disk); the in-game browser fetches about 360 MB the first
+  time a web wall opens.
+- **Ubuntu 22.04:** `sudo apt install python3.11` first (the installer finds it). The Linux window needs GTK 4 +
+  libadwaita (`sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1`); without them Omo Space opens as a menu in
+  a terminal.
+- **From source:** [CONTRIBUTING.md](CONTRIBUTING.md#build-and-test) and the [install guide](docs/GUIDE.md#install).
 
-   ```powershell
-   # Windows 10/11 (the game runs natively, sessions and Hermes in WSL2)
-   powershell -ExecutionPolicy Bypass -File .\install.ps1 omo-research-1.2.0-windows.zip
-   ```
-
-   Or build from source with [CONTRIBUTING.md](CONTRIBUTING.md#build-and-test) and the
-   [install guide](docs/GUIDE.md#install). The launcher downloads Minecraft 26.2, Fabric, CC: Tweaked, MCEF and
-   Java from their official sources, with pinned hashes, into its own folder. It never touches your own
-   Minecraft or Prism installs.
-3. You need your own Minecraft Java account, Python 3.11+ and about 2 GB free. Hermes Agent is optional
-   (plain terminals work without it); model access is your own. Ubuntu 22.04: `sudo apt install python3.11`
-   first (the installer finds it). Linux needs GTK 4 + libadwaita for the window (`sudo apt install python3-gi
-   gir1.2-gtk-4.0 gir1.2-adw-1`); without them Omo Space opens as a menu in a terminal. Setup downloads about
-   650 MB (about 1 GB on disk), and the in-game browser fetches about 360 MB the first time a web wall opens.
-
-Stuck? Write to [harry@omo.space](mailto:harry@omo.space?subject=Omo%20Space) or ask on the
-[live stream](https://www.twitch.tv/yiifannn).
+Stuck? Write to [harry@omo.space](mailto:harry@omo.space?subject=Omo%20Space) or ask on the [live stream](https://www.twitch.tv/yiifannn).
 
 ## FAQ
 
@@ -136,14 +124,16 @@ separate program that joins over the agent LAN and plays as a player.
 <summary><b>Does it survive quitting the game?</b></summary>
 
 Yes, while your PC stays awake and the session service runs. A reboot ends the processes; tabs come back when
-you next open the desk and a saved Hermes conversation resumes, but in-flight shell commands don't.
+you next open the desk (shells in their last folder) and a saved Hermes conversation resumes, but in-flight shell
+commands don't.
 </details>
 
 <details>
 <summary><b>Are the web pages live?</b></summary>
 
-Yes, while the game is open. Pinned pages come back after a restart; their in-page state doesn't. Chromium here
-has no H.264/AAC codecs, so YouTube plays but most Instagram, X and Reddit video doesn't.
+Yes, while the game is open: up to 12 pages at once, with a guard against runaway pages. Pinned pages come back
+after a restart; their in-page state doesn't. Chromium here has no H.264/AAC codecs, so YouTube plays but most
+Instagram, X and Reddit video doesn't.
 </details>
 
 <details>
@@ -166,15 +156,14 @@ flowchart TB
   A["Agent bodies<br/>on this PC"] -.->|LAN join| P
 ```
 
-The bridge listens on loopback only, and a computer's screen holds just a single-use ticket for its own
-workspace; the world never stores a credential. The repo holds the Fabric mod, the Python bridge, the tmux
-session server, the launcher, world kits, tests and a bundle builder. CI runs the bridge checks against a real
-bridge on a disposable tmux server, the launcher tests and the platform tests on Linux, macOS and Windows
-(99 bridge checks and 58 launcher tests on [#9](https://github.com/omoresearch/omo-space/pull/9)'s run).
+The bridge listens on loopback only, and a computer's screen holds just a single-use ticket for its own workspace;
+the world never stores a credential. CI runs the bridge checks against a real bridge on a disposable tmux server,
+plus the launcher and platform tests on Linux, macOS and Windows.
 
-[Guide](docs/GUIDE.md) · [Agents and terminals](docs/AGENTS-AND-TERMINALS.md) ·
-[Building](docs/builders/README.md) · [Maps with Claude Code](docs/MAPS.md) ·
-[Platforms](docs/PLATFORMS.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+[Guide](docs/GUIDE.md) · [Agents and terminals](docs/AGENTS-AND-TERMINALS.md) · [Building](docs/builders/README.md) ·
+[Maps with Claude Code](docs/MAPS.md) · [Platforms](docs/PLATFORMS.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+
+<br>
 
 <p align="center">
   <a href="https://github.com/omoresearch/omo-space"><img alt="Star Omo Space on GitHub" src="https://img.shields.io/github/stars/omoresearch/omo-space?style=for-the-badge&logo=github&label=Star%20Omo%20Space&color=1a1008&labelColor=4a3b2f"></a>
@@ -183,10 +172,10 @@ bridge on a disposable tmux server, the launcher tests and the platform tests on
 
 ---
 
-Code: [MIT](LICENSE). [Third-party notices](THIRD_PARTY_NOTICES.md) cover CC: Tweaked, MCEF Modern, Fabric,
-Prism, tmux and bundled Python packages. Hermes Agent is by Nous Research.
-
 **NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.**
 Minecraft is a trademark of Mojang/Microsoft.
 
-<p align="center"><sub><a href="https://omo.sh">Omo Research</a></sub></p>
+<sub>Code: [MIT](LICENSE). [Third-party notices](THIRD_PARTY_NOTICES.md) cover CC: Tweaked, MCEF Modern, Fabric, Prism, tmux and
+bundled Python packages. Hermes Agent is by [Nous Research](https://nousresearch.com), Claude Code by
+[Anthropic](https://www.anthropic.com) and Codex by [OpenAI](https://openai.com); Omo Space runs them, it doesn't ship them.
+Made by [Omo Research](https://omo.sh).</sub>

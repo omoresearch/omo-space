@@ -82,6 +82,22 @@ public final class LinkMirror {
     private LinkMirror() {
     }
 
+    /** Whether a player is within {@code range} of a loaded wall linked to the station at {@code station}. */
+    public static boolean watched(Level level, BlockPos station, double range) {
+        Map<BlockPos, Frame> dim = WALLS.get(level.dimension());
+        if (dim == null) {
+            return false;
+        }
+        for (BlockPos pos : dim.keySet()) {
+            if (level.isLoaded(pos) && level.getBlockEntity(pos) instanceof OmoMonitorBlockEntity wall
+                && wall.isOrigin() && station.equals(wall.linkedStation())
+                && space.omo.life.station.StationSignals.playerWithin(level, pos, range)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(LinkMirror::tick);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> WALLS.clear());

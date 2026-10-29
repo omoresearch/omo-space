@@ -1,0 +1,90 @@
+name: Fresh install
+
+# What a newcomer does, end to end: the latest release bundle with this tree's
+# launcher, installer and bridge laid over it, installed into a clean runner
+# with the real downloads (Minecraft, Fabric, CC: Tweaked, MCEF, Java, tmux).
+# Catches broken download links, setup steps that only fail on a clean
+# machine, and distro gaps (Ubuntu 22.04's Python 3.10, Ubuntu 24.04's older
+# GTK/libadwaita/Pango). Unit tests live in ci.yml; this job is the slow one,
+# so it runs when install code changes, weekly (upstream URLs rot), and by hand.
+
+on:
+  push:
+    branches: [main]
+    paths: [launcher/**, scripts/install.sh, scripts/*.service, bridge/**, config/**, .github/workflows/install.yml]
+  pull_request:
+    paths: [launcher/**, scripts/install.sh, scripts/*.service, bridge/**, config/**, .github/workflows/install.yml]
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: Fresh install on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-22.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      OMO_NO_SERVICES: "1"        # a runner has no user session manager to own the services
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Latest release bundle, with this tree laid over it
+        run: |
+          case "$RUNNER_OS" in Linux) pat='*-linux-x64.tar.gz' ;; macOS) pat='*-macos.tar.gz' ;; esac
+          mkdir -p "$RUNNER_TEMP/rel" && cd "$RUNNER_TEMP/rel"
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern "$pat" --pattern SHA256SUMS
+          sha256sum -c --ignore-missing SHA256SUMS 2>/dev/null || shasum -a 256 -c --ignore-missing SHA256SUMS
+          tar -xzf $pat
+          pkg="$(find "$RUNNER_TEMP/rel" -mindepth 1 -maxdepth 1 -type d | head -1)"
+          # the bundle keeps its built mod jar; everything else comes from this tree
+          cp -R "$GITHUB_WORKSPACE/launcher/." "$pkg/launcher/"
+          cp -R "$GITHUB_WORKSPACE/bridge/." "$pkg/bridge/"
+          cp -R "$GITHUB_WORKSPACE/config/." "$pkg/config/"
+          cp "$GITHUB_WORKSPACE"/scripts/*.service "$pkg/scripts/"
+          cp "$GITHUB_WORKSPACE/scripts/install.sh" "$pkg/install.sh"
+          echo "PKG=$pkg" >> "$GITHUB_ENV"
+
+      - name: "Ubuntu 22.04: python3 is 3.10, so the installer must stop with a fix that works"
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          python3 -V
+          if ! command -v python3.11 python3.12 python3.13 python3.14 >/dev/null; then
+            set +e; bash "$PKG/install.sh" --no-setup 2> err.txt; rc=$?; set -e
+            cat err.txt
+            test "$rc" = 1
+            grep -q "sudo apt install python3.11" err.txt
+          else
+            echo "this runner already has a newer Python on PATH; the refusal is covered by tests/test_platforms.py"
+          fi
+          sudo apt-get update -q && sudo apt-get install -y -q python3.11
+
+      - name: "macOS: tmux from Homebrew (the installer says so when it is missing)"
+        if: runner.os == 'macOS'
+        run: brew install tmux
+
+      - name: install.sh with the full setup (real downloads)
+        run: bash "$PKG/install.sh"
+
+      - name: Installed, and how much disk it took
+        run: |
+          case "$RUNNER_OS" in Linux) data="$HOME/.local/share/omo" ;; macOS) data="$HOME/Library/Application Support/OmoResearch" ;; esac
+          "$HOME/.local/bin/omo-space" --tui < /dev/null | tee menu.txt
+          grep -q "Omo Space" menu.txt
+          du -sh "$data" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: "Linux: the launcher window opens (stays up under Xvfb)"
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          sudo apt-get install -y -q xvfb python3-gi gir1.2-gtk-4.0 gir1.2-adw-1
+          set +e; timeout 20 xvfb-run -a "$HOME/.local/bin/omo-space" > win.txt 2>&1; rc=$?; set -e
+          cat win.txt
+          test "$rc" = 124        # still running at 20 s: the window is up, not a crash or the menu fallback
+          ! grep -q "window can't open" win.txt

@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### New users: installs that work on more machines
+
+- **The launcher window opened on nothing older than Pango 1.56**: it crashed
+  on its first line (`add_font_file`), so on Ubuntu 24.04 and 22.04 clicking
+  "Omo Space" in the app menu did nothing. Fonts now go through fontconfig on
+  older Pango, and the libadwaita/GTK calls newer than a distro has
+  (`Adw.Spinner` 1.6, `Adw.ToolbarView` 1.4, `Gtk.UriLauncher` 4.10,
+  `CssProvider.load_from_string` 4.12) have fallbacks. Checked against Ubuntu
+  24.04's and 22.04's GObject API.
+- When the window still can't open, Omo Space no longer fails silently: from
+  a terminal it shows its menu there; from the app menu it opens that menu in
+  a terminal window (or says why in a notification).
+- `install.sh` finds a Python 3.11+ even when `python3` is older (Ubuntu
+  22.04's 3.10 next to `apt install python3.11`) and pins it in the
+  `omo-space` command and the menu entry. Without one it names what it found
+  and the command that fixes it.
+- `install.sh` checks the window's GTK 4 / libadwaita bindings and prints the
+  packages for apt, dnf or pacman when they're missing.
+- README and installer say where the disk goes: about 650 MB of downloads,
+  about 1 GB unpacked, and about 360 MB for the browser engine on first use.
+- New CI job "Fresh install": the latest release with this tree's installer,
+  installed for real on clean Ubuntu 24.04, Ubuntu 22.04 and macOS runners,
+  on install changes and weekly.
+
 ### Memory limits scale with the machine's RAM
 
 - The browser memory guard's MemAvailable limits follow MemTotal: no new

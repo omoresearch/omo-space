@@ -103,7 +103,10 @@ Built on it, live on stream: [Omo, brought to life](https://github.com/omoresear
    Java from their official sources, with pinned hashes, into its own folder. It never touches your own
    Minecraft or Prism installs.
 3. You need your own Minecraft Java account, Python 3.11+ and about 2 GB free. Hermes Agent is optional
-   (plain terminals work without it); model access is your own.
+   (plain terminals work without it); model access is your own. Ubuntu 22.04: `sudo apt install python3.11`
+   first (the installer finds it). Linux needs GTK 4 + libadwaita for the window (`sudo apt install python3-gi
+   gir1.2-gtk-4.0 gir1.2-adw-1`); without them Omo Space opens as a menu in a terminal. Setup downloads about
+   650 MB (about 1 GB on disk), and the in-game browser fetches about 360 MB the first time a web wall opens.
 
 Stuck? Write to [harry@omo.space](mailto:harry@omo.space?subject=Omo%20Space) or ask on the
 [live stream](https://www.twitch.tv/yiifannn).

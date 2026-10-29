@@ -3,8 +3,8 @@
 #
 # From an unpacked release:      ./install.sh
 # From a downloaded tarball:     ./install.sh omo-space-<ver>-linux-x64.tar.gz
-# From the private repo (gh):    gh release download -R omoresearch/omo-space -p '*.tar.gz' -p install.sh
-#                                bash install.sh omo-space-*-linux-x64.tar.gz
+# With the GitHub CLI:           gh release download -R omoresearch/omo-space -p '*-linux-x64.tar.gz' -p install.sh
+#                                bash install.sh omo-*-linux-x64.tar.gz
 #
 # Installs the app into ~/.local/share/omo/app (macOS: ~/Library/Application
 # Support/OmoResearch/app), adds "Omo Space" to your application menu and an
@@ -102,7 +102,8 @@ for arg in "$@"; do
       note "To remove everything, delete ~/.local/share/omo."
       echo
       exit 0 ;;
-    -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
+    # The whole header comment, so a new option there is never cut off.
+    -h|--help) awk 'NR > 1 && !/^#/ { exit } NR > 1 { sub(/^# ?/, ""); print }' "$0"; exit 0 ;;
     *) SRC="$arg" ;;
   esac
 done

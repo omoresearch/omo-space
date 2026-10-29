@@ -2,6 +2,8 @@ package space.omo.life.client;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -22,6 +24,7 @@ import com.sun.net.httpserver.HttpServer;
 import dan200.computercraft.client.gui.AbstractComputerScreen;
 import dan200.computercraft.core.terminal.Terminal;
 
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
@@ -99,6 +102,7 @@ public final class TestDriver {
                 return t;
             }));
             server.start();
+            LevelRenderEvents.START_MAIN.register(ctx -> FrameLog.frame());
             OmoLife.LOG.warn("TEST DRIVER active on 127.0.0.1:{} (development only)", port);
         } catch (Exception e) {
             OmoLife.LOG.error("test driver failed to start", e);
@@ -115,6 +119,10 @@ public final class TestDriver {
             Minecraft mc = Minecraft.getInstance();
             if ("perf".equals(op)) {
                 reply = perf(mc, req.has("seconds") ? req.get("seconds").getAsInt() : 5);
+            } else if ("bench_start".equals(op)) {
+                reply = FrameLog.begin(mc);
+            } else if ("bench_stop".equals(op)) {
+                reply = FrameLog.end(mc);
             } else if ("ground".equals(op)) {
                 reply = ground(mc, req.getAsJsonArray("points"));
             } else if ("server".equals(op)) {
@@ -211,6 +219,100 @@ public final class TestDriver {
         JsonObject o = new JsonObject();
         o.add("output", said);
         return o;
+    }
+
+    /**
+     * Every world frame between {@code bench_start} and {@code bench_stop}
+     * (tests/bench.py). {@link #perf} samples the last frame time every 50 ms
+     * and misses most spikes; this keeps the start time of each frame, so the
+     * benchmark sees every frame and every stutter. Also the CPU the render
+     * and server threads used, and GC, over the same window.
+     */
+    static final class FrameLog {
+        private static final int CAP = 1 << 17;          // ~36 min at 60 fps
+        private static final long[] STARTS = new long[CAP];
+        private static int n;
+        private static boolean on;
+        private static long renderThread = -1;
+        private static long t0, render0, server0, gcCount0, gcMs0;
+        private static long renderAt0 = -1, serverAt0 = -1;   // thread ids the CPU baselines belong to
+
+        static synchronized void frame() {
+            if (renderThread < 0) {
+                renderThread = Thread.currentThread().threadId();
+            }
+            if (on && n < CAP) {
+                STARTS[n++] = System.nanoTime();
+            }
+        }
+
+        static synchronized JsonObject begin(Minecraft mc) {
+            n = 0;
+            on = true;
+            t0 = System.nanoTime();
+            renderAt0 = renderThread;
+            serverAt0 = serverThread(mc);
+            render0 = cpuNs(renderAt0);
+            server0 = cpuNs(serverAt0);
+            long[] gc = gc();
+            gcCount0 = gc[0];
+            gcMs0 = gc[1];
+            JsonObject o = new JsonObject();
+            o.addProperty("recording", true);
+            return o;
+        }
+
+        static synchronized JsonObject end(Minecraft mc) {
+            on = false;
+            JsonObject o = new JsonObject();
+            o.addProperty("wall_s", (System.nanoTime() - t0) / 1e9);
+            JsonArray iv = new JsonArray();
+            for (int i = 1; i < n; i++) {
+                iv.add(Math.round((STARTS[i] - STARTS[i - 1]) / 1e4) / 100.0);   // ms, 0.01 ms steps
+            }
+            o.add("frame_ms", iv);
+            o.addProperty("truncated", n >= CAP);
+            // CPU only when the same thread was known at both ends (no world frame
+            // before bench_start, or a different integrated server, would mix
+            // one thread's lifetime total into the delta): absent otherwise.
+            if (renderAt0 >= 0 && renderAt0 == renderThread) {
+                o.addProperty("render_cpu_ms", (cpuNs(renderThread) - render0) / 1e6);
+            }
+            long srv = serverThread(mc);
+            if (serverAt0 >= 0 && serverAt0 == srv) {
+                o.addProperty("server_cpu_ms", (cpuNs(srv) - server0) / 1e6);
+            }
+            long[] gc = gc();
+            o.addProperty("gc_count", gc[0] - gcCount0);
+            o.addProperty("gc_ms", gc[1] - gcMs0);
+            Runtime rt = Runtime.getRuntime();
+            o.addProperty("java_heap_mb", (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024));
+            o.addProperty("pages", WebPages.count());
+            o.addProperty("fps_counter", mc.getFps());
+            return o;
+        }
+
+        private static long serverThread(Minecraft mc) {
+            MinecraftServer server = mc.getSingleplayerServer();
+            return server == null ? -1 : server.getRunningThread().threadId();
+        }
+
+        private static long cpuNs(long threadId) {
+            if (threadId < 0) {
+                return 0;
+            }
+            long ns = ManagementFactory.getThreadMXBean().getThreadCpuTime(threadId);
+            return Math.max(0, ns);
+        }
+
+        private static long[] gc() {
+            long count = 0, ms = 0;
+            for (GarbageCollectorMXBean b : ManagementFactory.getGarbageCollectorMXBeans()) {
+                count += Math.max(0, b.getCollectionCount());
+                ms += Math.max(0, b.getCollectionTime());
+            }
+            return new long[]{count, ms};
+        }
     }
 
     private static JsonObject perf(Minecraft mc, int seconds) throws InterruptedException {

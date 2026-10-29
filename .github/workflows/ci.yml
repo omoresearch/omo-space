@@ -27,6 +27,8 @@ jobs:
         run: python3 tests/test_platforms.py
       - name: Launcher tests (offline, fake HOME)
         run: python3 tests/test_launcher.py
+      - name: Benchmark logic tests (stats, regression verdicts, port guard; no game)
+        run: python3 tests/test_bench.py
       - name: Pinned tmux (the one the product ships, not Ubuntu's)
         run: |
           python3 - <<'PY'

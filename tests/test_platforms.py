@@ -625,6 +625,58 @@ class Installers(unittest.TestCase):
         self.assertNotIn("set -euo", p.stdout)
         self.assertNotRegex(p.stdout, r"(?m)^#")
 
+    # Tools install.sh needs, linked into a bin dir of their own so the test
+    # decides exactly which pythons exist (not whatever this machine has).
+    TOOLS = ("bash", "sh", "mkdir", "cp", "mv", "rm", "cat", "grep", "find", "tar", "dirname", "uname",
+             "printf", "mktemp", "chmod", "ln", "sed", "head", "id")
+
+    def run_install(self, pythons):
+        """install.sh --no-setup from this tree, in a throwaway HOME, with only `pythons`
+        ({name: real exe, or "old" for a 3.10 stand-in}) on PATH."""
+        t = Path(tempfile.mkdtemp(dir=ROOT))
+        pkg, home, bindir = t / "pkg", t / "home", t / "bin"
+        for d in (pkg, home, bindir):
+            d.mkdir()
+        shutil.copytree(REPO / "launcher", pkg / "launcher")
+        shutil.copy(REPO / "scripts/install.sh", pkg / "install.sh")
+        (pkg / "VERSION").write_text("0.0.0-test\n")
+        for tool in self.TOOLS:
+            exe = shutil.which(tool)
+            if exe:
+                (bindir / tool).symlink_to(exe)
+        (bindir / "systemctl").write_text("#!/bin/sh\nexit 0\n")   # only probed; OMO_NO_SERVICES skips use
+        (bindir / "systemctl").chmod(0o755)
+        for name, exe in pythons.items():
+            if exe == "old":                            # answers like Ubuntu 22.04's python3 (3.10)
+                (bindir / name).write_text('#!/bin/sh\ncase "$*" in *version_info*) exit 1;; '
+                                           '*) echo 3.10.12;; esac\n')
+                (bindir / name).chmod(0o755)
+            else:
+                (bindir / name).symlink_to(exe)
+        env = {"HOME": str(home), "PATH": str(bindir), "OMO_NO_SERVICES": "1", "LANG": "C.UTF-8"}
+        p = subprocess.run([str(bindir / "bash"), str(pkg / "install.sh"), "--no-setup"],
+                           env=env, capture_output=True, text=True, timeout=120)
+        return p, home
+
+    @unittest.skipUnless(sys.platform.startswith("linux") and sys.version_info >= (3, 11), "Linux installer path")
+    def test_install_sh_uses_a_versioned_python_when_python3_is_too_old(self):
+        p, home = self.run_install({"python3": "old", "python3.11": sys.executable})
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        wanted = str(Path(home).parent / "bin/python3.11")
+        cmd = (home / ".local/bin/omo-space").read_text()
+        self.assertIn(f'exec "{wanted}"', cmd)            # the command pins it, not the shebang's python3
+        entry = (home / ".local/share/applications/space.omo.research.launcher.desktop").read_text()
+        self.assertIn(f'Exec="{wanted}" ', entry)         # and so does the app-menu entry
+        self.assertTrue((home / ".local/bin/omo-research").is_symlink())
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux installer path")
+    def test_install_sh_without_a_new_enough_python_says_what_to_install(self):
+        p, home = self.run_install({"python3": "old"})
+        self.assertEqual(p.returncode, 1)
+        self.assertIn("Python 3.11+ is required", p.stderr)
+        self.assertIn("3.10.12", p.stderr)                # it names what it found
+        self.assertFalse((home / ".local/bin/omo-space").exists())
+
     def test_install_ps1_parses(self):
         pwsh = shutil.which("pwsh")
         if not pwsh:

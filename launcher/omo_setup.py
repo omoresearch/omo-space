@@ -949,7 +949,11 @@ def pick_python():
     (macOS's /usr/bin/python3 is 3.9)."""
     cands = ["/usr/bin/python3"] if OS == "linux" else []
     cands += ["/opt/homebrew/bin/python3", "/usr/local/bin/python3"] if OS == "macos" else []
-    cands += [shutil.which("python3"), sys.executable]
+    cands += [shutil.which("python3")]
+    if sys.version_info >= (3, 11):
+        cands += [sys.executable]
+    # Ubuntu 22.04's python3 is 3.10; `apt install python3.11` puts a newer one beside it
+    cands += [shutil.which(f"python3.{m}") for m in (14, 13, 12, 11)]
     for cand in cands:
         if cand and Path(cand).exists() and (cand == sys.executable or runs(
                 cand, "-c", "import sys; sys.exit(sys.version_info < (3, 11))")):

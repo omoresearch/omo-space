@@ -110,7 +110,6 @@ done
 
 case "$OS-$(uname -m)" in
   Linux-x86_64)
-    command -v python3 >/dev/null || die "python3 is required (sudo apt install python3)."
     command -v systemctl >/dev/null || die "systemd (user services) is required." ;;
   Darwin-arm64|Darwin-x86_64)
     # The bridge needs Python 3.11+; macOS's own python3 is 3.9.
@@ -120,8 +119,24 @@ case "$OS-$(uname -m)" in
   Linux-*) die "x86_64 only on Linux for now (got $(uname -m))." ;;
   *) die "this installer is for Linux and macOS; on Windows run scripts/install.ps1 in PowerShell." ;;
 esac
-python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))' \
-  || die "python3 3.11+ is required ($( [ "$OS" = Darwin ] && echo 'brew install python' || echo 'sudo apt install python3'))."
+# The newest Python 3.11+ on PATH. `python3` can be older (Ubuntu 22.04: 3.10,
+# macOS: 3.9) while a versioned one next to it is new enough.
+PY=""
+for cand in python3 python3.14 python3.13 python3.12 python3.11; do
+  exe="$(command -v "$cand" 2>/dev/null || true)"
+  [ -n "$exe" ] && "$exe" -c 'import sys; sys.exit(sys.version_info < (3, 11))' 2>/dev/null && { PY="$exe"; break; }
+done
+if [ -z "$PY" ]; then
+  have="$(python3 -c 'import platform; print(platform.python_version())' 2>/dev/null || echo none)"
+  if [ "$OS" = Darwin ]; then
+    die "Python 3.11+ is required (found: $have). Install it with:  brew install python"
+  elif grep -qs 'VERSION_ID="22.04"' /etc/os-release; then
+    die "Python 3.11+ is required (Ubuntu 22.04 has $have). Install it next to the system one, then run this again:
+      sudo apt install python3.11"
+  else
+    die "Python 3.11+ is required (found: $have). Install a newer python3 from your distribution, then run this again."
+  fi
+fi
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 TMP=""
@@ -135,7 +150,7 @@ fi
 
 VERSION="$(cat "$HERE/VERSION" 2>/dev/null || echo dev)"
 banner "Your AI workspace, built in Minecraft · $VERSION"
-ok "$([ "$OS" = Darwin ] && echo macOS || echo Linux) $(uname -m) · $(python3 -c 'import platform; print("Python", platform.python_version())')"
+ok "$([ "$OS" = Darwin ] && echo macOS || echo Linux) $(uname -m) · $("$PY" -c 'import platform; print("Python", platform.python_version())')"
 
 say "Installing the app into $(tilde "$APP")"
 mkdir -p "$APP.new"
@@ -145,22 +160,21 @@ mv "$APP.new" "$APP"; rm -rf "$APP.old"
 ok "App installed"
 
 mkdir -p "$BIN"
-if [ "$OS" = Darwin ]; then
-  # The launcher's shebang is /usr/bin/env python3, which may be Apple's 3.9: pin the one checked above.
-  printf '#!/bin/sh\nexec "%s" "%s" "$@"\n' "$(command -v python3)" "$APP/launcher/omo-launcher.py" > "$BIN/omo-space"
-  chmod +x "$BIN/omo-space"
-  ln -sf omo-space "$BIN/omo-research"
-else
+# The launcher's shebang is /usr/bin/env python3, which can be older than 3.11
+# (macOS 3.9, Ubuntu 22.04 3.10): the command and the menu entry pin $PY.
+rm -f "$BIN/omo-space"                          # an older install left a symlink here
+printf '#!/bin/sh\nexec "%s" "%s" "$@"\n' "$PY" "$APP/launcher/omo-launcher.py" > "$BIN/omo-space"
+chmod +x "$BIN/omo-space"
+ln -sf omo-space "$BIN/omo-research"
+if [ "$OS" != Darwin ]; then
 mkdir -p "$(dirname "$DESKTOP")"
-ln -sf "$APP/launcher/omo-launcher.py" "$BIN/omo-space"
-ln -sf "$APP/launcher/omo-launcher.py" "$BIN/omo-research"
 rm -f "$OLD_DESKTOP"
 cat > "$DESKTOP" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Omo Space
 Comment=Hermes and your terminals, inside Minecraft
-Exec=$APP/launcher/omo-launcher.py
+Exec="$PY" "$APP/launcher/omo-launcher.py"
 Icon=$APP/launcher/assets/omo-icon.svg
 Terminal=false
 Categories=Game;Development;
@@ -175,6 +189,18 @@ case ":$PATH:" in
      note "add it in your shell profile:  export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
 esac
 
+# The window is GTK 4 + libadwaita through PyGObject. Without them Omo Space
+# still works, from a menu in a terminal; say so now, with the packages.
+if [ "$OS" != Darwin ] && ! "$PY" -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("Adw", "1")' 2>/dev/null; then
+  warn "The Omo Space window needs GTK 4 and libadwaita for Python. Until then it opens as a menu in a terminal."
+  if [ "$PY" != /usr/bin/python3 ]; then
+    note "Your distribution's packages serve /usr/bin/python3, not $PY; the terminal menu does everything the window does."
+  elif command -v apt-get >/dev/null; then note "sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1"
+  elif command -v dnf >/dev/null; then note "sudo dnf install python3-gobject gtk4 libadwaita"
+  elif command -v pacman >/dev/null; then note "sudo pacman -S python-gobject gtk4 libadwaita"
+  fi
+fi
+
 if ! command -v hermes >/dev/null; then
   warn "Hermes Agent not found. Terminals work; Hermes Computers open a shell until you install it."
   note "https://hermes-agent.nousresearch.com/docs"
@@ -183,8 +209,9 @@ fi
 if [ "$SETUP" = 1 ]; then
   say "Setup: downloading the pinned game runtime (~650 MB on first run)"
   note "Minecraft, Fabric, CC: Tweaked, MCEF and Java, each from its official source, hash-checked."
+  note "The in-game browser fetches its engine (about 360 MB) the first time a web wall opens."
   echo
-  python3 "$APP/launcher/omo_setup.py" setup \
+  "$PY" "$APP/launcher/omo_setup.py" setup \
     || die "setup stopped; the last lines above say why. Fix that, then run omo-space and choose Install / Set up."
 fi
 

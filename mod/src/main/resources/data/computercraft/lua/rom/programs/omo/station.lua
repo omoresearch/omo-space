@@ -279,7 +279,40 @@ local SPLASH = {
                    { "Revive one from the panel above to carry on.", C.dim } },
 }
 
--- The splash: the wing, who this station is, why, and the keys.
+-- The splash: a centred Omo Space title card (the wing, the name, who this
+-- station is), the state in a soft pill, and the keys along the bottom.
+local function centre(s, y, text, fg)
+  put(s, math.max(1, math.floor((s.w - #text) / 2) + 1), y, text, fg)
+end
+
+-- Word-wrap a message to the surface width (keeps short lines as they are).
+local function wrap(text, width)
+  local out, line = {}, ""
+  for word in text:gmatch("%S+") do
+    if line ~= "" and #line + 1 + #word > width then out[#out + 1], line = line, word
+    else line = line == "" and word or (line .. " " .. word) end
+  end
+  if line ~= "" then out[#out + 1] = line end
+  return out
+end
+
+-- A thin rule (CC teletext middle line) with a gold diamond in the middle.
+local function rule(s, y, width, fg)
+  width = math.min(width, s.w - 4)
+  if width < 5 then return end
+  local half = math.floor((width - 3) / 2)
+  local x = math.floor((s.w - (half * 2 + 3)) / 2) + 1
+  local line = string.char(140):rep(half)
+  s.dev.setCursorPos(x, y)
+  s.dev.blit(line .. " \4 " .. line, fg:rep(half) .. fg .. C.gold .. fg .. fg:rep(half), C.bg:rep(half * 2 + 3))
+end
+
+local MOOD = {   -- state -> dot colour and a short label for the pill
+  connecting = { C.gold, "connecting" }, unbound = { C.gold, "setting up" },
+  offline = { C.red, "bridge offline" }, refused = { C.red, "refused" },
+  interrupted = { C.red, "interrupted" }, exited = { C.dim, "ended" }, ended = { C.dim, "ended" },
+}
+
 local function splash(s)
   local lines = SPLASH[s.state] or SPLASH.connecting
   if s.detail ~= "" and (s.state == "offline" or s.state == "refused") then
@@ -288,27 +321,62 @@ local function splash(s)
   s.dev.setBackgroundColour(colours.fromBlit(C.bg))
   s.dev.clear()
   s.dev.setCursorBlink(false)
-  local x, y = 3, 2
   local name = wsName ~= "" and wsName or "new workspace"
-  if s.h >= 12 and s.w >= 36 then
-    drawWing(s, x, y, hermes and C.hermes or C.gold, C.bg)
-    put(s, x + 15, y, "Omo Space", C.gold)
-    put(s, x + 15, y + 1, hermes and "Hermes Computer" or "Terminal", C.dim)
-    put(s, x + 15, y + 2, name, C.bright)
-    y = y + 5
-  else
-    put(s, x, y, "Omo Space - " .. name, C.gold)
-    y = y + 2
+  local accent = hermes and C.hermes or C.gold
+  local mood = MOOD[s.state] or MOOD.connecting
+
+  if s.h < 12 or s.w < 36 then                   -- small surfaces: two centred lines
+    local rows = {}
+    for _, l in ipairs(lines) do
+      for _, t in ipairs(wrap(l[1], s.w - 2)) do rows[#rows + 1] = { t, l[2] } end
+    end
+    local y = math.max(1, math.floor((s.h - #rows - 2) / 2) + 1)
+    centre(s, y, "Omo Space \183 " .. name, C.gold)
+    for i, l in ipairs(rows) do centre(s, y + 1 + i, l[1], l[2]) end
+    drawStatus(s)
+    return
   end
+
+  -- a hairline of gold across the top, like the web board's cards
+  s.dev.setCursorPos(1, 1)
+  s.dev.blit(string.char(131):rep(s.w), accent:rep(s.w), C.bg:rep(s.w))
+
+  local keys = s.h >= 16
+  local block = 4 + 1 + 1 + 1 + 1 + 2 + 1 + #lines    -- wing, title, kind, name, rule, pill, messages
+  local y = math.max(3, math.floor((s.h - block - (keys and 3 or 0)) / 2) + 2)
+
+  drawWing(s, math.floor((s.w - 13) / 2) + 1, y, accent, C.bg)
+  y = y + 4
+  centre(s, y, "O M O   S P A C E", C.gold)
+  centre(s, y + 1, hermes and "Hermes Computer" or "Terminal", C.dim)
+  centre(s, y + 2, name, C.bright)
+  rule(s, y + 4, math.min(34, s.w - 8), C.dim)
+  y = y + 6
+
+  -- the state as a pill: coloured dot, label
+  local pill = " \7 " .. mood[2] .. " "
+  local px = math.floor((s.w - #pill) / 2) + 1
+  s.dev.setCursorPos(px, y)
+  s.dev.blit(pill, mood[1]:rep(3) .. C.text:rep(#pill - 3), C.dim:rep(#pill))
+  y = y + 2
   for _, l in ipairs(lines) do
-    put(s, x, y, l[1], l[2])
-    y = y + 1
+    for _, t in ipairs(wrap(l[1], s.w - 4)) do
+      centre(s, y, t, l[2])
+      y = y + 1
+    end
   end
-  if s.h - 3 > y then
-    put(s, x, s.h - 1, "Ctrl+Shift+C/V", C.text)
-    put(s, x + 15, s.h - 1, "copy \183 paste", C.dim)
-    put(s, x, s.h, "Ctrl+Shift+F", C.text)
-    put(s, x + 15, s.h, "find, also in the scrollback", C.dim)
+
+  if keys and s.h - 1 > y then
+    local segs = { { "Ctrl+Shift+C/V", C.text }, { "  copy \183 paste     ", C.dim },
+                   { "Ctrl+Shift+F", C.text }, { "  find", C.dim } }
+    local k, fg = "", ""
+    for _, g in ipairs(segs) do k, fg = k .. g[1], fg .. g[2]:rep(#g[1]) end
+    if #k + 4 <= s.w then
+      s.dev.setCursorPos(math.floor((s.w - #k) / 2) + 1, s.h)
+      s.dev.blit(k, fg, C.bg:rep(#k))
+    else
+      centre(s, s.h, "Ctrl+Shift+C/V copy \183 Ctrl+Shift+F find", C.dim)
+    end
   end
   drawStatus(s)
 end

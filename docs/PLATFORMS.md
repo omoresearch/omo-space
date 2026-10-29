@@ -41,6 +41,11 @@ to host.
 - Runtime, token and worlds: `%LOCALAPPDATA%\OmoResearch`
 - Services: inside WSL, as on Linux
 
+The `OmoResearch` folder names, Prism instance and `space.omo.research.*`
+service labels are internal ids from before the product was called Omo Space.
+They keep those names so existing installs keep their worlds, token and
+services. The command is `omo-space` (`omo-research` still works).
+
 The mod reads the token from the same folder the launcher writes it to
 (`BridgeLink.dataDir()` and `omo_setup.default_data_dir()`). A test runs the
 mod's real method under each OS name and checks that both give the same path.
@@ -51,8 +56,8 @@ Install these first:
 
 ```bash
 brew install tmux python          # the bridge needs Python 3.11+; macOS's own is 3.9
-bash install.sh omo-research-<ver>-macos.tar.gz
-omo-research                      # or: python3 ".../app/launcher/omo_setup.py" setup
+bash install.sh omo-space-<ver>-macos.tar.gz
+omo-space                         # or: python3 ".../app/launcher/omo_setup.py" setup
 ```
 
 - launchd runs two user agents, `space.omo.research.tmux` and
@@ -83,7 +88,7 @@ Do this once:
 Then install, from PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1 omo-research-<ver>-windows.zip
+powershell -ExecutionPolicy Bypass -File .\install.ps1 omo-space-<ver>-windows.zip
 ```
 
 Setup runs `omo_setup.py services` inside WSL, in its Linux role. It also

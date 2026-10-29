@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Build the release bundles a player downloads:
 #
-#   dist/omo-research-<version>-linux-x64.tar.gz   launcher, bridge, config, units,
+#   dist/omo-space-<version>-linux-x64.tar.gz   launcher, bridge, config, units,
 #                                                  the mod jar, the Omo Workshop world
-#   dist/omo-research-<version>-macos.tar.gz       the same files (one bundle for arm64 + x86_64)
-#   dist/omo-research-<version>-windows.zip        the same files plus install.ps1
+#   dist/omo-space-<version>-macos.tar.gz       the same files (one bundle for arm64 + x86_64)
+#   dist/omo-space-<version>-windows.zip        the same files plus install.ps1
 #   dist/install.sh, dist/install.ps1              the one-command installers
 #   dist/SHA256SUMS
 #
@@ -20,7 +20,7 @@ cd "$ROOT"
 VERSION="$(python3 -c 'import json;print(json.load(open("launcher/manifest.json"))["version"])')"
 JAR="$(python3 -c 'import json;print(json.load(open("launcher/manifest.json"))["omolife"]["file"])')"
 TAG="${OMO_VERSION:-$(git describe --tags --exact-match 2>/dev/null || echo "v$VERSION")}"
-BASE="omo-research-${TAG#v}"
+BASE="omo-space-${TAG#v}"
 DIST="$ROOT/dist"
 
 if [ "${OMO_SKIP_BUILD:-0}" != 1 ]; then

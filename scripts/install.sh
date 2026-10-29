@@ -2,13 +2,13 @@
 # Omo Space installer (Linux x86_64 and macOS). Windows: scripts/install.ps1.
 #
 # From an unpacked release:      ./install.sh
-# From a downloaded tarball:     ./install.sh omo-research-<ver>-linux-x64.tar.gz
+# From a downloaded tarball:     ./install.sh omo-space-<ver>-linux-x64.tar.gz
 # From the private repo (gh):    gh release download -R omoresearch/omo-space -p '*.tar.gz' -p install.sh
-#                                bash install.sh omo-research-*-linux-x64.tar.gz
+#                                bash install.sh omo-space-*-linux-x64.tar.gz
 #
 # Installs the app into ~/.local/share/omo/app (macOS: ~/Library/Application
-# Support/OmoResearch/app), adds "Omo Space" to your application menu (or
-# an `omo-research` command on macOS), then runs the launcher's setup
+# Support/OmoResearch/app), adds "Omo Space" to your application menu and an
+# `omo-space` command (`omo-research` still works), then runs the launcher's setup
 # (downloads Minecraft 26.2, Fabric, CC: Tweaked, MCEF, Java and, on Linux,
 # tmux from their official sources, hash-checked). Needs no root. Never
 # touches your own Minecraft/Prism installs, worlds or Hermes configuration.
@@ -24,27 +24,57 @@ if [ "$OS" = Darwin ]; then
 else
   APP="${OMO_APP_DIR:-$HOME/.local/share/omo/app}"
 fi
-DESKTOP="$HOME/.local/share/applications/omo-research.desktop"
+# The same file name omo_setup.py's write_desktop_entry uses (APP_ID), so the
+# menu shows one "Omo Space" entry, not two. omo-research.desktop is the old one.
+DESKTOP="$HOME/.local/share/applications/space.omo.research.launcher.desktop"
+OLD_DESKTOP="$HOME/.local/share/applications/omo-research.desktop"
 BIN="$HOME/.local/bin"
-say() { printf '\033[1;33m▸\033[0m %s\n' "$*"; }
-die() { printf '\033[1;31m✗\033[0m %s\n' "$*" >&2; exit 1; }
+# `omo-space` is the command; `omo-research` stays as an alias for old installs.
+# The OmoResearch folders, instance and service labels keep their names so
+# existing worlds, tokens and services carry over.
+CMDS=("$BIN/omo-space" "$BIN/omo-research")
+
+# Output in the launcher's palette (gold, cream, muted). Plain text when the
+# stream is not a terminal or NO_COLOR is set, so logs and pipes stay clean.
+paint() { [ -t "$1" ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-dumb}" != dumb ]; }
+if paint 1; then
+  GOLD=$'\033[38;5;179m'; CREAM=$'\033[1;38;5;230m'; DIM=$'\033[38;5;245m'
+  GREEN=$'\033[38;5;114m'; WARN=$'\033[38;5;215m'; OFF=$'\033[0m'
+else
+  GOLD=""; CREAM=""; DIM=""; GREEN=""; WARN=""; OFF=""
+fi
+if paint 2; then RED=$'\033[1;38;5;203m'; EOFF=$'\033[0m'; else RED=""; EOFF=""; fi
+tilde() { local s="$*"; printf '%s' "${s//$HOME/\~}"; }
+say()  { printf '  %s▸%s %s\n' "$GOLD" "$OFF" "$*"; }             # a step starts
+ok()   { printf '  %s✓%s %s\n' "$GREEN" "$OFF" "$*"; }            # a step is done
+warn() { printf '  %s!%s %s\n' "$WARN" "$OFF" "$*"; }             # worth knowing, not fatal
+note() { printf '    %s%s%s\n' "$DIM" "$*" "$OFF"; }               # a detail under a line
+die()  { printf '\n  %s✗%s %s\n\n' "$RED" "$EOFF" "$*" >&2; exit 1; }
+banner() {  # banner <subtitle>
+  printf '\n  %s◆%s %sOmo Space%s\n' "$GOLD" "$OFF" "$CREAM" "$OFF"
+  printf '    %s%s%s\n\n' "$DIM" "$1" "$OFF"
+}
 
 SETUP=1; SRC=""
 for arg in "$@"; do
   case "$arg" in
     --no-setup) SETUP=0 ;;
     --uninstall)
+      banner "Uninstalling. Your worlds and workspaces stay."
       if [ "$OS" = Darwin ]; then
         for label in space.omo.research.bridge space.omo.research.tmux; do
           plist="$HOME/Library/LaunchAgents/$label.plist"
           if [ -f "$plist" ]; then
-            say "stopping $label"
+            say "Stopping $label"
             launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
             rm -f "$plist"
+            ok "Stopped $label"
           fi
         done
-        rm -rf "$APP" "$BIN/omo-research"
-        say "removed. Kept: ~/Library/Application Support/OmoResearch (game, worlds, workspaces)."
+        rm -rf "$APP" "${CMDS[@]}"
+        ok "Removed the app and the omo-space command"
+        note "Kept ~/Library/Application Support/OmoResearch (game, worlds, workspaces)."
+        echo
         exit 0
       fi
       # systemctl --user talks to the login session's manager whatever $HOME
@@ -58,16 +88,19 @@ for arg in "$@"; do
         done
       fi
       if [ "${#OURS[@]}" -gt 0 ]; then
-        say "stopping Omo services"
+        say "Stopping the Omo services"
         systemctl --user disable --now "${OURS[@]}" 2>/dev/null || true
+        ok "Stopped ${OURS[*]}"
       else
-        say "services: none running from this install; left alone"
+        ok "No services running from this install; nothing to stop"
       fi
       rm -f "$UNITS_DIR/omo-bridge.service" "$UNITS_DIR/omo-tmux.service"
       [ "${#OURS[@]}" -gt 0 ] && systemctl --user daemon-reload 2>/dev/null || true
-      rm -rf "$APP" "$DESKTOP" "$BIN/omo-research"
-      say "removed. Kept: ~/.local/share/omo/runtime (game + worlds) and your workspaces."
-      say "delete ~/.local/share/omo entirely to remove everything."
+      rm -rf "$APP" "$DESKTOP" "$OLD_DESKTOP" "${CMDS[@]}"
+      ok "Removed the app, menu entry and omo-space command"
+      note "Kept ~/.local/share/omo/runtime (game + worlds) and your workspaces."
+      note "To remove everything, delete ~/.local/share/omo."
+      echo
       exit 0 ;;
     -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
     *) SRC="$arg" ;;
@@ -99,45 +132,66 @@ if [ -n "$SRC" ]; then
 fi
 [ -f "$HERE/launcher/omo_setup.py" ] || die "run this from an unpacked release, or pass the release .tar.gz"
 
-say "installing Omo Space $(cat "$HERE/VERSION" 2>/dev/null || echo dev) into $APP"
+VERSION="$(cat "$HERE/VERSION" 2>/dev/null || echo dev)"
+banner "Your AI workspace, built in Minecraft · $VERSION"
+ok "$([ "$OS" = Darwin ] && echo macOS || echo Linux) $(uname -m) · $(python3 -c 'import platform; print("Python", platform.python_version())')"
+
+say "Installing the app into $(tilde "$APP")"
 mkdir -p "$APP.new"
 cp -a "$HERE/." "$APP.new/"
 rm -rf "$APP.old"; [ -d "$APP" ] && mv "$APP" "$APP.old"
 mv "$APP.new" "$APP"; rm -rf "$APP.old"
+ok "App installed"
 
 mkdir -p "$BIN"
 if [ "$OS" = Darwin ]; then
   # The launcher's shebang is /usr/bin/env python3, which may be Apple's 3.9: pin the one checked above.
-  printf '#!/bin/sh\nexec "%s" "%s" "$@"\n' "$(command -v python3)" "$APP/launcher/omo-launcher.py" > "$BIN/omo-research"
-  chmod +x "$BIN/omo-research"
+  printf '#!/bin/sh\nexec "%s" "%s" "$@"\n' "$(command -v python3)" "$APP/launcher/omo-launcher.py" > "$BIN/omo-space"
+  chmod +x "$BIN/omo-space"
+  ln -sf omo-space "$BIN/omo-research"
 else
 mkdir -p "$(dirname "$DESKTOP")"
+ln -sf "$APP/launcher/omo-launcher.py" "$BIN/omo-space"
 ln -sf "$APP/launcher/omo-launcher.py" "$BIN/omo-research"
+rm -f "$OLD_DESKTOP"
 cat > "$DESKTOP" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Omo Space
-Comment=Hermes Computers in Minecraft
+Comment=Hermes and your terminals, inside Minecraft
 Exec=$APP/launcher/omo-launcher.py
 Icon=$APP/launcher/assets/omo-icon.svg
 Terminal=false
 Categories=Game;Development;
+StartupWMClass=space.omo.research.launcher
 EOF
 command -v update-desktop-database >/dev/null && update-desktop-database "$(dirname "$DESKTOP")" 2>/dev/null || true
 fi
+if [ "$OS" = Darwin ]; then ok "Added the omo-space command"; else ok "Added the menu entry and the omo-space command"; fi
+case ":$PATH:" in
+  *":$BIN:"*) ;;
+  *) warn "$(tilde "$BIN") is not on your PATH, so the omo-space command won't be found yet"
+     note "add it in your shell profile:  export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
+esac
 
 if ! command -v hermes >/dev/null; then
-  say "Hermes Agent not found: Terminals will work; Hermes Computers open a shell until you install it."
-  say "  https://hermes-agent.nousresearch.com/docs"
+  warn "Hermes Agent not found. Terminals work; Hermes Computers open a shell until you install it."
+  note "https://hermes-agent.nousresearch.com/docs"
 fi
 
 if [ "$SETUP" = 1 ]; then
-  say "setup: downloading the pinned game runtime (~650 MB on first run)"
-  python3 "$APP/launcher/omo_setup.py" setup
+  say "Setup: downloading the pinned game runtime (~650 MB on first run)"
+  note "Minecraft, Fabric, CC: Tweaked, MCEF and Java, each from its official source, hash-checked."
+  echo
+  python3 "$APP/launcher/omo_setup.py" setup \
+    || die "setup stopped; the last lines above say why. Fix that, then run omo-space and choose Install / Set up."
 fi
 
+printf '\n  %s✓ Omo Space is installed.%s\n' "$CREAM" "$OFF"
 if [ "$OS" = Darwin ]; then
-  say "done. Run: omo-research   (add ~/.local/bin to your PATH if it is not there)"
+  note "Start it with:  omo-space"
 else
-  say "done. Open \"Omo Space\" from your app menu, or run: omo-research"
+  note "Open \"Omo Space\" from your app menu, or run:  omo-space"
 fi
+[ "$SETUP" = 1 ] || note "Setup was skipped (--no-setup). The launcher offers it the first time you open it."
+echo

@@ -478,7 +478,7 @@ def launch_args(v, account, java):
     cp = [str(f[1]) for f in game_files(v)]
     natives = MCDIR / "natives" / ver
     subs = {
-        "natives_directory": str(natives), "launcher_name": "omo-research",
+        "natives_directory": str(natives), "launcher_name": "omo-space",
         "launcher_version": MANIFEST["version"], "classpath": os.pathsep.join(cp),
         "classpath_separator": os.pathsep, "library_directory": str(MCDIR / "libraries"),
         "version_name": f"fabric-loader-{MANIFEST['fabric']['loader']}-{ver}", "game_directory": str(GAME),

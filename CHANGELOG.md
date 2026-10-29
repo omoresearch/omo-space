@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Omo Space everywhere, a tidier installer
+
+- Release bundles are now `omo-space-<ver>-*` (v1.2.0's `omo-research-*`
+  assets stay as published). The installer adds an `omo-space` command, and
+  `omo-research` keeps working as an alias.
+- Linux: the installer writes the same menu entry file as setup, so the app
+  menu no longer shows two "Omo Space" entries. The old `omo-research.desktop`
+  is removed.
+- `install.sh` and `install.ps1` print a short header, a ✓/!/✗ line per step and
+  a clear finish. Colour only on a terminal (NO_COLOR is respected). A failed
+  setup now stops with a next step, and a missing `~/.local/bin` on PATH is
+  pointed out. `install.ps1` stays pure ASCII for Windows PowerShell 5.1.
+- The internal ids keep their names so installs and worlds carry over: mod id
+  `omolife`, the `OmoResearch` data folders and Prism instance, and the
+  `space.omo.research.*` app id and launchd labels.
+
 ### Claude Code and Codex tabs
 
 - **"+" is a new-tab menu**: Shell, Hermes, **Claude Code** (`claude`) and

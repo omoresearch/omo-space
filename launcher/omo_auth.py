@@ -53,7 +53,7 @@ class AuthError(Exception):
 # --------------------------------------------------------------------------- http
 def _call(name, form=None, body=None, bearer=None):
     """(status, parsed JSON or {}) for one endpoint. Never raises on HTTP errors."""
-    headers = {"Accept": "application/json", "User-Agent": "omo-research/1.0"}
+    headers = {"Accept": "application/json", "User-Agent": "omo-space/1.0"}
     data = None
     if form is not None:
         data = urllib.parse.urlencode(form).encode()

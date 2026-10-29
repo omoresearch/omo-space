@@ -13,6 +13,7 @@ Falls back to a terminal menu when there is no display or no GTK.
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -169,6 +170,76 @@ class PlayWatch:
             return False
 
 
+def load_css(provider, css):
+    """Gtk.CssProvider's loader changed shape across GTK 4 (load_from_string
+    is 4.12+; load_from_data took bytes, then bytes + length, then a string in
+    PyGObject's overrides), so try each until one takes it."""
+    if hasattr(provider, "load_from_string"):
+        return provider.load_from_string(css)
+    for args in ((css,), (css.encode(),), (css, -1), (css.encode(), -1)):
+        try:
+            return provider.load_from_data(*args)
+        except TypeError:
+            continue
+    raise TypeError("no Gtk.CssProvider loader accepted the stylesheet")
+
+
+def register_fonts(fontmap, files):
+    """The launcher's bundled fonts. Pango 1.56+ adds them to the font map
+    directly; older Pango (Ubuntu 24.04 has 1.52) goes through fontconfig.
+    Without either the window uses system fonts and still works."""
+    if hasattr(fontmap, "add_font_file"):
+        for f in files:
+            fontmap.add_font_file(str(f))
+        return
+    try:
+        import ctypes
+        import ctypes.util
+        fc = ctypes.CDLL(ctypes.util.find_library("fontconfig") or "libfontconfig.so.1")
+        fc.FcConfigAppFontAddFile.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        for f in files:
+            fc.FcConfigAppFontAddFile(None, str(f).encode())
+        if hasattr(fontmap, "config_changed"):
+            fontmap.config_changed()
+    except (OSError, AttributeError):
+        pass
+
+
+TERMINALS = (                                   # (binary, args before the command)
+    ("x-terminal-emulator", ["-e"]), ("ptyxis", ["--"]), ("kgx", ["--"]), ("gnome-terminal", ["--"]),
+    ("konsole", ["-e"]), ("xfce4-terminal", ["-x"]), ("alacritty", ["-e"]), ("kitty", []), ("xterm", ["-e"]),
+)
+
+
+def terminal_command(argv, which=shutil.which):
+    """A command that runs argv in a new terminal window, or None."""
+    for name, pre in TERMINALS:
+        exe = which(name)
+        if exe:
+            return [exe, *pre, *argv]
+    return None
+
+
+def fallback(reason, interactive=None):
+    """The window can't open. In a terminal: the menu, right here. Started from
+    the app menu there is no terminal, so the menu would be invisible and the
+    app would seem to do nothing: open it in a terminal window, or say why."""
+    print(f"(the Omo Space window can't open: {reason}; using the terminal menu)", flush=True)
+    if interactive is None:
+        interactive = sys.stdin.isatty()
+    if interactive:
+        return tui()
+    cmd = terminal_command([sys.executable, str(Path(__file__).resolve()), "--tui"])
+    if cmd:
+        subprocess.Popen(cmd, start_new_session=True)
+        return None
+    note = shutil.which("notify-send")
+    if note:
+        subprocess.run([note, "Omo Space", f"The window can't open ({reason}). "
+                        "Run omo-space in a terminal for the menu."], check=False)
+    return None
+
+
 # --------------------------------------------------------------------------- terminal
 PRISM_SIGNIN = ("Choose 2) Play: a Microsoft sign-in window from Prism Launcher, the engine Omo "
                 "uses to start Minecraft for now, opens once. Sign in there; Omo remembers it.")
@@ -284,9 +355,42 @@ def gui():
     gi.require_version("PangoCairo", "1.0")
     from gi.repository import Adw, Gdk, GLib, Gtk, Pango, PangoCairo
 
-    fonts = PangoCairo.FontMap.get_default()
-    for ttf in sorted((ASSETS / "fonts").glob("*.ttf")):
-        fonts.add_font_file(str(ttf))
+    # Older GTK/libadwaita/Pango (Ubuntu 24.04: libadwaita 1.5, Pango 1.52;
+    # 22.04: libadwaita 1.1, GTK 4.6) lack some calls this window uses. Each
+    # has a fallback here, so the window opens on them instead of crashing.
+    register_fonts(PangoCairo.FontMap.get_default(), sorted((ASSETS / "fonts").glob("*.ttf")))
+
+    def spinner(size):
+        s = Adw.Spinner() if hasattr(Adw, "Spinner") else Gtk.Spinner(spinning=True)   # Adw.Spinner: 1.6+
+        s.set_size_request(size, size)
+        return s
+
+    def header_bar():
+        bar = Adw.HeaderBar()
+        if hasattr(bar.props, "show_title"):          # libadwaita 1.4+
+            bar.set_show_title(False)
+        else:
+            bar.set_title_widget(Gtk.Label())          # the same: no title text
+        return bar
+
+    class Frame(Gtk.Box):
+        """The three Adw.ToolbarView calls this window makes, on a plain box (libadwaita < 1.4)."""
+
+        def __init__(self):
+            super().__init__(orientation=Gtk.Orientation.VERTICAL)
+
+        def add_top_bar(self, widget):
+            self.prepend(widget)
+
+        def set_content(self, widget):
+            widget.set_vexpand(True)
+            self.append(widget)
+
+        def add_bottom_bar(self, widget):
+            self.append(widget)
+
+    def toolbar_view():
+        return Adw.ToolbarView() if hasattr(Adw, "ToolbarView") else Frame()
 
     def label(text="", *classes, wrap=True, xalign=0.0):
         w = Gtk.Label(label=text, xalign=xalign, wrap=wrap)
@@ -331,8 +435,8 @@ def gui():
             self.hidden_for_game = self.cancelled = False
             self.step_total = None
 
-            view = Adw.ToolbarView()
-            view.add_top_bar(Adw.HeaderBar(show_title=False))
+            view = toolbar_view()
+            view.add_top_bar(header_bar())
             self.set_content(view)
 
             # -- brand, with the signed-in player on the right
@@ -448,13 +552,12 @@ def gui():
             self.cancel_btn.set_visible(False)
             self.code = label("", "o-code", xalign=0.5, wrap=False)
             self.code_uri = "https://www.microsoft.com/link"
-            spinner = Adw.Spinner()
-            spinner.set_size_request(14, 14)
+            spin = spinner(14)
             card = box(True, 16,
                        label("GO TO MICROSOFT.COM/LINK AND ENTER", "o-kicker", xalign=0.5), self.code,
                        box(False, 10, button("Open microsoft.com/link", "o-dark", self.open_link),
                            button("Copy code", "o-outline", self.copy_code), halign=Gtk.Align.CENTER),
-                       box(False, 10, spinner, label("Waiting for you to finish on the Microsoft page",
+                       box(False, 10, spin, label("Waiting for you to finish on the Microsoft page",
                                                      "o-meta", wrap=False), halign=Gtk.Align.CENTER),
                        css=["o-card", "o-code-card"])
             self.code_rev = Gtk.Revealer(transition_type=Gtk.RevealerTransitionType.CROSSFADE, child=card)
@@ -490,12 +593,11 @@ def gui():
             return section, kicker, rows
 
         def starting_page(self):
-            spinner = Adw.Spinner()
-            spinner.set_size_request(36, 36)
+            spin = spinner(36)
             self.starting_text = label("", "o-body", xalign=0.5)
             self.starting_text.set_justify(Gtk.Justification.CENTER)
             self.starting_text.set_max_width_chars(46)
-            page = box(True, 18, spinner, label("Starting Minecraft", "o-heading", xalign=0.5),
+            page = box(True, 18, spin, label("Starting Minecraft", "o-heading", xalign=0.5),
                        self.starting_text, margin_top=90, halign=Gtk.Align.CENTER)
             return page, []
 
@@ -703,7 +805,10 @@ def gui():
             self.refresh()
 
         def open_link(self):
-            Gtk.UriLauncher.new(self.code_uri).launch(self, None, None, None)
+            if hasattr(Gtk, "UriLauncher"):                # GTK 4.10+
+                Gtk.UriLauncher.new(self.code_uri).launch(self, None, None, None)
+            else:
+                Gtk.show_uri(self, self.code_uri, Gdk.CURRENT_TIME)
 
         def copy_code(self):
             self.get_clipboard().set(self.code.get_label())
@@ -777,6 +882,7 @@ def gui():
         def __init__(self):
             super().__init__(application_id=core.APP_ID)
             self.win = None
+            self.failed = None                          # an exception that kept the window from opening
             self.connect("activate", self.on_activate)
 
         def on_activate(self, app):
@@ -784,8 +890,15 @@ def gui():
                 self.win.set_visible(True)
                 self.win.present()
                 return
+            try:
+                self.open_window(app)
+            except Exception as exc:                    # raised inside GTK's loop, it would leave no window
+                self.failed = exc
+                self.quit()
+
+        def open_window(self, app):
             provider = Gtk.CssProvider()
-            provider.load_from_string(CSS)
+            load_css(provider, CSS)
             Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), provider,
                                                       Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
             Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
@@ -795,7 +908,10 @@ def gui():
             self.win.present()
 
     GLib.set_application_name("Omo Space")
-    App().run([])
+    app = App()
+    app.run([])
+    if app.failed:
+        raise app.failed
 
 
 if __name__ == "__main__":
@@ -804,6 +920,5 @@ if __name__ == "__main__":
     else:
         try:
             gui()
-        except (ImportError, ValueError) as exc:
-            print(f"(GTK unavailable: {exc}; using the terminal menu)")
-            tui()
+        except Exception as exc:                        # no GTK, or one too old for the window
+            fallback(f"{type(exc).__name__}: {exc}")

@@ -10,7 +10,16 @@ to host.
 - Game: native.
 - Session server: pinned static tmux, run as a systemd user service.
 - Install with: `install.sh`.
-- Status: tested end to end on a real machine.
+- Status: tested end to end on a real machine (Ubuntu 26.04). The
+  "Fresh install" CI job (`.github/workflows/install.yml`) also installs the
+  latest release with this tree's installer on clean Ubuntu 24.04 and 22.04
+  runners, and opens the launcher window on 24.04.
+- Needs Python 3.11+. Ubuntu 22.04 ships 3.10: `sudo apt install python3.11`,
+  and the installer picks it up. The launcher window needs GTK 4 + libadwaita
+  for that Python (`python3-gi gir1.2-gtk-4.0 gir1.2-adw-1`; Fedora
+  `python3-gobject gtk4 libadwaita`); without them Omo Space opens its menu in
+  a terminal window instead. The window works on libadwaita 1.4+ (Ubuntu 24.04
+  has 1.5); older ones, like 22.04's 1.1, get the terminal menu.
 
 **macOS (Apple Silicon and Intel)**
 - Game: native. Uses Temurin's `.app` bundle and Prism's universal app.

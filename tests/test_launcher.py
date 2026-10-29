@@ -808,6 +808,83 @@ def load_launcher_ui():
     return mod
 
 
+class LauncherCompat(unittest.TestCase):
+    """The window on older GTK/libadwaita/Pango, and what happens when it can't open."""
+    UI = load_launcher_ui()
+
+    def test_fonts_go_through_fontconfig_on_pango_before_1_56(self):
+        class OldMap:                                   # Pango 1.52 (Ubuntu 24.04): no add_font_file
+            changed = 0
+
+            def config_changed(self):
+                self.changed += 1
+        m = OldMap()
+        self.UI.register_fonts(m, [LAUNCHER / "assets/fonts/nothing.ttf"])   # a missing file is no error
+        self.assertEqual(m.changed, 1)
+
+    def test_fonts_use_add_font_file_when_there(self):
+        added = []
+
+        class NewMap:
+            def add_font_file(self, path):
+                added.append(path)
+        self.UI.register_fonts(NewMap(), [Path("/a.ttf"), Path("/b.ttf")])
+        self.assertEqual(added, ["/a.ttf", "/b.ttf"])
+
+    def test_css_loader_shapes(self):
+        class New:
+            def load_from_string(self, css):
+                self.got = ("string", css)
+
+        class BytesOnly:                                # GTK 4.6-era: bytes, no length
+            def load_from_data(self, data):
+                if not isinstance(data, bytes):
+                    raise TypeError("bytes please")
+                self.got = ("data", data)
+
+        class Nothing:
+            def load_from_data(self, *a):
+                raise TypeError("no")
+        n, b = New(), BytesOnly()
+        self.UI.load_css(n, "a{}")
+        self.UI.load_css(b, "a{}")
+        self.assertEqual((n.got, b.got), (("string", "a{}"), ("data", b"a{}")))
+        with self.assertRaises(TypeError):
+            self.UI.load_css(Nothing(), "a{}")
+
+    def test_terminal_command_picks_the_first_terminal_there(self):
+        have = {"xterm": "/usr/bin/xterm", "konsole": "/usr/bin/konsole"}
+        cmd = self.UI.terminal_command(["py", "launcher", "--tui"], which=have.get)
+        self.assertEqual(cmd, ["/usr/bin/konsole", "-e", "py", "launcher", "--tui"])
+        self.assertIsNone(self.UI.terminal_command(["x"], which=lambda n: None))
+
+    def test_fallback_in_a_terminal_shows_the_menu_there(self):
+        with mock.patch.object(self.UI, "tui") as tui, mock.patch.object(self.UI.subprocess, "Popen") as popen:
+            self.UI.fallback("no GTK", interactive=True)
+        tui.assert_called_once()
+        popen.assert_not_called()
+
+    def test_fallback_from_the_app_menu_opens_a_terminal_window(self):
+        # started from the menu there is no terminal: a menu printed to nowhere looked like "nothing happens"
+        with mock.patch.object(self.UI, "tui") as tui, \
+                mock.patch.object(self.UI, "terminal_command", return_value=["term", "-e", "x"]), \
+                mock.patch.object(self.UI.subprocess, "Popen") as popen:
+            self.UI.fallback("no GTK", interactive=False)
+        tui.assert_not_called()
+        self.assertEqual(popen.call_args[0][0], ["term", "-e", "x"])
+
+    def test_fallback_without_any_terminal_says_so_in_a_notification(self):
+        with mock.patch.object(self.UI, "terminal_command", return_value=None), \
+                mock.patch.object(self.UI.shutil, "which", return_value="/usr/bin/notify-send"), \
+                mock.patch.object(self.UI.subprocess, "run") as run:
+            self.UI.fallback("no GTK", interactive=False)
+        self.assertIn("omo-space", run.call_args[0][0][-1])
+
+    def test_main_falls_back_on_any_window_error(self):
+        src = (LAUNCHER / "omo-launcher.py").read_text()
+        self.assertIn("except Exception as exc:                        # no GTK, or one too old", src)
+
+
 class LauncherUI(unittest.TestCase):
     UI = load_launcher_ui()
     BASE = {"installed": True, "running": False, "mods": {"a": True}, "omolife": True, "tmux": True,

@@ -8,7 +8,7 @@ Wants=omo-tmux.service
 # quoted, %-escaped values. The bridge does not depend on its working directory.
 [Service]
 Type=simple
-Environment="OMO_DATA=@OMO_DATA@" "OMO_TMUX=@TMUX@"
+Environment="OMO_DATA=@OMO_DATA@" "OMO_TMUX=@TMUX@" "OMO_PORT=@PORT@"
 # The Hermes the launcher detected; empty means "hermes" on the service PATH.
 Environment="OMO_HERMES_BIN=@HERMES@"
 # Claude Code and Codex for agent tabs; empty means the bridge looks on its PATH.

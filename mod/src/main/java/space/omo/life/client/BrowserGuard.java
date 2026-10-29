@@ -52,7 +52,11 @@ final class BrowserGuard {
     /** Private (anonymous) memory of all helpers together. */
     static final long ANON_SOFT = 8L << 30;
     static final long ANON_HARD = 12L << 30;
-    /** The machine's MemAvailable: below this the browsers are what gives way. */
+    /**
+     * The machine's MemAvailable: below this the browsers are what gives way.
+     * These are the limits for 48 GB of RAM and more (and when MemTotal is
+     * unknown); smaller machines get {@link MemLimits#forTotal}.
+     */
     static final long AVAIL_SOFT = 6L << 30;
     static final long AVAIL_HARD = 3L << 30;
     /** How long a SOFT / HARD verdict keeps new browsers paused after it was last seen. */
@@ -70,12 +74,50 @@ final class BrowserGuard {
      */
     static final int NEAR_KEEP = 2;
     static final double NEAR_BLOCKS = 16;
-    /** Below this MemAvailable not even the nearest walls keep a page. */
+    /** Below this MemAvailable not even the nearest walls keep a page (48 GB and up; see {@link MemLimits}). */
     static final long AVAIL_FLOOR = 3L << 29;
     /** Every memory pause's reason starts with this; other pauses never do. */
     static final String MEMORY_PAUSE = "Web screens paused";
 
     enum Level { OK, SOFT, HARD }
+
+    /**
+     * MemAvailable limits for one machine. Fixed 6 / 3 GB suit a 64 GB box but
+     * leave a 16 GB laptop (game heap 6 GB) permanently under SOFT, so they
+     * scale with MemTotal: SOFT 1/8 (2..6 GB), HARD 1/16 (1..3 GB), FLOOR half
+     * of HARD. Both clamps reach their old values at 48 GB, so machines sold as
+     * 64 GB (MemTotal ~59.5 GB after firmware and iGPU reservations) and more
+     * behave exactly as before.
+     */
+    record MemLimits(long soft, long hard, long floor) {
+        static final long SOFT_MIN = 2L << 30;
+        static final long HARD_MIN = 1L << 30;
+
+        /** {@code totalBytes} is MemTotal; 0 or less means unknown (old limits). */
+        static MemLimits forTotal(long totalBytes) {
+            if (totalBytes <= 0) {
+                return new MemLimits(AVAIL_SOFT, AVAIL_HARD, AVAIL_FLOOR);
+            }
+            long hard = Math.max(HARD_MIN, Math.min(AVAIL_HARD, totalBytes / 16));
+            return new MemLimits(Math.max(SOFT_MIN, Math.min(AVAIL_SOFT, totalBytes / 8)), hard, hard / 2);
+        }
+
+        String describe() {
+            return "soft " + (soft >> 20) + " MB, hard " + (hard >> 20) + " MB, floor " + (floor >> 20) + " MB";
+        }
+    }
+
+    private static volatile MemLimits memLimits = MemLimits.forTotal(-1);
+
+    /** Set once from the machine's MemTotal (bytes; 0 or less = unknown). */
+    static MemLimits useMemTotal(long totalBytes) {
+        memLimits = MemLimits.forTotal(totalBytes);
+        return memLimits;
+    }
+
+    static MemLimits memLimits() {
+        return memLimits;
+    }
 
     /** One look at Chromium's processes and the machine; availBytes -1 = unknown. */
     record Sample(int helpers, int renderers, long anonBytes, long availBytes) {
@@ -196,19 +238,23 @@ final class BrowserGuard {
      * {@code rank} is how many nearer walls already keep one.
      */
     static boolean nearExempt(Sample s, double blocks, int rank) {
-        return !chromiumOver(s) && (s == null || s.availBytes() < 0 || s.availBytes() >= AVAIL_FLOOR)
+        return !chromiumOver(s) && (s == null || s.availBytes() < 0 || s.availBytes() >= memLimits.floor())
             && blocks <= NEAR_BLOCKS && rank < NEAR_KEEP;
     }
 
     static Level assess(Sample s) {
+        return assess(s, memLimits);
+    }
+
+    static Level assess(Sample s, MemLimits m) {
         if (s == null) {
             return Level.OK;
         }
         boolean knownAvail = s.availBytes() >= 0;
-        if (s.helpers() >= HELPERS_HARD || s.anonBytes() >= ANON_HARD || knownAvail && s.availBytes() < AVAIL_HARD) {
+        if (s.helpers() >= HELPERS_HARD || s.anonBytes() >= ANON_HARD || knownAvail && s.availBytes() < m.hard()) {
             return Level.HARD;
         }
-        if (s.helpers() >= HELPERS_SOFT || s.anonBytes() >= ANON_SOFT || knownAvail && s.availBytes() < AVAIL_SOFT) {
+        if (s.helpers() >= HELPERS_SOFT || s.anonBytes() >= ANON_SOFT || knownAvail && s.availBytes() < m.soft()) {
             return Level.SOFT;
         }
         return Level.OK;

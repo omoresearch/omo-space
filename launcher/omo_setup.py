@@ -450,8 +450,45 @@ def local_jvm():
         return {}
 
 
+SMALL_RAM_MB = 12 * 1024   # below this the heap tops out at 4 GB
+SMALL_HEAP_MB = 4096
+HEAP_PERCENT = 40          # the game heap never takes more of the machine than this
+
+
+def total_ram_mb():
+    """This machine's physical memory in MB, or None when it can't be read."""
+    try:
+        if sys.platform == "win32":
+            import ctypes
+
+            class Status(ctypes.Structure):   # MEMORYSTATUSEX
+                _fields_ = [("length", ctypes.c_ulong), ("load", ctypes.c_ulong),
+                            *[(f, ctypes.c_ulonglong) for f in ("total", "avail", "page_total", "page_avail",
+                                                                "virt_total", "virt_avail", "ext_avail")]]
+            st = Status(length=ctypes.sizeof(Status))
+            return st.total // 2**20 if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(st)) else None
+        return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") // 2**20 or None   # Linux and macOS
+    except (AttributeError, OSError, ValueError):
+        return None
+
+
+def default_memory_mb(base, total_mb):
+    """The game heap for a machine with `total_mb` of RAM (None: unknown, so
+    `base`, the manifest's {"min", "max"}). base["max"] (6 GB) is the ceiling;
+    under 12 GB of RAM it is 4 GB, and never more than 40% of the machine
+    (rounded down to 256 MB), so Chromium, the bridge and the desktop keep
+    room on an 8 GB laptop. Never below base["min"]."""
+    if not total_mb or total_mb <= 0:
+        return dict(base)
+    top = min(base["max"], SMALL_HEAP_MB) if total_mb < SMALL_RAM_MB else base["max"]
+    top = min(top, total_mb * HEAP_PERCENT // 100 // 256 * 256)
+    return {"min": base["min"], "max": max(top, base["min"])}
+
+
 def memory_mb():
-    mem = dict(MANIFEST["memory_mb"])
+    """Game heap: scaled to this machine's RAM, then runtime/local-jvm.json's
+    memory_mb (either key) wins."""
+    mem = default_memory_mb(MANIFEST["memory_mb"], total_ram_mb())
     mem.update({k: int(v) for k, v in (local_jvm().get("memory_mb") or {}).items() if k in ("min", "max")})
     return mem
 

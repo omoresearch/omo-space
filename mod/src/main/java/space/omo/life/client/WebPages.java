@@ -783,7 +783,10 @@ public final class WebPages {
         GUARD.prune();
         if (MCEF && McefRuntime.ready()) {
             CefHooks.maybeResync();
-            HelperWatchdog.start(WebPages::onSample);
+            BrowserGuard.MemLimits limits = HelperWatchdog.start(WebPages::onSample);
+            if (limits != null) {
+                OmoLife.LOG.info("browser memory guard: limits {}", limits.describe());
+            }
         }
         ClientLevel level = Minecraft.getInstance().level;
         if (level == null) {

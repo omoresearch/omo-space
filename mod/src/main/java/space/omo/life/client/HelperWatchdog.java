@@ -33,10 +33,15 @@ final class HelperWatchdog {
     private HelperWatchdog() {
     }
 
-    static synchronized void start(Consumer<BrowserGuard.Sample> onSample) {
+    /**
+     * Start watching (once; later calls do nothing). Returns the memory limits
+     * set from this machine's MemTotal when it starts now, else null.
+     */
+    static synchronized BrowserGuard.MemLimits start(Consumer<BrowserGuard.Sample> onSample) {
         if (timer != null || !Files.isDirectory(PROC.resolve("self"))) {
-            return;
+            return null;
         }
+        BrowserGuard.MemLimits limits = BrowserGuard.useMemTotal(meminfo("MemTotal:"));
         timer = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "omo-browser-watchdog");
             t.setDaemon(true);
@@ -53,6 +58,7 @@ final class HelperWatchdog {
                 // a process vanished mid-read; next round
             }
         }, PERIOD_MS, PERIOD_MS, TimeUnit.MILLISECONDS);
+        return limits;
     }
 
     /**
@@ -80,7 +86,7 @@ final class HelperWatchdog {
             }
             anon += statusKb(p.pid(), "RssAnon:") * 1024;
         }
-        return new BrowserGuard.Sample(helpers, renderers, anon, memAvailable());
+        return new BrowserGuard.Sample(helpers, renderers, anon, meminfo("MemAvailable:"));
     }
 
     /**
@@ -135,11 +141,12 @@ final class HelperWatchdog {
         return 0;
     }
 
-    private static long memAvailable() {
+    /** A /proc/meminfo line ({@code key} e.g. "MemTotal:") in bytes, or -1 when unknown. */
+    static long meminfo(String key) {
         try {
             for (String line : Files.readAllLines(PROC.resolve("meminfo"), StandardCharsets.UTF_8)) {
-                if (line.startsWith("MemAvailable:")) {
-                    return Long.parseLong(line.substring(13).trim().split("\\s+")[0]) * 1024;
+                if (line.startsWith(key)) {
+                    return Long.parseLong(line.substring(key.length()).trim().split("\\s+")[0]) * 1024;
                 }
             }
         } catch (IOException | RuntimeException ignored) {

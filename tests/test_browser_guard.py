@@ -43,6 +43,7 @@ public final class GuardHarness {
             case "churn" -> churn();
             case "ceiling" -> ceiling();
             case "assess" -> assess();
+            case "scale" -> scale();
             case "evict" -> evict();
             case "near" -> near();
             case "crash" -> crash();
@@ -136,6 +137,51 @@ public final class GuardHarness {
             "unknown MemAvailable is not low");
         check(new BrowserGuard.Sample(3, 1, 5L << 20, -1).describe().equals("3 helpers, 5 MB, ? MB free"),
             "log line");
+    }
+
+    /** MemAvailable limits scale with MemTotal; 48 GB and up (or unknown) keep the old 6 / 3 / 1.5 GB. */
+    static void scale() {
+        long G = 1L << 30, M = 1L << 20;
+        BrowserGuard.MemLimits old = new BrowserGuard.MemLimits(
+            BrowserGuard.AVAIL_SOFT, BrowserGuard.AVAIL_HARD, BrowserGuard.AVAIL_FLOOR);
+        check(old.equals(new BrowserGuard.MemLimits(6 * G, 3 * G, 1536 * M)), "the old limits");
+        check(BrowserGuard.memLimits().equals(old), "before MemTotal is known: the old limits");
+        for (long total : new long[] {-1, 0, 48 * G, 62373532L * 1024 /* this '64 GB' box */, 64 * G, 128 * G, 1024 * G}) {
+            check(BrowserGuard.MemLimits.forTotal(total).equals(old), "unchanged at " + (total >> 20) + " MB");
+        }
+        check(BrowserGuard.MemLimits.forTotal(8 * G).equals(new BrowserGuard.MemLimits(2 * G, 1 * G, 512 * M)), "8 GB");
+        check(BrowserGuard.MemLimits.forTotal(16 * G).equals(new BrowserGuard.MemLimits(2 * G, 1 * G, 512 * M)), "16 GB");
+        check(BrowserGuard.MemLimits.forTotal(32 * G).equals(new BrowserGuard.MemLimits(4 * G, 2 * G, 1 * G)),
+            "32 GB: 1/8, 1/16, 1/32");
+        check(BrowserGuard.MemLimits.forTotal(47 * G).soft() < 6 * G, "just under 48 GB scales");
+        BrowserGuard.MemLimits prev = BrowserGuard.MemLimits.forTotal(1 * G);
+        for (long total = 1 * G; total <= 200 * G; total += 256 * M) {
+            BrowserGuard.MemLimits m = BrowserGuard.MemLimits.forTotal(total);
+            check(m.soft() > m.hard() && m.hard() > m.floor() && m.floor() > 0, "soft > hard > floor at " + total);
+            check(m.soft() >= prev.soft() && m.hard() >= prev.hard() && m.floor() >= prev.floor(), "monotonic at " + total);
+            check(m.soft() <= old.soft() && m.hard() <= old.hard() && m.floor() <= old.floor(), "never above the old limits");
+            prev = m;
+        }
+        // A 16 GB laptop playing with 5 GB free: the old limits paused every new page.
+        BrowserGuard.MemLimits laptop = BrowserGuard.MemLimits.forTotal(16 * G);
+        BrowserGuard.Sample normal = new BrowserGuard.Sample(30, 14, 3 * G, 5 * G);
+        check(BrowserGuard.assess(normal, old) == BrowserGuard.Level.SOFT, "old limits: SOFT on a 16 GB laptop");
+        check(BrowserGuard.assess(normal, laptop) == BrowserGuard.Level.OK, "scaled: OK");
+        check(BrowserGuard.assess(new BrowserGuard.Sample(30, 14, 3 * G, 1536 * M), laptop) == BrowserGuard.Level.SOFT,
+            "scaled: SOFT below 2 GB");
+        check(BrowserGuard.assess(new BrowserGuard.Sample(30, 14, 3 * G, 900 * M), laptop) == BrowserGuard.Level.HARD,
+            "scaled: HARD below 1 GB");
+        check(BrowserGuard.assess(new BrowserGuard.Sample(200, 14, 3 * G, 5 * G), laptop) == BrowserGuard.Level.HARD,
+            "Chromium's own limits do not scale");
+        // useMemTotal drives assess(Sample) and the near-wall floor.
+        BrowserGuard.Sample tight = new BrowserGuard.Sample(19, 10, 1 * G, 700 * M);
+        check(!BrowserGuard.nearExempt(tight, 5, 0), "old floor: 700 MB free keeps nothing");
+        check(BrowserGuard.useMemTotal(16 * G).equals(laptop) && BrowserGuard.memLimits().equals(laptop), "set from MemTotal");
+        check(BrowserGuard.assess(normal) == BrowserGuard.Level.OK && BrowserGuard.assess(tight) == BrowserGuard.Level.HARD,
+            "assess uses the machine's limits");
+        check(BrowserGuard.nearExempt(tight, 5, 0), "scaled floor: the nearest wall keeps its page");
+        check(BrowserGuard.useMemTotal(-1).equals(old), "unknown MemTotal: back to the old limits");
+        check(laptop.describe().equals("soft 2048 MB, hard 1024 MB, floor 512 MB"), "log line");
     }
 
     /** Low machine memory keeps the nearest walls lit; Chromium over its own limits does not. */
@@ -320,6 +366,8 @@ public final class GuardHarness {
         check(before != null, "Linux /proc is readable");
         check(before.helpers() == 0, "no helpers yet");
         check(before.availBytes() > 0, "MemAvailable read");
+        check(HelperWatchdog.meminfo("MemTotal:") >= before.availBytes(), "MemTotal read");
+        check(HelperWatchdog.meminfo("NoSuchKey:") == -1, "an unknown key is unknown");
         Process renderer = new ProcessBuilder(fake, "60", "--type=renderer").start();
         Process gpu = new ProcessBuilder(fake, "60", "--type=gpu-process").start();
         try {
@@ -403,6 +451,9 @@ class BrowserGuardTest(unittest.TestCase):
 
     def test_memory_levels(self):
         self.run_case("assess")
+
+    def test_memory_limits_scale_with_ram(self):
+        self.run_case("scale")
 
     def test_near_walls_survive_low_memory(self):
         self.run_case("near")

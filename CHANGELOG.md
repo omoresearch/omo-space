@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Memory limits scale with the machine's RAM
+
+- The browser memory guard's MemAvailable limits follow MemTotal: no new
+  pages below 1/8 (2-6 GB), close pages below 1/16 (1-3 GB), nearest walls
+  keep theirs down to half that. 48 GB and more (so every 64 GB machine)
+  behave exactly as before; a 16 GB laptop no longer sits under the 6 GB
+  limit all the time. The game log's `browser memory guard: limits ...` line
+  shows the values in use.
+- The default game heap follows total RAM: 6 GB, 4 GB under 12 GB of RAM, and
+  never more than 40% of it (2 GB minimum). `runtime/local-jvm.json`
+  `memory_mb` still wins.
+
 ### Performance benchmark
 
 - `tests/bench.py`: fixed scenes (idle, 6 and 12 web walls, 6 live terminal

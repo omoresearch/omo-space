@@ -26,6 +26,7 @@
 <p align="center">
   <a href="#install"><img src="docs/media/btn-install.png" alt="Install" height="44"></a>&nbsp;
   <a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27"><img src="docs/media/btn-demo.png" alt="Watch the demo" height="44"></a>
+  <br><sub>Or let your coding agent do it: <a href="#quick-start-with-your-agent">one prompt to install and build your first world</a>.</sub>
 </p>
 
 <p align="center">
@@ -152,6 +153,31 @@ once, across 22 separate Hermes profiles.
 Since v1.2.0, agents running on the same computer can also join the world as players, over a LAN port that refuses
 offline logins from other machines ([how](docs/AGENTS-AND-TERMINALS.md#8-agent-bodies-in-your-world-lan-join)). Our robots and the Omo agent player are built
 on that: [Omo, brought to life](https://github.com/omoresearch/omo-brought-to-life) and [Omo Microduck](https://github.com/omoresearch/omo-microduck).
+
+## Quick start with your agent
+
+The fastest way to start: let your coding agent install Omo Space and build your first world. Paste this into **Claude Code**, **Codex** or **Hermes**, opened in an empty folder. It installs
+everything from this repository, stops whenever you need to sign in or decide something, and never signs in for you.
+
+```text
+Set up Omo Space for me from https://github.com/omoresearch/omo-space
+
+1. Read README.md. Install the latest release for my computer exactly as its Install section says: download, check SHA256SUMS, run the installer. Stop when I need to sign in with my own Minecraft account. Never sign in for me.
+2. Read docs/MAPS.md and docs/MAP-BUILD-PROCEDURE.md, and follow them to build my first world.
+3. My world: Ask me first what I want it to be (for example an office, a cosy home or a spaceship) and how many agents should work there. Wait for my answer before you build.
+   Give each room a desk for an agent (a Hermes Computer with its own name), a terminal wall and a status lamp.
+4. Test the build on a copy of my save. Then give me the in-game commands to build it and to undo it.
+```
+
+To skip the question, replace the text after `My world:` with your own idea. For example:
+
+- **An office:** `a bright office with a room per team and a meeting room`
+- **A cosy home:** `a cosy home with a library, a fireplace and a reading nook`
+- **A spaceship:** `a spaceship with a bridge, an engine room and crew quarters`
+- **A research lab:** `a research lab carved into a mountain, one bay per experiment`
+- **A studio:** `a studio with one room per stage: ideas, script, edit, publish`
+
+There is also a version with buttons to pick from on [omo.sh](https://www.omo.sh/omo-space#agent-quick-start).
 
 <sub>06</sub>
 

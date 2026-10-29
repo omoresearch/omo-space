@@ -326,6 +326,7 @@ class MacServices(unittest.TestCase):
         self.assertEqual((env["OMO_CLAUDE_BIN"], env["OMO_CODEX_BIN"]), ("/opt/homebrew/bin/claude", ""))
         self.assertTrue(env["OMO_DATA"].endswith("Library/Application Support/OmoResearch"))
         self.assertIn("/opt/homebrew/bin", env["PATH"])
+        self.assertEqual(env["OMO_PORT"], "8780")      # the bridge listens where setup will look
 
     def test_launchctl_flow_never_restarts_a_changed_tmux(self):
         """Fake launchctl: first run bootstraps both; a changed tmux.conf on a

@@ -16,6 +16,9 @@ import java.util.concurrent.CompletableFuture;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.loader.api.FabricLoader;
+
 import space.omo.life.OmoLife;
 
 /**
@@ -86,6 +89,9 @@ public final class BridgeLink {
 
     /** The bridge token, or null when the bridge has never run on this host. */
     public static String token() {
+        if (!enabled()) {
+            return null;
+        }
         long now = System.currentTimeMillis();
         if (cachedToken != null && now - tokenReadAt < 30_000L) {
             return cachedToken;
@@ -98,6 +104,21 @@ public final class BridgeLink {
         }
         tokenReadAt = now;
         return cachedToken;
+    }
+
+    /**
+     * The bridge is a per-computer service (host terminals, Hermes workspaces).
+     * On a dedicated server it is off by default: the server must not poll
+     * 127.0.0.1 or read a token from the server account's home directory, and
+     * players' stations must not reach terminals on the server host. Turn it
+     * on only for a server that deliberately runs its own bridge:
+     * {@code -Domo.bridge.dedicated=true}.
+     */
+    public static boolean enabled() {
+        if (FabricLoader.getInstance().getEnvironmentType() != EnvType.SERVER) {
+            return true;
+        }
+        return Boolean.getBoolean("omo.bridge.dedicated");
     }
 
     public static boolean available() {
@@ -184,6 +205,9 @@ public final class BridgeLink {
     }
 
     public static CompletableFuture<Boolean> health() {
+        if (!enabled()) {
+            return CompletableFuture.completedFuture(false);
+        }
         HttpRequest req = HttpRequest.newBuilder(URI.create(baseUrl() + "/health"))
             .timeout(Duration.ofSeconds(3)).GET().build();
         return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString())
@@ -191,6 +215,9 @@ public final class BridgeLink {
     }
 
     public static String notSetUp() {
+        if (!enabled()) {
+            return "Omo bridge is off on this dedicated server (host terminals are not available here)";
+        }
         return "Omo bridge is not set up on this computer (no token in " + dataDir() + ")";
     }
 
@@ -213,6 +240,10 @@ public final class BridgeLink {
     }
 
     static {
-        OmoLife.LOG.info("Omo bridge endpoint {} (data {})", baseUrl(), dataDir());
+        if (enabled()) {
+            OmoLife.LOG.info("Omo bridge endpoint {} (data {})", baseUrl(), dataDir());
+        } else {
+            OmoLife.LOG.info("Omo bridge off: dedicated server (enable with -Domo.bridge.dedicated=true)");
+        }
     }
 }

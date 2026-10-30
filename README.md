@@ -25,7 +25,7 @@
 
 <p align="center">
   <a href="#install"><img src="docs/media/btn-install.png" alt="Install" height="44"></a>&nbsp;
-  <a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27"><img src="docs/media/btn-demo.png" alt="Watch the demo" height="44"></a>
+  <a href="https://omoresearch.github.io/omo-space-demo/"><img src="docs/media/btn-demo.png" alt="Watch the demo" height="44"></a>
   <br><sub>Or let your coding agent do it: <a href="#quick-start-with-your-agent">one prompt to install and build your first world</a>.</sub>
 </p>
 
@@ -129,8 +129,8 @@ We use Omo Space as our main workspace, live on stream. Between 25 and 29 Octobe
 from inside the game, with one room per stage: ideas, references, recording, editing, publishing and analytics.
 Each room has its own Hermes profile.
 
-<p><a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27"><img src="docs/media/demo-poster.webp" alt="Watch the 15-minute demo" width="100%"></a><br>
-<sub><code>▶ DEMO</code> <a href="https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27">Watch the 15-minute demo</a>: one take, live on stream · <a href="docs/demo/TRANSCRIPT.md">transcript</a></sub></p>
+<p><a href="https://omoresearch.github.io/omo-space-demo/"><img src="docs/media/demo-poster.webp" alt="Watch the 15-minute demo" width="100%"></a><br>
+<sub><code>▶ DEMO</code> <a href="https://omoresearch.github.io/omo-space-demo/">Watch the 15-minute demo</a>: one take, live on stream · <a href="docs/demo/TRANSCRIPT.md">transcript</a></sub></p>
 
 <table>
 <tr>

@@ -1,6 +1,6 @@
 # Demo transcript: the whole loop, live
 
-**Video:** [omo-space-demo-2026-10-27.mp4](https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27) · 15:45 · 1080p
+**Video:** [watch in the browser](https://omoresearch.github.io/omo-space-demo/) · [original 1080p MP4](https://github.com/omoresearch/omo-space/releases/tag/demo-2026-10-27) · 15:45
 **Recorded:** live on [twitch.tv/yiifannn](https://www.twitch.tv/yiifannn), 27 October 2026, inside Omo Space.
 
 A viewer, zenitfox, found the stream through one of our Instagram reels and

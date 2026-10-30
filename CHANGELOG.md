@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### A cinematic launcher
+
+- The Omo Space window is now a 16:9 title card over a film of Omo World
+  (11 clips in `launcher/assets/reel/`, recorded in game). Opening it plays a
+  short title sequence; click to skip.
+- Pressing Play shows progress in the window (step, bar, latest Prism or game
+  line) instead of leaving you guessing. If it fails, one button copies an
+  error report to paste to your agent: what failed, the launcher and game
+  logs, and any crash report, with sign-in tokens removed.
+- One button system: the same height for primary and secondary buttons, sized
+  to their text, never stretched.
+- New Plugins screen: a catalogue with GLaDOS, Microduck, RP1 and more marked
+  coming soon, and a Join Discord button (the invite comes from `discord` in
+  `launcher/manifest.json`).
+- F12 opens a dev panel: four looks, every page, a simulated install and live
+  stats.
+
 ### New users: installs that work on more machines
 
 - **The launcher window opened on nothing older than Pango 1.56**: it crashed

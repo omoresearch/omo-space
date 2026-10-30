@@ -1003,6 +1003,95 @@ class LauncherUI(unittest.TestCase):
         states = self.watch("echo 'launching: Minecraft'; exit 3")
         self.assertEqual(states[-1][0], "failed")
 
+    def test_reel_lists_only_the_clips_that_exist_in_order(self):
+        reel = ROOT / "reel"
+        reel.mkdir(exist_ok=True)
+        (reel / "b.webm").write_bytes(b"x")
+        (reel / "a.webm").write_bytes(b"x")
+        (reel / "reel.json").write_text(json.dumps([
+            {"file": "b.webm", "title": "Batcave"}, {"file": "gone.webm", "title": "Missing"},
+            {"file": "a.webm", "title": "Island", "seconds": 6}]))
+        got = self.UI.load_reel(reel)
+        self.assertEqual([c["title"] for c in got], ["Batcave", "Island"])
+        self.assertEqual(got[0]["path"], reel / "b.webm")
+        self.assertEqual(self.UI.load_reel(ROOT / "no-reel-here"), [])
+        (reel / "reel.json").write_text("{not json")
+        self.assertEqual(self.UI.load_reel(reel), [])
+
+    def test_intro_timing_is_clamped(self):
+        span, ease = self.UI.span, self.UI.ease
+        self.assertEqual([span(t, 1.0, 2.0) for t in (0, 1, 2, 3, 9)], [0.0, 0.0, 0.5, 1.0, 1.0])
+        self.assertEqual((ease(-1), ease(0), ease(0.5), ease(1), ease(4)), (0.0, 0.0, 0.5, 1.0, 1.0))
+        self.assertTrue(self.UI.square_path(0, 0, 10, 0).startswith("M0.00 0.00L10.00 0.00"))
+
+    def test_look_choice_env_then_saved_then_default(self):
+        cfg = ROOT / "cfg" / "launcher.json"
+        self.assertEqual(self.UI.load_look(cfg, {}), self.UI.DEFAULT_LOOK)          # nothing saved yet
+        self.UI.save_look("paper", cfg)
+        self.assertEqual(self.UI.load_look(cfg, {}), "paper")
+        self.assertEqual(self.UI.load_look(cfg, {"OMO_LOOK": "panel"}), "panel")
+        self.assertEqual(self.UI.load_look(cfg, {"OMO_LOOK": "nope"}), self.UI.DEFAULT_LOOK)
+        cfg.write_text('{"look": "gone", "other": 1}')
+        self.assertEqual(self.UI.load_look(cfg, {}), self.UI.DEFAULT_LOOK)
+        self.UI.save_look("marquee", cfg)
+        self.assertEqual(json.loads(cfg.read_text()), {"look": "marquee", "other": 1})   # other keys kept
+        with self.assertRaises(ValueError):
+            self.UI.save_look("nope", cfg)
+        self.assertEqual(set(self.UI.LOOKS), {"cinema", "marquee", "panel", "paper"})
+
+    def test_pretend_install_drives_the_real_parser(self):
+        events = [self.UI.parse_line(ln) for ln in self.UI.FAKE_SETUP]
+        self.assertEqual(events[0][0], "plan")
+        self.assertEqual(len(events[0][1]), 7)
+        steps = [e for e in events if e[0] == "step"]
+        self.assertEqual([s[1:3] for s in steps], [(i, 7) for i in range(1, 8)])
+        self.assertTrue(all(0 < e[1] <= 1 for e in events if e[0] == "percent"))
+        self.assertNotIn("info", {e[0] for e in events})
+
+    def test_launch_progress_reads_prism_and_game_logs(self):
+        lp = self.UI.launch_progress
+        self.assertEqual(lp("")[:2], (0.03, "Getting ready"))
+        play = ("launching: Minecraft (headless Prism)\n"
+                '     4.812 Debug: Writing account list to "accounts.json" (unknown:0)\n'
+                '     4.921 Debug: "Omo Space" : downloading libraries (unknown:0)\n'
+                "     5.049 Debug: \"-Dx=1 -cp /a/b.jar:/c/d.jar org.prismlauncher.EntryPoint\" (unknown:0)\n")
+        frac, title, last = lp(play)
+        self.assertEqual((frac, title), (0.30, "Checking the game files"))
+        self.assertEqual(last, "Omo Space : downloading libraries")            # classpath dump skipped
+        game = ("[06:13:53] [main/INFO]: Loading Minecraft 26.2 with Fabric Loader 0.19.5\n"
+                "[06:13:53] [main/INFO]: Loading 90 mods:\n")
+        self.assertEqual(lp(play, game)[:3], (0.60, "Loading 90 mods", "Loading 90 mods:"))
+        self.assertEqual(lp(play + "bridge: down; starting services\n")[0], 0.30)   # never goes backwards
+
+    def test_error_report_is_pasteable_and_has_no_secrets(self):
+        out = ("launching: Minecraft\n--accessToken eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmno\n"
+               "token=sk-live-abcdef0123456789 refresh_token: Zm9vYmFyYmF6cXV4cXV1eHF1dXhxdXV4cXV1eHF1dXhxdXV4\n"
+               "cannot play: bridge down\n")
+        crash_dir = ROOT / "crashgame" / "crash-reports"
+        crash_dir.mkdir(parents=True, exist_ok=True)
+        (crash_dir / "crash-1.txt").write_text("---- Minecraft Crash Report ----\nDescription: Rendering overlay\n")
+        crash = self.UI.newest_crash(time.time() - 5, ROOT / "crashgame")
+        self.assertTrue(crash and crash[0].endswith("crash-1.txt"))
+        self.assertIsNone(self.UI.newest_crash(time.time() + 60, ROOT / "crashgame"))
+        r = self.UI.error_report("Play failed", "cannot play: bridge down", output=out,
+                                 game_log="[06:13:53] [main/INFO]: Loading 90 mods:\n", crash=crash)
+        for secret in ("eyJhbGci", "sk-live", "Zm9vYmFy"):
+            self.assertNotIn(secret, r)
+        for part in ("what: Play failed", "reason: cannot play: bridge down", "Loading 90 mods",
+                     "Description: Rendering overlay", "launcher / Prism output", "--- crash report:"):
+            self.assertIn(part, r)
+
+    def test_plugin_catalogue_tolerates_missing_or_bad_files(self):
+        cat = ROOT / "plugins.json"
+        self.assertEqual(self.UI.load_catalogue(ROOT / "none.json"), [])
+        cat.write_text("{oops")
+        self.assertEqual(self.UI.load_catalogue(cat), [])
+        cat.write_text('{"not": "a list"}')
+        self.assertEqual(self.UI.load_catalogue(cat), [])
+        cat.write_text(json.dumps([{"id": "a", "name": "A"}, {"name": "no id"}, "junk", {"id": "b", "name": "B"}]))
+        self.assertEqual([p["id"] for p in self.UI.load_catalogue(cat)], ["a", "b"])
+        self.assertEqual(self.UI.CATALOGUE_SLOTS, 15)
+
 
 # --------------------------------------------------------------------------- offline setup + play + repair
 FAKE_JAVA = rb'''#!/usr/bin/env python3

@@ -1297,66 +1297,92 @@ async def sleep_loop():
 # bridge is a user service without a display of its own, so it finds the live
 # X display (OMO_DISPLAY pins one: the test stack uses its private Xvfb, so a
 # test never touches the player's clipboard).
-def _xauthority():
-    """The X cookie for this user's desktop. A user service inherits no
-    XAUTHORITY, and GNOME/mutter's Xwayland refuses clients without its
-    cookie (a fresh /run/user/<uid>/.mutter-Xwaylandauth.* per login), so
-    find it rather than fall through to some other display."""
-    if os.environ.get("XAUTHORITY"):
-        return os.environ["XAUTHORITY"]
+def _xauthorities():
+    """X cookies for this user's desktop, best first. A user service inherits
+    XAUTHORITY from the login it started in, but GNOME/mutter's Xwayland makes
+    a fresh /run/user/<uid>/.mutter-Xwaylandauth.* every login (a shell crash
+    is a new login), and the old file stays behind. So after the inherited one,
+    offer the newest cookies on disk."""
     run = os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
     found = []
     for pattern in (".mutter-Xwaylandauth.*", "xauth_*", "gdm/Xauthority"):
         found += glob.glob(os.path.join(run, pattern))
     found = [p for p in found if os.path.isfile(p) and os.stat(p).st_uid == os.getuid()]
-    if found:
-        return max(found, key=os.path.getmtime)
+    found.sort(key=os.path.getmtime, reverse=True)
     home = os.path.expanduser("~/.Xauthority")
-    return home if os.path.isfile(home) else ""
+    out = [os.environ["XAUTHORITY"]] if os.environ.get("XAUTHORITY") else []
+    for p in found + ([home] if os.path.isfile(home) else []):
+        if p not in out:
+            out.append(p)
+    return out
 
 
-def _x_env(disp):
+def _xauthority():
+    """The first cookie to try (see _xauthorities)."""
+    cookies = _xauthorities()
+    return cookies[0] if cookies else ""
+
+
+def _x_env(disp, xauth=None):
     env = {**os.environ, "DISPLAY": disp,
            "XDG_RUNTIME_DIR": os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")}
-    xauth = _xauthority()
+    xauth = _xauthority() if xauth is None else xauth
     if xauth:
         env["XAUTHORITY"] = xauth
     return env
 
 
-def _live_display():
-    if DISPLAY:
-        return DISPLAY
-    cached = getattr(_live_display, "_cache", None)
-    if cached and _x_ok(cached):
-        return cached
+LIVE_DISPLAY_TTL = 30.0
+
+
+def _display_candidates():
     candidates = [os.environ["DISPLAY"]] if os.environ.get("DISPLAY") else []
     # Only this user's own X servers: another account's open Xvfb accepts
     # anyone, and copying there sends the player's text to that account.
     try:
         for s in sorted(os.listdir("/tmp/.X11-unix")):
-            if s.startswith("X") and s[1:].isdigit() and \
+            disp = ":" + s[1:]
+            if s.startswith("X") and s[1:].isdigit() and disp not in candidates and \
                     os.stat(os.path.join("/tmp/.X11-unix", s)).st_uid == os.getuid():
-                candidates.append(":" + s[1:])
+                candidates.append(disp)
     except OSError:
         pass
-    for disp in candidates:
-        if _x_ok(disp):
-            _live_display._cache = disp
-            return disp
-    return os.environ.get("DISPLAY") or ":0"
+    return candidates
 
 
-def _x_ok(disp):
+def _live_x():
+    """(display, cookie) of the player's desktop. The session's own DISPLAY is
+    tried first with every cookie, so a stale inherited cookie can't push the
+    clipboard onto some other display this user owns (a hidden recording or
+    test Xorg/Xvfb that accepts anyone). Re-checked every LIVE_DISPLAY_TTL s,
+    so it moves back as soon as the real desktop is reachable again."""
+    if DISPLAY:
+        return DISPLAY, _xauthority()
+    cached = getattr(_live_x, "_cache", None)
+    if cached and time.monotonic() - cached[2] < LIVE_DISPLAY_TTL:
+        return cached[0], cached[1]
+    for disp in _display_candidates():
+        for xauth in _xauthorities() or [""]:
+            if _x_ok(disp, xauth):
+                _live_x._cache = (disp, xauth, time.monotonic())
+                return disp, xauth
+    return os.environ.get("DISPLAY") or ":0", _xauthority()
+
+
+def _live_display():
+    return _live_x()[0]
+
+
+def _x_ok(disp, xauth=None):
     try:
         return subprocess.run(["xdpyinfo", "-display", disp], capture_output=True, timeout=3,
-                              env=_x_env(disp)).returncode == 0
+                              env=_x_env(disp, xauth)).returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False
 
 
 def _desktop_env():
-    env = _x_env(_live_display())
+    env = _x_env(*_live_x())
     if DISPLAY:
         env.pop("WAYLAND_DISPLAY", None)
     return env

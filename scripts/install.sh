@@ -15,6 +15,11 @@
 # macOS needs tmux and Python 3.11+ first:  brew install tmux python
 #
 #   --no-setup     install the files only; run setup later from the app
+#   --bridge-only  for CurseForge / Modrinth / Prism players: install only the
+#                  bridge and its services (no Java, Minecraft, Prism or mods),
+#                  then link every instance that has the Omo Space mod
+#                  (CC: Tweaked's loopback rule + the bridge port). Link one
+#                  later with:  omo-space-link --game-dir <instance folder>
 #   --uninstall    remove the app, menu entry and services (keeps worlds + workspaces)
 set -euo pipefail
 
@@ -55,10 +60,11 @@ banner() {  # banner <subtitle>
   printf '    %s%s%s\n\n' "$DIM" "$1" "$OFF"
 }
 
-SETUP=1; SRC=""
+SETUP=1; SRC=""; BRIDGE_ONLY=0
 for arg in "$@"; do
   case "$arg" in
     --no-setup) SETUP=0 ;;
+    --bridge-only) BRIDGE_ONLY=1 ;;
     --uninstall)
       banner "Uninstalling. Your worlds and workspaces stay."
       if [ "$OS" = Darwin ]; then
@@ -71,7 +77,7 @@ for arg in "$@"; do
             ok "Stopped $label"
           fi
         done
-        rm -rf "$APP" "${CMDS[@]}"
+        rm -rf "$APP" "${CMDS[@]}" "$BIN/omo-space-link"
         ok "Removed the app and the omo-space command"
         note "Kept ~/Library/Application Support/OmoResearch (game, worlds, workspaces)."
         echo
@@ -96,7 +102,7 @@ for arg in "$@"; do
       fi
       rm -f "$UNITS_DIR/omo-bridge.service" "$UNITS_DIR/omo-tmux.service"
       [ "${#OURS[@]}" -gt 0 ] && systemctl --user daemon-reload 2>/dev/null || true
-      rm -rf "$APP" "$DESKTOP" "$OLD_DESKTOP" "${CMDS[@]}"
+      rm -rf "$APP" "$DESKTOP" "$OLD_DESKTOP" "${CMDS[@]}" "$BIN/omo-space-link"
       ok "Removed the app, menu entry and omo-space command"
       note "Kept ~/.local/share/omo/runtime (game + worlds) and your workspaces."
       note "To remove everything, delete ~/.local/share/omo."
@@ -189,7 +195,10 @@ rm -f "$BIN/omo-space"                          # an older install left a symlin
 printf '#!/bin/sh\nexec "%s" "%s" "$@"\n' "$PY" "$APP/launcher/omo-launcher.py" > "$BIN/omo-space"
 chmod +x "$BIN/omo-space"
 ln -sf omo-space "$BIN/omo-research"
-if [ "$OS" != Darwin ]; then
+# Links a CurseForge / Modrinth App / Prism instance to the bridge (store installs).
+printf '#!/bin/sh\nexec "%s" "%s" link "$@"\n' "$PY" "$APP/launcher/omo_setup.py" > "$BIN/omo-space-link"
+chmod +x "$BIN/omo-space-link"
+if [ "$OS" != Darwin ] && [ "$BRIDGE_ONLY" = 0 ]; then
 mkdir -p "$(dirname "$DESKTOP")"
 rm -f "$OLD_DESKTOP"
 cat > "$DESKTOP" <<EOF
@@ -214,7 +223,7 @@ esac
 
 # The window is GTK 4 + libadwaita through PyGObject. Without them Omo Space
 # still works, from a menu in a terminal; say so now, with the packages.
-if [ "$OS" != Darwin ] && ! "$PY" -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("Adw", "1")' 2>/dev/null; then
+if [ "$BRIDGE_ONLY" = 0 ] && [ "$OS" != Darwin ] && ! "$PY" -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("Adw", "1")' 2>/dev/null; then
   warn "The Omo Space window needs GTK 4 and libadwaita for Python. Until then it opens as a menu in a terminal."
   if [ "$PY" != /usr/bin/python3 ]; then
     note "Your distribution's packages serve /usr/bin/python3, not $PY; the terminal menu does everything the window does."
@@ -227,6 +236,26 @@ fi
 if ! command -v hermes >/dev/null; then
   warn "Hermes Agent not found. Terminals work; Hermes Computers open a shell until you install it."
   note "https://hermes-agent.nousresearch.com/docs"
+fi
+
+if [ "$BRIDGE_ONLY" = 1 ] && [ "$SETUP" = 1 ]; then
+  say "Bridge only: the session server and the Omo bridge (no game download)"
+  note "Your launcher (CurseForge, Modrinth App, Prism) keeps the game and its mods."
+  "$PY" "$APP/launcher/omo_setup.py" services \
+    || die "the bridge did not start; the last lines above say why."
+  ok "Bridge running on 127.0.0.1"
+  say "Linking your Minecraft instances that have the Omo Space mod"
+  if "$PY" "$APP/launcher/omo_setup.py" link; then
+    ok "Linked. Restart the game if it is running."
+  else
+    warn "No instance linked yet."
+    note "Add Omo Space (and CC: Tweaked) to an instance in your launcher, then run:"
+    note "  omo-space-link --game-dir <instance folder>"
+  fi
+  printf '\n  %s✓ The Omo Space bridge is installed.%s\n' "$CREAM" "$OFF"
+  note "In game, place an Omo Computer and open it. Update or remove: run this again (--uninstall)."
+  echo
+  exit 0
 fi
 
 if [ "$SETUP" = 1 ]; then

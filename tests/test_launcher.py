@@ -735,6 +735,73 @@ class CCTRule(unittest.TestCase):
         self.assertEqual(self.path.stat().st_mtime_ns, before)
 
 
+class Link(unittest.TestCase):
+    """omo_setup.py link: a store instance (CurseForge, Modrinth App, Prism) gets
+    CC:T's loopback rule and the bridge port, never the token."""
+
+    def setUp(self):
+        self.base = ROOT / "link" / self._testMethodName
+        self.base.mkdir(parents=True)
+
+    def instance(self, rel, mod=True):
+        game = self.base / rel
+        (game / "mods").mkdir(parents=True)
+        if mod:
+            (game / "mods/omolife-1.3.0+mc26.2.jar").write_bytes(b"jar")
+        return game
+
+    def test_game_dir_gets_rule_and_port(self):
+        game = self.instance("cf/Omo")
+        S.OMO.mkdir(parents=True, exist_ok=True)
+        (game / "config").mkdir()
+        (game / "config/omolife.properties").write_text("showAllBlocks=true\nbridgePort=1\n")
+        with mock.patch.object(S, "PORT", 18790):
+            S.link(["--game-dir", str(game)])
+        self.assertEqual(S.cct_rule_state((game / "config/computercraft-server.toml").read_text(), 18790), "ok")
+        props = (game / "config/omolife.properties").read_text()
+        self.assertIn("showAllBlocks=true\n", props)            # other settings stay
+        self.assertIn("bridgePort=18790\n", props)
+        self.assertNotIn("bridgePort=1\n", props)
+        self.assertNotIn("bridgeData=", props)                  # the default data folder needs no entry
+        with mock.patch.object(S, "OMO", self.base / "elsewhere"):
+            S.link(["--game-dir", str(game)])
+        self.assertIn(f"bridgeData={self.base / 'elsewhere'}\n", (game / "config/omolife.properties").read_text())
+        for f in (game / "config").iterdir():                   # never the token
+            self.assertNotIn("token", f.read_text().lower())
+
+    def test_prism_instance_folder_resolves_to_its_minecraft_dir(self):
+        game = self.instance("prism/instances/Pack/minecraft")
+        S.link([f"--game-dir={game.parent}"])
+        self.assertTrue((game / "config/computercraft-server.toml").is_file())
+        self.assertFalse((game.parent / "config").exists())
+
+    def test_discovers_instances_with_the_mod_only(self):
+        with_mod = self.instance("cf/Instances/A")
+        without = self.instance("cf/Instances/B", mod=False)
+        modrinth = self.instance("modrinth/profiles/C")
+        roots = [(self.base / "cf/Instances", "*"), (self.base / "modrinth/profiles", "*"),
+                 (self.base / "missing", "*")]
+        with mock.patch.object(S, "store_instance_roots", return_value=roots):
+            self.assertEqual(S.store_instances(), [with_mod, modrinth])
+            S.link([])
+        self.assertTrue((with_mod / "config/computercraft-server.toml").is_file())
+        self.assertTrue((modrinth / "config/omolife.properties").is_file())
+        self.assertFalse((without / "config").exists())
+
+    def test_nothing_found_says_how(self):
+        with mock.patch.object(S, "store_instance_roots", return_value=[]):
+            with self.assertRaises(SystemExit) as e:
+                S.link([])
+        self.assertIn("--game-dir", str(e.exception))
+        with self.assertRaises(SystemExit):
+            S.link(["--bogus"])
+
+    def test_roots_cover_the_three_launchers(self):
+        roots = " ".join(str(r) for r, _ in S.store_instance_roots())
+        for name in ("curseforge", "ModrinthApp", "PrismLauncher"):
+            self.assertIn(name, roots)
+
+
 # --------------------------------------------------------------------------- the one-time world copy
 class Migration(unittest.TestCase):
     def setUp(self):

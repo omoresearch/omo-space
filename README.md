@@ -1,5 +1,5 @@
 <p align="center">
-  <sub><code>System</code> &nbsp; <code>v1.2.0</code> &nbsp; <code>MIT</code> &nbsp; <code>Minecraft Java 26.2</code></sub>
+  <sub><code>System</code> &nbsp; <code>v1.3.0</code> &nbsp; <code>MIT</code> &nbsp; <code>Minecraft Java 26.2</code></sub>
 </p>
 
 <h1 align="center"><i>Omo Space</i></h1>
@@ -16,7 +16,7 @@
 
 <table align="center">
 <tr>
-<td align="center"><sub>RELEASE</sub><br><a href="https://github.com/omoresearch/omo-space/releases/tag/v1.2.0">v1.2.0</a>, 28 Oct 2026</td>
+<td align="center"><sub>RELEASE</sub><br><a href="https://github.com/omoresearch/omo-space/releases/tag/v1.3.0">v1.3.0</a></td>
 <td align="center"><sub>RUNS ON</sub><br>Linux · macOS · Windows (WSL2)</td>
 <td align="center"><sub>LICENCE</sub><br><a href="LICENSE">MIT</a></td>
 <td align="center"><sub>LIVE</sub><br><a href="https://www.twitch.tv/yiifannn">twitch.tv/yiifannn</a></td>
@@ -191,6 +191,14 @@ There is also a version with buttons to pick from on [omo.sh](https://www.omo.sh
 **You need:** a Minecraft Java account, Python 3.11 or newer, and about 2 GB of free space.
 Omo Space brings its own copy of Minecraft, so your normal Minecraft stays untouched.
 
+There are two ways in:
+
+- **Set everything up for me** (below): the Omo Space app installs its own Minecraft, Fabric, the mods,
+  the bridge and its services.
+- **I use CurseForge, the Modrinth App or Prism:** add *Omo Space*, *CC: Tweaked* and (for web walls)
+  *MCEF Modern* to an instance in your launcher, then install only the bridge, see
+  [From CurseForge or Modrinth](#from-curseforge-or-modrinth).
+
 > **Tested on:** Linux, end to end. macOS and Windows are new and only tested offline so far,
 > and a fresh-machine Microsoft sign-in hasn't been tested yet.
 
@@ -199,9 +207,9 @@ Omo Space brings its own copy of Minecraft, so your normal Minecraft stays untou
 **1. Download** the installer, the app and the checksum list:
 
 ```bash
-curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/install.sh
-curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/omo-research-1.2.0-linux-x64.tar.gz
-curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/SHA256SUMS
+curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.3.0/install.sh
+curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.3.0/omo-space-1.3.0-linux-x64.tar.gz
+curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.3.0/SHA256SUMS
 ```
 
 **2. Check** the downloads. Both lines should end in `OK`:
@@ -213,29 +221,56 @@ sha256sum -c --ignore-missing SHA256SUMS
 **3. Install.** This downloads Minecraft, Fabric, the mods and Java (about 650 MB, around 5 minutes):
 
 ```bash
-bash install.sh omo-research-1.2.0-linux-x64.tar.gz
+bash install.sh omo-space-1.3.0-linux-x64.tar.gz
 ```
 
 **4. Play.** Open **Omo Space** from your app menu, click **Sign in with Microsoft**, then **Play**.
-In the game, find the Omo Space tab in the creative inventory and place a **Hermes Computer** or a **Terminal**.
+In the game, find the Omo Space tab in the creative inventory and place an **Omo Computer**.
 
 ### macOS
 
 Run `brew install tmux python` first, then follow the Linux steps with two changes:
-download `omo-research-1.2.0-macos.tar.gz` instead of the Linux file, and check it with
-`shasum -a 256 -c --ignore-missing SHA256SUMS`. Start the app with `omo-research`.
+download `omo-space-1.3.0-macos.tar.gz` instead of the Linux file, and check it with
+`shasum -a 256 -c --ignore-missing SHA256SUMS`. Start the app with `omo-space`.
 
 ### Windows 10/11
 
 Your shells and agents run in WSL2. Set it up once with the [Windows steps](docs/PLATFORMS.md#windows-wsl2),
-then download `install.ps1` and `omo-research-1.2.0-windows.zip` from the
-[v1.2.0 release](https://github.com/omoresearch/omo-space/releases/tag/v1.2.0) into one folder, and in PowerShell run:
+then download `install.ps1` and `omo-space-1.3.0-windows.zip` from the
+[v1.3.0 release](https://github.com/omoresearch/omo-space/releases/tag/v1.3.0) into one folder, and in PowerShell run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1 omo-research-1.2.0-windows.zip
+powershell -ExecutionPolicy Bypass -File .\install.ps1 omo-space-1.3.0-windows.zip
 ```
 
 Then open **Omo Space** from the Start menu.
+
+### From CurseForge or Modrinth
+
+The mod from a store is the in-game half. Terminals also need the **Omo Space bridge**, a small program on your
+computer that listens on 127.0.0.1 only. Install it without a second copy of the game (Linux and macOS):
+
+```bash
+curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.3.0/install.sh
+curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.3.0/omo-space-1.3.0-linux-x64.tar.gz
+curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.3.0/SHA256SUMS
+sha256sum -c --ignore-missing SHA256SUMS
+bash install.sh --bridge-only omo-space-1.3.0-linux-x64.tar.gz
+```
+
+`--bridge-only` installs the bridge and its session server, skips Minecraft, Java and Prism, and then
+**links** every CurseForge, Modrinth App or Prism instance that has the Omo Space mod. Linking writes two
+files into the instance's `config/` folder: CC: Tweaked's rule that lets computers reach 127.0.0.1 on the
+bridge port (CC: Tweaked blocks local addresses by default, so without it terminals stay on "connecting"),
+and `omolife.properties` with the bridge port. The bridge token never leaves your data folder.
+For an instance you add later, or one in an unusual place:
+
+```bash
+omo-space-link --game-dir "<instance folder>"
+```
+
+Then restart the game. If a station can't reach the bridge, its setup screen says why and has a
+**Setup guide** button that brings you back here. Windows: use the full install for now.
 
 <details>
 <summary><b>Requirements, downloads and troubleshooting</b></summary>

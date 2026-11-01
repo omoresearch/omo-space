@@ -42,7 +42,7 @@ FAKE_HOME.mkdir()
 os.environ.update(HOME=str(FAKE_HOME), OMO_DATA=str(FAKE_HOME / ".local/share/omo"),
                   OMO_PRISM_DATA=str(FAKE_HOME / ".local/share/PrismLauncher"),
                   XDG_DATA_HOME=str(FAKE_HOME / ".local/share"), XDG_STATE_HOME=str(FAKE_HOME / ".local/state"),
-                  OMO_NO_SERVICES="1", PATH="/usr/bin:/bin")
+                  OMO_NO_SERVICES="1", OMO_NO_PKEXEC="1", PATH="/usr/bin:/bin")  # never a real password dialog
 for key in ("OMO_MSA_CLIENT_ID", "OMO_AUTH_BASE", "OMO_BRIDGE_PORT", "OMO_JVM_ARGS"):
     os.environ.pop(key, None)
 LAUNCHER = Path(__file__).resolve().parent.parent / "launcher"
@@ -1321,6 +1321,129 @@ class SetupEndToEnd(unittest.TestCase):
             S.repair()
         self.assertIn("Minecraft is running", str(cm.exception))
         self.assertEqual((mods / "fake-mod-1.0.jar").read_bytes(), b"corrupt again")
+
+
+
+class InotifyLimit(unittest.TestCase):
+    """Busy Linux desktops run out of inotify instances; Minecraft then dies
+    at start. Play must notice first, try to raise the limit, and say how."""
+
+    def fake_proc(self, limit, holders):
+        proc = Path(tempfile.mkdtemp(dir=ROOT))
+        (proc / "sys/fs/inotify").mkdir(parents=True)
+        (proc / "sys/fs/inotify/max_user_instances").write_text(f"{limit}\n")
+        pid = 100
+        for name, n in holders:
+            pid += 1
+            (proc / str(pid) / "fd").mkdir(parents=True)
+            (proc / str(pid) / "comm").write_text(name + "\n")
+            for fd in range(n):
+                os.symlink("anon_inode:inotify", proc / str(pid) / "fd" / str(fd))
+            os.symlink("/dev/null", proc / str(pid) / "fd" / str(n))      # not a watcher
+        (proc / "self").mkdir()                                            # not a pid
+        return proc
+
+    def test_usage_counts_this_users_watchers(self):
+        proc = self.fake_proc(128, [("node", 1), ("node", 1), ("tail", 1), ("spotify", 3)])
+        self.assertEqual(S.inotify_usage(proc), (128, 6, {"node": 2, "tail": 1, "spotify": 3}))
+        self.assertIsNone(S.inotify_usage(ROOT / "no-proc-here"))
+
+    def test_the_real_proc_is_readable(self):
+        usage = S.inotify_usage()
+        if usage is None:
+            self.skipTest("no /proc inotify limit on this system")
+        limit, used, holders = usage
+        self.assertGreater(limit, 0)
+        self.assertEqual(used, sum(holders.values()))
+
+    def test_need_counts_prism_only_when_it_must_start(self):
+        self.assertEqual(S.inotify_need(True, {"node": 50}), S.INOTIFY_NEED_GAME + S.INOTIFY_NEED_PRISM)
+        self.assertEqual(S.inotify_need(True, {"prismlauncher": 6}), S.INOTIFY_NEED_GAME)
+        self.assertEqual(S.inotify_need(False, {"node": 50}), S.INOTIFY_NEED_GAME)
+
+    def test_headroom_passes_without_asking_when_enough_are_free(self):
+        asked = []
+        self.assertTrue(S.inotify_headroom(True, (128, 100, {"node": 100}), fix=asked.append))
+        self.assertEqual(asked, [])
+
+    def test_headroom_offers_the_fix_then_gives_the_command(self):
+        lines, asked = [], []
+        with mock.patch.object(S, "say", lines.append):
+            ok = S.inotify_headroom(True, (128, 119, {"node": 54, "tail": 6}), fix=lambda lim: asked.append(lim))
+        self.assertFalse(ok)
+        self.assertEqual(asked, [128])
+        self.assertTrue(any(S.INOTIFY_FIX in ln for ln in lines))
+        self.assertTrue(any("54 node" in ln for ln in lines))
+        self.assertTrue(S.inotify_headroom(True, (128, 125, {}), fix=lambda lim: True))
+
+    def test_direct_launch_needs_fewer_than_prism(self):
+        usage = (128, 122, {"node": 122})                                  # 6 free
+        self.assertTrue(S.inotify_headroom(False, usage, fix=None))
+        self.assertFalse(S.inotify_headroom(True, usage, fix=None))
+
+    def test_raise_asks_polkit_and_checks_the_new_limit(self):
+        runs = []
+        env = {"DISPLAY": ":0", "OMO_NO_PKEXEC": ""}
+        with mock.patch.dict(os.environ, env), mock.patch.object(S.shutil, "which", return_value="/usr/bin/pkexec"), \
+                mock.patch.object(S.subprocess, "run", side_effect=lambda cmd, **kw: runs.append(cmd)), \
+                mock.patch.object(S, "inotify_usage", return_value=(1024, 120, {})):
+            self.assertTrue(S.raise_inotify_limit(128))
+        self.assertEqual(runs[0][:3], ["/usr/bin/pkexec", "/bin/sh", "-c"])
+        self.assertIn("fs.inotify.max_user_instances=1024", runs[0][3])
+        self.assertIn(S.INOTIFY_CONF, runs[0][3])
+        # cancelled dialog: the limit stays, so it reports failure
+        with mock.patch.dict(os.environ, env), mock.patch.object(S.shutil, "which", return_value="/usr/bin/pkexec"), \
+                mock.patch.object(S.subprocess, "run"), \
+                mock.patch.object(S, "inotify_usage", return_value=(128, 120, {})):
+            self.assertFalse(S.raise_inotify_limit(128))
+        # a limit already at 1024 that is used up goes to 2048
+        with mock.patch.dict(os.environ, env), mock.patch.object(S.shutil, "which", return_value="/usr/bin/pkexec"), \
+                mock.patch.object(S.subprocess, "run", side_effect=lambda cmd, **kw: runs.append(cmd)), \
+                mock.patch.object(S, "inotify_usage", return_value=(2048, 1020, {})):
+            self.assertTrue(S.raise_inotify_limit(1024))
+        self.assertIn("=2048", runs[-1][3])
+
+    def test_raise_never_asks_without_a_desktop_or_when_opted_out(self):
+        with mock.patch.object(S.shutil, "which", return_value="/usr/bin/pkexec"), \
+                mock.patch.object(S.subprocess, "run") as run:
+            with mock.patch.dict(os.environ, {"DISPLAY": "", "WAYLAND_DISPLAY": ""}):
+                self.assertFalse(S.raise_inotify_limit(128))
+            with mock.patch.dict(os.environ, {"DISPLAY": ":0", "OMO_NO_PKEXEC": "1"}):
+                self.assertFalse(S.raise_inotify_limit(128))
+            run.assert_not_called()
+        with mock.patch.dict(os.environ, {"DISPLAY": ":0", "OMO_NO_PKEXEC": ""}), \
+                mock.patch.object(S.shutil, "which", return_value=None):
+            self.assertFalse(S.raise_inotify_limit(128))
+
+    def test_crash_hint_names_the_inotify_cause(self):
+        game = ROOT / "hint-game"
+        (game / "crash-reports").mkdir(parents=True)
+        (game / "logs").mkdir()
+        since = time.time()
+        self.assertEqual(S.crash_hint(since, game), "")
+        old = game / "crash-reports/crash-old.txt"
+        old.write_text(S.INOTIFY_CRASH)
+        os.utime(old, (since - 600, since - 600))
+        self.assertEqual(S.crash_hint(since, game), "")                    # an earlier crash doesn't count
+        new = game / "crash-reports/crash-new.txt"
+        new.write_text("java.lang.NullPointerException")
+        self.assertEqual(S.crash_hint(since, game), f"Crash report: {new}")
+        (game / "logs/latest.log").write_text(f"java.io.IOException: {S.INOTIFY_CRASH}\n")
+        hint = S.crash_hint(since, game)
+        self.assertIn("inotify", hint)
+        self.assertIn(S.INOTIFY_FIX, hint)
+
+    def test_fix_inotify_command_is_registered(self):
+        self.assertIs(S.COMMANDS["fix-inotify"], S.fix_inotify)
+        with mock.patch.object(S, "inotify_usage", return_value=(1024, 10, {})), \
+                mock.patch.object(S, "raise_inotify_limit") as raise_:
+            S.fix_inotify()
+            raise_.assert_not_called()
+        with mock.patch.object(S, "inotify_usage", return_value=(128, 10, {})), \
+                mock.patch.object(S, "raise_inotify_limit", return_value=False):
+            with self.assertRaises(SystemExit) as cm:
+                S.fix_inotify()
+            self.assertIn(S.INOTIFY_FIX, str(cm.exception))
 
 
 if __name__ == "__main__":

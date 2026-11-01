@@ -155,8 +155,9 @@ class PlayWatch:
             self.state = ("over", code or 0)
         elif now in ("preflight", "launched") and code is not None and not self.running():
             if now == "launched":
+                hint = core.crash_hint(self.started) if code else ""
                 self.state = ("over", 0) if code == 0 else \
-                    ("failed", f"Minecraft stopped before its window opened (exit code {code}).")
+                    ("failed", f"Minecraft stopped before its window opened (exit code {code}). {hint}".strip())
             else:
                 tail = [ln.strip() for ln in read_from(self.play_log, self.offset).splitlines() if ln.strip()]
                 self.state = ("failed", tail[-1][:240] if tail else f"Play stopped (exit code {code}).")

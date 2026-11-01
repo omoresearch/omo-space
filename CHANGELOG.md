@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Linux: file-watcher limit
+
+- A busy desktop could use up the per-user inotify limit (128 on Ubuntu), and
+  Minecraft then died at start with only "stopped before its window opened".
+  Play now counts free watchers first. When too few are left it asks for the
+  password once (polkit) and raises the limit to 1024 for good, or stops with
+  the one-line fix. `install.sh` offers the same, `omo_setup.py fix-inotify`
+  does it on demand, and the launcher names the cause from a fresh crash
+  report.
+
 ### A cinematic launcher
 
 - The Omo Space window is now a 16:9 title card over a film of Omo World

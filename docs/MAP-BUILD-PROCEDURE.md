@@ -20,17 +20,21 @@ already plays, tested on a copy.
 
 ## Tools
 
-Work in `~/dev/minecraft-builds`. It has a venv with `nbtlib`, the read-only
-region reader `anvil.py`, and three worked generators to copy:
+Read the skills in [`skills/`](../skills/) first: `omo-world-building` (with its pitfalls and
+mechanisms lists) and `omo-stations`. They hold what earlier builds learned the hard way.
 
-| Generator | Example of |
+The tools are in [`tools/mapbuild/`](../tools/mapbuild/). Make a venv with `nbtlib` next to your
+build directory and set `OMO_SAVE` to the save you read (default: the most recently played Omo world):
+
+| Tool | What it does |
 | --- | --- |
-| `wing/gen_wing.py` | rooms carved underground |
-| `office/gen_office.py` | a glass room on the seabed, plus a solid-walled server room |
-| `team/gen_team.py` | a glass hall with several named rooms from a `ROOMS` table |
+| `anvil.py` | Read-only region reader: `block(x, y, z)`, `surface(x, z)` (ignores trees), `block_entities(cx, cz)`. |
+| `omo_scan.py` | `stations X Y Z` (desks, screens, presets), `web X Y Z` (web walls a player there keeps open, against the 12-page limit), `player` (where players were at the last save). |
+| `mod/tools/make_kits.py` | Structure templates for screens and stations (step 5). |
 
-Each has a `verify.py`. Copy the closest one and change the geometry. Keep
-its shell, assert, undo and `plan.json` machinery.
+Write one generator per build in its own directory, with the machinery the skill lists: a `plan.json`
+of every cell, the solid shell, the asserts, `build`/`undo`/`visit`, and a `verify.py` that compares
+the plan with a test world.
 
 ## Procedure
 
@@ -76,8 +80,10 @@ its shell, assert, undo and `plan.json` machinery.
      `Profile` to a real Hermes profile (`ls ~/.hermes/profiles`). If none
      matches, leave it empty (default profile) and say so in the report.
      Never write a workspace id.
-   - **Web walls:** at most 6 pages are live at once in the client. Count
-     them across the whole world, not only the new rooms.
+   - **Web walls:** the client keeps at most 12 pages open within 64 blocks
+     of the player; the 13th wall shows "Page limit reached". Run
+     `tools/mapbuild/omo_scan.py web X Y Z` at points along the new rooms and
+     the walk to them, counting the walls you add.
 6. **Validate block ids.** Extract the names of
    `assets/minecraft/blockstates/*.json` from the 26.2 client jar and diff
    them against every id in the mcfunctions and template palettes. One

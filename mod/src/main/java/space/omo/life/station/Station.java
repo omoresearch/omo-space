@@ -39,4 +39,11 @@ public interface Station {
     void bind(String workspace, String name);
 
     void setWorkspaceName(String name);
+
+    /**
+     * The owner just used this station ({@link OwnerPresence#touch}): tell
+     * its screen, so a screen waiting for the owner connects now.
+     */
+    default void nudge() {
+    }
 }

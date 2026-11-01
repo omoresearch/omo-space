@@ -12,7 +12,10 @@ import dan200.computercraft.api.lua.LuaFunction;
 import dan200.computercraft.api.lua.MethodResult;
 
 import space.omo.life.OmoLife;
+import space.omo.life.block.StationBlockEntity;
 import space.omo.life.station.BridgeLink;
+import space.omo.life.station.OwnerPresence;
+import space.omo.life.station.StationTrust;
 import space.omo.life.station.Station;
 
 /**
@@ -21,16 +24,19 @@ import space.omo.life.station.Station;
  *
  * <pre>
  *   omo.station() -> { workspace=, station=, name=, hermes=, bound= }
- *   omo.ticket()  -> ticket, workspaceId | nil, reason
+ *   omo.ticket()  -> ticket, workspaceId | nil, reason ("waiting for owner" until the owner uses it)
  *   omo.bridge()  -> "ws://127.0.0.1:&lt;port&gt;/ws"
- *   omo.ensure()  -> asks the server to create this station's workspace if it has none
+ *   omo.ensure()  -> true if the server creates this station's workspace (owner used it just now)
  * </pre>
  *
  * <p>The bridge token is never exposed to Lua. {@code omo.ticket()} takes no
  * argument: it always mints for the computer's <em>own</em> station and the
  * workspace that station is bound to, and the bridge only lets that ticket
  * look at and type into that one workspace. A program on some other computer
- * has no {@code omo} API at all.
+ * has no {@code omo} API at all. And world data alone never gets a ticket:
+ * one is only minted while the computer ROM is the mods' own
+ * ({@code RomCheck}) and the owner has used this station live
+ * ({@link OwnerPresence}), so a shared map cannot reach the host.
  *
  * <p>How "only on stations" works: CC:T builds every computer's APIs inside
  * the {@code ServerComputer} constructor, on the server thread, while the
@@ -44,8 +50,13 @@ public final class OmoLuaApi implements ILuaAPI {
     private static final ThreadLocal<Station> CONSTRUCTING = new ThreadLocal<>();
     private static final AtomicInteger REQUESTS = new AtomicInteger();
 
+    private static final String BOOT_SHADOWED =
+        "refused: this computer's own disk has a /cc folder, which runs before the station; remove it";
+
     private final IComputerSystem computer;
     private final Station station;
+    private volatile String bootProblem;
+    private boolean guardMounted;
 
     private OmoLuaApi(IComputerSystem computer, Station station) {
         this.computer = computer;
@@ -73,6 +84,43 @@ public final class OmoLuaApi implements ILuaAPI {
         return new String[]{"omo"};
     }
 
+    /**
+     * Before the BIOS runs (CC:T starts APIs right after it builds the
+     * computer's file system): put an empty read-only {@code /cc} over the
+     * computer's own disk, so CraftOS's boot cannot {@code require} world
+     * code from it ({@link EmptyMount}). A disk that already has a
+     * {@code /cc} would run its code anyway, so this boot gets no tickets.
+     */
+    @Override
+    public void startup() {
+        bootProblem = null;
+        try {
+            String at = computer.mount("cc", EmptyMount.INSTANCE);
+            guardMounted = "cc".equals(at);
+            if (!guardMounted) {
+                if (at != null) {
+                    computer.unmount(at);
+                }
+                bootProblem = BOOT_SHADOWED;
+            }
+        } catch (RuntimeException e) {
+            OmoLife.LOG.warn("station {}: could not guard its boot", station.stationIdOrEmpty(), e);
+            bootProblem = BOOT_SHADOWED;
+        }
+        if (bootProblem != null) {
+            OmoLife.LOG.warn("station {}: its computer's own disk has a /cc folder, which CraftOS loads before the "
+                + "station program; no tickets until it is removed", station.stationIdOrEmpty());
+        }
+    }
+
+    @Override
+    public void shutdown() {
+        if (guardMounted) {
+            guardMounted = false;
+            computer.unmount("cc");
+        }
+    }
+
     @LuaFunction
     public final Map<String, Object> station() {
         Map<String, Object> out = new HashMap<>();
@@ -97,10 +145,20 @@ public final class OmoLuaApi implements ILuaAPI {
         if (!station.isPresent()) {
             return MethodResult.of(null, "not an Omo station");
         }
+        if (bootProblem != null) {
+            return MethodResult.of(null, bootProblem);
+        }
         String stationId = station.stationIdOrEmpty();
         String ws = station.workspace();
         if (stationId.isEmpty() || ws.isEmpty()) {
             return MethodResult.of(null, "unbound");
+        }
+        if (station instanceof StationBlockEntity be && be.isStale()) {
+            return MethodResult.of(null, OwnerPresence.recent(station) ? "unbound" : StationTrust.WAITING);
+        }
+        String refused = OwnerPresence.ticketRefusal(station);
+        if (refused != null) {
+            return MethodResult.of(null, refused);
         }
         int request = REQUESTS.incrementAndGet();
         BridgeLink.ticket(stationId, ws).thenAccept(t -> {
@@ -129,8 +187,18 @@ public final class OmoLuaApi implements ILuaAPI {
         return BridgeLink.wsUrl();
     }
 
+    /**
+     * Create this station's workspace if it has none: only within a moment of
+     * the owner using the station ({@link OwnerPresence#recent}), never for a
+     * world that merely loaded. True when creation may go ahead, false while
+     * the station waits for its owner.
+     */
     @LuaFunction(mainThread = true)
-    public final void ensure() {
+    public final boolean ensure() {
+        if (bootProblem != null || !OwnerPresence.recent(station)) {
+            return false;
+        }
         station.ensureWorkspace();
+        return true;
     }
 }

@@ -4,7 +4,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -22,6 +21,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 
+import space.omo.life.OmoLife;
 import space.omo.life.link.LinkMirror;
 import space.omo.life.link.Linkable;
 
@@ -124,7 +124,8 @@ public class OmoMonitorBlockEntity extends MonitorBlockEntity implements Linkabl
 
     /** Pin a page (it replaces a link). */
     public void setWeb(String newUrl, int newZoom) {
-        set(SOURCE_WEB, newUrl == null ? "" : newUrl.trim(), clampZoom(newZoom), null);
+        String u = newUrl == null ? "" : newUrl.trim();
+        set(SOURCE_WEB, WebUrls.loadable(u) ? u : "", clampZoom(newZoom), null);
     }
 
     /** Show a terminal: the linked station's, or else the adjacent one's. */
@@ -240,7 +241,7 @@ public class OmoMonitorBlockEntity extends MonitorBlockEntity implements Linkabl
     public void loadAdditional(ValueInput in) {
         super.loadAdditional(in);
         source = in.getStringOr(NBT_SOURCE, source);
-        url = in.getStringOr(NBT_URL, url);
+        url = loadedUrl(in.getStringOr(NBT_URL, url));
         zoom = in.getIntOr(NBT_ZOOM, zoom);
         link = Linkable.load(in, this);
         if (isLinked() && level instanceof ServerLevel) {
@@ -298,23 +299,24 @@ public class OmoMonitorBlockEntity extends MonitorBlockEntity implements Linkabl
      * Keep monitor pages to http(s). Cookies and profile data stay in the
      * host browser profile; the world only ever holds a URL. Bare hosts get
      * a scheme (loopback: http, anything else: https). Null = not allowed.
+     * See {@link WebUrls}.
      */
     public static String safeUrl(String raw) {
-        if (raw == null) {
-            return null;
+        return WebUrls.safe(raw);
+    }
+
+    /**
+     * A URL read from block NBT (a saved or shared world, {@code /data}, a
+     * server's block update) is untrusted: anything but an http(s) page or
+     * about:blank is dropped, on the server and on the client.
+     */
+    private String loadedUrl(String raw) {
+        if (raw == null || raw.isEmpty() || WebUrls.loadable(raw)) {
+            return raw == null ? "" : raw;
         }
-        String v = raw.trim();
-        if (v.isEmpty() || v.length() > 2000) {
-            return null;
-        }
-        String lower = v.toLowerCase(Locale.ROOT);
-        if (lower.startsWith("http://") || lower.startsWith("https://")) {
-            return v;
-        }
-        if (lower.matches("^[a-z][a-z0-9+.-]*:(?!\\d).*")) {
-            return null;                    // file:, javascript:, data:, chrome:, ...
-        }
-        return (v.matches("^(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?(/.*)?$") ? "http://" : "https://") + v;
+        OmoLife.LOG.warn("monitor {}: ignoring a page address that is not http(s): {}", getBlockPos().toShortString(),
+            raw.length() > 80 ? raw.substring(0, 80) + "..." : raw);
+        return "";
     }
 
     /** A page's site, for labels: "example.com" for https://www.example.com/a. */

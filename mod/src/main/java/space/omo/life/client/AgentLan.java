@@ -82,7 +82,11 @@ public final class AgentLan {
             for (int candidate = PORT; candidate < PORT + 5 && port < 0; candidate++) {
                 publishing = true;
                 try {
-                    if (server.publishServer(MinecraftServer.MultiplayerScope.LAN, server.getDefaultGameType(), commands, candidate)) {
+                    // Commands off for joiners: with cheats, every LAN joiner would be a gamemaster
+                    // (CC:T's /computercraft view and friends). Agent bodies get their own
+                    // gamemaster level instead (AgentLanFlags.agentCommands, AgentPermissionsMixin).
+                    if (server.publishServer(MinecraftServer.MultiplayerScope.LAN, server.getDefaultGameType(), false, candidate)) {
+                        AgentLanFlags.agentCommands = commands;
                         port = candidate;
                     }
                 } catch (RuntimeException e) {
@@ -143,6 +147,7 @@ public final class AgentLan {
     }
 
     private static void clearState() {
+        AgentLanFlags.agentCommands = false;
         try {
             Files.deleteIfExists(STATE);
         } catch (IOException ignored) {

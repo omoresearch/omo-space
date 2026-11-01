@@ -6,7 +6,10 @@
       "conditions": {
         "items": [
           {
-            "items": "computercraft:computer_advanced"
+            "items": [
+              "minecraft:gold_ingot",
+              "minecraft:feather"
+            ]
           }
         ]
       }

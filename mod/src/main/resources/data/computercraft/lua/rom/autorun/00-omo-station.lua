@@ -9,44 +9,30 @@
   that launches the screen, or two clients fight over the display.
 
   CraftOS runs autoruns in name order, and this one never returns on a
-  station, so its name sorts first ("00-" before "00_", digits and letters):
-  a world datapack's own autorun (such as the old mcterm terminal client in
-  earlier worlds) must not take the station's screen first.
+  station on its own, so its name sorts first ("00-" before "00_", digits
+  and letters).
+
+  Security (review C1): what a station runs must not depend on world data.
+  - The computer's own files (its /.settings, /startup, a floppy's startup)
+    live in the save, so a shared map controls them. On a station they are
+    never run: user and disk startup are switched off here, before CraftOS
+    reaches them, and no /.settings key makes this autorun step aside (the
+    old `omo.enabled` opt-out and its /craftos helper are gone).
+  - The ROM itself (this file, station.lua, bios.lua) can be overridden by a
+    world data pack; the mod refuses every ticket unless the ROM is byte for
+    byte what the installed mods ship (RomCheck), so an override gets nothing.
+  - Leaving the station screen (Ctrl+Shift+Q) is the owner's deliberate act
+    at the keyboard; it drops to a CraftOS prompt, and 'station' reopens it.
 ]]
 if not omo or not omo.station() then return end
 
--- A station never boots from a floppy: a disk drive placed next to it must
--- not run its own startup with this computer's omo API (and its ticket).
+-- In memory only (never saved): /startup never runs here, and a station
+-- never boots from a floppy: a disk drive placed next to it must not run its
+-- own startup with this computer's omo API (and its ticket).
+settings.set("shell.allow_startup", false)
 settings.set("shell.allow_disk_startup", false)
 
 shell.setAlias("station", "/rom/programs/omo/station.lua")
-
--- Opt out per computer: `craftos` drops to plain CraftOS on this station
--- until `stationon` is run.
-if not fs.exists("/craftos") then
-  local f = fs.open("/craftos", "w")
-  f.write('settings.set("omo.enabled", false)\nsettings.save()\n'
-    .. 'print("Plain CraftOS on this station. Type \'station\' to reconnect,")\n'
-    .. 'print("or run \'stationon\' to boot into the workspace again.")\n')
-  f.close()
-end
-if not fs.exists("/stationon") then
-  local f = fs.open("/stationon", "w")
-  f.write('settings.set("omo.enabled", true)\nsettings.save()\n'
-    .. 'print("This station will boot into its workspace again.")\n')
-  f.close()
-end
-
--- A stale /startup from the earlier terminal mod would launch a second
--- client and steal the screen. Remove it; this autorun is the entry point.
-if fs.exists("/startup") then
-  local h = fs.open("/startup", "r")
-  local body = h.readAll() or ""
-  h.close()
-  if body:find("term%.lua") or body:find("mcterm_client") or body:find("station%.lua") then
-    fs.delete("/startup")
-  end
-end
 
 -- A station is its terminal, never a CraftOS prompt. If the screen client
 -- stops on an error it says so on an Omo card and comes straight back; only
@@ -69,7 +55,7 @@ local function snag(err)
   line(h, "Your shells keep running on the host.", "7")
 end
 
-while settings.get("omo.enabled", true) do
+while true do
   local client, loadErr = loadfile("/rom/programs/omo/station.lua", nil, _ENV)
   local ok, err = false, loadErr
   if client then ok, err = pcall(client) end

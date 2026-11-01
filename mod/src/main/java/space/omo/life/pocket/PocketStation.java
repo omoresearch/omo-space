@@ -20,6 +20,7 @@ import net.minecraft.world.item.component.CustomData;
 
 import space.omo.life.block.StationBlockEntity;
 import space.omo.life.station.Station;
+import space.omo.life.station.StationComputers;
 import space.omo.life.station.StationPreset;
 import space.omo.life.station.Stations;
 
@@ -96,6 +97,7 @@ public final class PocketStation implements Station {
 
     void attach(ServerComputer built) {
         computer = built;
+        StationComputers.mark(built, this);
         LIVE.put(station, this);
     }
 
@@ -183,6 +185,13 @@ public final class PocketStation implements Station {
     public void setWorkspaceName(String name) {
         if (name != null) {
             workspaceName = name;
+        }
+    }
+
+    @Override
+    public void nudge() {
+        if (computer != null) {
+            computer.queueEvent("omo_owner", new Object[0]);
         }
     }
 

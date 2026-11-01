@@ -428,6 +428,7 @@ public final class MonitorScreen extends Screen {
         ClientPlayNetworking.send(new OmoNetworking.SetMonitor(origin, source, url == null ? "" : url, zoom));
         String safe = web() ? OmoMonitorBlockEntity.safeUrl(url) : null;
         if (safe != null) {
+            WebPages.allowWall(origin);           // set by this player on purpose
             WebPages.open(origin, safe);
         } else if (!web()) {
             WebPages.close(origin);

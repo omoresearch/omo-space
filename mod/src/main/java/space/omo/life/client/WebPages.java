@@ -22,6 +22,7 @@ import net.minecraft.world.phys.Vec3;
 
 import space.omo.life.OmoLife;
 import space.omo.life.block.OmoMonitorBlockEntity;
+import space.omo.life.block.WebUrls;
 
 /**
  * The shared browser runtime behind every web monitor.
@@ -355,7 +356,7 @@ public final class WebPages {
         /** Load in the active tab; the wall's pin ({@link #url}) is unchanged. */
         void navigate(String target) {
             WebView v = view();
-            if (v != null) {
+            if (v != null && WebUrls.loadable(target)) {
                 v.load(target);
             }
         }
@@ -421,7 +422,16 @@ public final class WebPages {
      * example after "Pin this") never reloads it.
      */
     public static Page open(BlockPos origin, String url) {
+        if (!WebUrls.loadable(url)) {
+            guardRefusal = "This page address is not allowed (http/https only).";
+            return null;
+        }
         Page page = PAGES.get(origin);
+        if (page == null && !mayAutoLoad(origin)) {
+            guardRefusal = "Web page from this server: " + OmoMonitorBlockEntity.host(url)
+                + ". Right-click the wall to load it.";
+            return null;
+        }
         if (page == null) {
             page = adopt(origin, url);
         }
@@ -503,6 +513,31 @@ public final class WebPages {
         OmoLife.LOG.info("page cap: closing unseen page {} -> {}", oldest.pos.toShortString(), oldest.url);
         close(oldest.pos);
         return true;
+    }
+
+    /**
+     * Walls whose pages this player chose to load on a server they do not
+     * host. In their own world (singleplayer, or the LAN host) every wall
+     * loads by itself; anywhere else a wall stays dark until it is
+     * right-clicked or set from its screen, so a server cannot make the
+     * player's browser fetch pages just by sending block data. Forgotten on
+     * disconnect.
+     */
+    private static final java.util.Set<BlockPos> ALLOWED_WALLS = new java.util.HashSet<>();
+
+    private static boolean mayAutoLoad(BlockPos origin) {
+        return Minecraft.getInstance().hasSingleplayerServer() || ALLOWED_WALLS.contains(origin);
+    }
+
+    /** The player clicked this wall (or pinned its page): its page may load. */
+    public static void allowWall(BlockPos origin) {
+        if (origin != null && ALLOWED_WALLS.add(origin.immutable()) && ALLOWED_WALLS.size() > 256) {
+            ALLOWED_WALLS.remove(ALLOWED_WALLS.iterator().next());
+        }
+    }
+
+    public static void forgetAllowedWalls() {
+        ALLOWED_WALLS.clear();
     }
 
     /** Why a wall without a page is dark. */

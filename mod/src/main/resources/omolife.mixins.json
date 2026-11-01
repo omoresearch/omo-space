@@ -29,6 +29,11 @@
     "MonitorMirrorAccessor",
     "ServerComputerMixin",
     "ServerMonitorAccessor",
-    "AgentRegistrySyncMixin"
+    "AgentRegistrySyncMixin",
+    "AgentPermissionsMixin",
+    "CommandSourceAccessor",
+    "ComputerCraftCommandMixin",
+    "ComputerInputGuardMixin",
+    "ComputerMenuGuardMixin"
   ]
 }

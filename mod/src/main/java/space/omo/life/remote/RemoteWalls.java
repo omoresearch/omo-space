@@ -33,6 +33,7 @@ import space.omo.life.mixin.MonitorComputersAccessor;
 import space.omo.life.net.MonitorPackets.WallControl;
 import space.omo.life.net.MonitorPackets.WallMouse;
 import space.omo.life.net.OmoNetworking;
+import space.omo.life.station.OwnerPresence;
 import space.omo.life.station.Stations;
 
 /**
@@ -108,6 +109,9 @@ public final class RemoteWalls {
         if (settings) {
             OmoNetworking.openMonitorScreen(player, wall);
             return true;
+        }
+        if (station != null) {
+            OwnerPresence.touch(station.block(), player);
         }
         Session current = SESSIONS.get(player.getUUID());
         if (current != null && current.origin.equals(wall.getBlockPos())) {
@@ -240,8 +244,13 @@ public final class RemoteWalls {
             && player.getEyePosition().distanceToSqr(Vec3.atCenterOf(origin)) < KEEP * KEEP
             && level.getBlockEntity(origin) instanceof OmoMonitorBlockEntity wall
             && wall.origin().equals(origin) && !wall.isWeb() ? station(wall) : null;
+        if (st != null && !Stations.allowed(player)) {
+            st = null;                                // deopped mid-session: the wall is let go
+        }
         if (st == null) {
             end(player, true);
+        } else {
+            OwnerPresence.touch(st.block(), player);
         }
         return st;
     }

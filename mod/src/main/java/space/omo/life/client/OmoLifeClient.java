@@ -10,11 +10,14 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.BlockColorRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 
 import space.omo.life.OmoLife;
+import space.omo.life.block.OmoMonitorBlockEntity;
 import space.omo.life.block.SlimScreenBlock;
 import space.omo.life.client.remote.RemoteWall;
 import space.omo.life.net.OmoNetworking;
@@ -56,6 +59,7 @@ public final class OmoLifeClient implements ClientModInitializer {
         // it first; leaving the world closes them all. No orphan Chromium pages.
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             WebPages.closeAll();
+            WebPages.forgetAllowedWalls();
             BridgeClient.get().close();
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
@@ -69,6 +73,15 @@ public final class OmoLifeClient implements ClientModInitializer {
             if (tickCounter % 4 == 0) {
                 WebPages.audioTick();
             }
+        });
+        // On a server this player does not host, a web wall loads only after a
+        // right-click on it (see WebPages.allowWall). PASS: the click goes on as usual.
+        UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+            if (level.isClientSide() && level.getBlockEntity(hit.getBlockPos()) instanceof OmoMonitorBlockEntity be
+                && be.isWeb()) {
+                WebPages.allowWall(be.origin());
+            }
+            return InteractionResult.PASS;
         });
         RemoteWall.init();
         LinkerClient.init();

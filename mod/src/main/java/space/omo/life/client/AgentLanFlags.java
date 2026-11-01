@@ -18,6 +18,14 @@ public final class AgentLanFlags {
     /** Shown before an agent body's name over its head, in the tab list and in chat. */
     public static final String TAG_PREFIX = "Agent - ";
 
+    /**
+     * True while Omo has published this world for agents and the world has
+     * cheats on: then (and only then) agent bodies get gamemaster commands
+     * ({@code AgentPermissionsMixin}). Every other joiner gets none, because
+     * the world is published with commands off.
+     */
+    public static volatile boolean agentCommands;
+
     private AgentLanFlags() {
     }
 

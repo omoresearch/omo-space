@@ -141,10 +141,33 @@ final class CefHooks {
             }
             Hooked h = BROWSERS.get(browser);
             String url = message.substring(NEW_TAB.length()).trim();
-            if (h != null && !url.isEmpty() && !url.startsWith("about:")) {
+            if (h != null && !url.isEmpty() && !url.startsWith("about:") && newTabAllowed(browser)) {
                 h.popup().accept(url);
             }
             return true;                        // ours: not printed
+        }
+
+        /**
+         * Any frame on a page (ads and cross-origin iframes included) can print
+         * the new-tab marker, so at most {@link #NEW_TAB_BURST} tabs per
+         * {@link #NEW_TAB_WINDOW_MS} come from one browser.
+         */
+        private static boolean newTabAllowed(CefBrowser browser) {
+            long now = System.currentTimeMillis();
+            synchronized (NEW_TAB_TIMES) {
+                long[] times = NEW_TAB_TIMES.computeIfAbsent(browser, b -> new long[NEW_TAB_BURST]);
+                int oldest = 0;
+                for (int i = 1; i < times.length; i++) {
+                    if (times[i] < times[oldest]) {
+                        oldest = i;
+                    }
+                }
+                if (times[oldest] != 0 && now - times[oldest] < NEW_TAB_WINDOW_MS) {
+                    return false;
+                }
+                times[oldest] = now;
+                return true;
+            }
         }
 
         @Override
@@ -156,6 +179,9 @@ final class CefHooks {
 
     /** Console marker of a new-tab request from {@link #NEW_TAB_JS}. */
     private static final String NEW_TAB = "\u0001omo-newtab ";
+    private static final int NEW_TAB_BURST = 3;
+    private static final long NEW_TAB_WINDOW_MS = 10_000;
+    private static final java.util.Map<CefBrowser, long[]> NEW_TAB_TIMES = new java.util.WeakHashMap<>();
 
     /**
      * Idempotent per document. Links that would open elsewhere (any target

@@ -277,6 +277,14 @@ local SPLASH = {
                    { "Revive it or pick another tab in the panel above.", C.dim } },
   ended        = { { "Every tab in this workspace has exited.", C.text },
                    { "Revive one from the panel above to carry on.", C.dim } },
+  -- A loaded world alone never reaches the host: the owner opens the station
+  -- (or takes over its wall) and only then does it connect or make a workspace.
+  owner        = { { "Waiting for the world owner.", C.gold },
+                   { "Right-click this station or its wall to connect it.", C.dim },
+                   { "A shared map never reaches your computer on its own.", C.dim } },
+  blocked      = { { "This world changes the computer ROM.", C.red },
+                   { "Omo stations stay off while that data pack is loaded.", C.dim },
+                   { "Remove it from the world's datapacks folder to use them.", C.dim } },
 }
 
 -- The splash: the wing, who this station is, why, and the keys.
@@ -393,7 +401,8 @@ local function retry(s, st, why)
   s.attempt = s.attempt + 1
   local delay
   if st == "refused" then delay = 10
-  elseif st == "unbound" then delay = 2
+  elseif st == "blocked" then delay = 30
+  elseif st == "unbound" or st == "owner" then delay = 3
   else delay = s.attempt < 4 and 1 or (s.attempt < 10 and 3 or 8) end
   if s.state ~= st or st == "offline" or st == "refused" then showState(s, st, why) else drawStatus(s) end
   s.timer = os.startTimer(delay)
@@ -408,8 +417,8 @@ local function connect(s)
   hermes = st.hermes
   if st.name ~= "" then wsName = st.name end
   if not st.bound then
-    omo.ensure()
-    return retry(s, "unbound")
+    local creating = omo.ensure()                -- only right after the owner used this station
+    return retry(s, creating and "unbound" or "owner")
   end
   s.minting = true
   tickets[#tickets + 1] = s
@@ -420,6 +429,8 @@ local function onTicket(s, ticket, wsOrWhy)
   s.minting = false
   if not ticket then
     if wsOrWhy == "unbound" then return retry(s, "unbound") end
+    if wsOrWhy == "waiting for owner" then return retry(s, "owner") end
+    if tostring(wsOrWhy):find("computer ROM") then return retry(s, "blocked") end
     if tostring(wsOrWhy):find("refused") then return retry(s, "refused", wsOrWhy) end
     return retry(s, "offline", wsOrWhy == "bridge unreachable" and "" or tostring(wsOrWhy or ""))
   end
@@ -469,6 +480,17 @@ end
 
 -- ---------------------------------------------------------------- the wall
 
+-- Only a monitor touching this computer is its wall, never one reached over a
+-- wired modem: a touch on a networked monitor anywhere would otherwise click
+-- into this host terminal (security review M1).
+local SIDES = { "top", "bottom", "left", "right", "front", "back" }
+local function findWall()
+  for _, side in ipairs(SIDES) do
+    if peripheral.hasType(side, "monitor") then return peripheral.wrap(side) end
+  end
+  return nil
+end
+
 local SCALES = { 0.5, 1, 1.5, 2, 2.5, 3, 4, 5 }
 local MIN_W, MIN_H = 20, 6                    -- smaller than this at 0.5 is a status card
 local wallFit = nil                           -- { scale, w, h } last chosen, to tell our own resize events
@@ -506,7 +528,7 @@ end
 
 -- (Re)decide what the attached monitor is: a terminal surface or a card.
 local function refitWall()
-  local found = peripheral.find("monitor")
+  local found = findWall()
   if mon and found and peripheral.getName(found) ~= peripheral.getName(mon) then dropWall() end
   if mon and not found then
     pcall(function() restorePalette(mon) mon.setTextScale(1) mon.clear() end)
@@ -1040,6 +1062,15 @@ local function handle(ev)
         drawStatus(s)                          -- a toast or a bell flash has run out
       end
     end)
+  elseif e == "omo_owner" then
+    -- The owner just used this station: a screen waiting for them connects now.
+    each(function(s)
+      if not s.sock and not s.pending and not s.minting then
+        if s.timer then os.cancelTimer(s.timer) end
+        s.timer, s.attempt = nil, 0
+        connect(s)
+      end
+    end)
   elseif e == "omo_bound" then
     -- The server created or rebound this station's workspace: (re)connect now.
     if ev[3] and ev[3] ~= "" then wsName = ev[3] end
@@ -1108,7 +1139,7 @@ local function main()
   while running do
     local ev = { os.pullEventRaw() }
     if ev[1] == "timer" and ev[2] == wallTimer then
-      if (peripheral.find("monitor") ~= nil) ~= (mon ~= nil) or (mon and wallChanged()) then checkWall(true) end
+      if (findWall() ~= nil) ~= (mon ~= nil) or (mon and wallChanged()) then checkWall(true) end
       wallTimer = os.startTimer(3)
     else
       handle(ev)

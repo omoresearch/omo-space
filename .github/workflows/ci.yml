@@ -19,6 +19,8 @@ jobs:
     # "pwsh not installed" (both accepted; the Windows installer parse still runs on
     # windows-2022 in the platforms job below).
     runs-on: [self-hosted, ci-shared]
+    # Self-hosted runners must never run code from forks: only pushes and same-repo PRs.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
       - name: Python (image system python3)

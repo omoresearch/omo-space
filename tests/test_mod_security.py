@@ -387,6 +387,13 @@ class WebWallTest(unittest.TestCase):
         hooks = src("client/CefHooks.java")
         self.assertIn("newTabAllowed(browser)", hooks)
 
+    def test_chromium_keeps_same_origin_policy(self):
+        """N1: MCEF Modern passes --disable-web-security; the mixin must strip it."""
+        mixin = src("mixin/McefArgsMixin.java")
+        self.assertIn('"--disable-web-security"', mixin)
+        self.assertIn("omolife$unsafe", mixin)
+        self.assertRegex(mixin, r"filter\(a -> !omolife\$unsafe\(a\)\)")
+
 
 class PackagingTest(unittest.TestCase):
     """M5, M6, and the built jar."""

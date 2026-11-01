@@ -475,7 +475,13 @@ public final class StationPanel {
             () -> openPopup(Popup.MORE)).selected(popup == Popup.MORE);
         more.setX(x1 - more.getWidth());
         Status st = status();
-        OmoButton pill = OmoButton.of(font, OmoButton.Style.PILL, accent, st.label(), 0, y, ROW_H, this::reconnect)
+        // Bridge missing, blocked by CC: Tweaked or not running: the pill leads to the setup guide instead.
+        BridgeHelp.Problem help = "Live".equals(st.label()) ? null : BridgeHelp.problem();
+        if (help != null) {
+            st = new Status(OmoStyle.RED, "Set up", help.title() + " " + help.detail());
+        }
+        OmoButton pill = OmoButton.of(font, OmoButton.Style.PILL, accent, st.label(), 0, y, ROW_H,
+                help == null ? this::reconnect : () -> BridgeHelp.openGuide(Minecraft.getInstance().gui.screen()))
             .dot(st.colour());
         pill.setX(more.getX() - 5 - pill.getWidth());
 
@@ -488,7 +494,8 @@ public final class StationPanel {
             y + 1, ROW_H - 2, () -> openPopup(Popup.PROFILE));
         if (tips) {
             more.tip("More: rename, Hermes profile, Start Hermes here, close tab, reconnect");
-            pill.tip(st.tip() + " Click to reconnect this screen (Ctrl+Shift+R).");
+            pill.tip(st.tip() + (help == null ? " Click to reconnect this screen (Ctrl+Shift+R)."
+                : " Click to open the setup guide."));
             switcher.tip("Workspace '" + title + "'. Click (or Ctrl+Shift+O) to see every workspace on this PC, "
                 + "switch this station to another one, or start a new one. Switching never stops anything.");
             chip.tip("Hermes profile: new Hermes tabs and resumes in this workspace use it (Ctrl+Shift+P)");

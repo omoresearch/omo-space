@@ -46,7 +46,7 @@ Style:     <glass under the sea / carved into rock / Japanese wood / match the r
 Rooms:     <one line per room: name, size, how many screens, what is on each screen>
 Agents:    <one line per desk: desk name -> Hermes profile (or "default"), tabs>
 Terminals: <plain shell desks, if any>
-Web walls: <url per wall; at most 6 pages can be live at once>
+Web walls: <url per wall; at most 12 pages within 64 blocks of each other>
 Keep:      <anything that must not be touched>
 
 Deliver: a datapack with build, undo and visit functions, tested on a copy
@@ -128,7 +128,7 @@ brief. Nothing runs before you open it.
 | Workspaces on your PC | 128 | A new station hangs on "creating workspace". Close old ones with `/omo forget <id>` first. |
 | Tabs per workspace | 12 | The **+** button refuses. |
 | Open screens (views) | 192 | A new screen asks you to close one. |
-| Live web pages | 6 | The 7th web wall shows "Page limit reached". Unpin a page. |
+| Live web pages | 12 within 64 blocks of you | The 13th web wall shows "Page limit reached". Unpin a page or walk further away. |
 | Idle Hermes tabs | sleep after 20 min | The conversation is saved and resumes when a screen shows the tab again. |
 
 ## 8. Sharing a map

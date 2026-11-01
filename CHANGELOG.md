@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Building skills for agents
+
+- New `skills/` folder: `omo-world-building` (reversible datapacks, with a
+  pitfalls list and a mechanisms list for doors, lifts, waterfalls and display
+  entities) and `omo-stations` (presets, binding desks to workspaces, room
+  profiles, one task per screen, repairing split monitor walls). They hold the
+  lessons from about twenty real builds. Copy them into Hermes or Claude Code
+  with one command (`skills/README.md`).
+- New `tools/mapbuild/`: a read-only save reader (`anvil.py`) and
+  `omo_scan.py`, which lists stations near a point, counts the web walls a
+  player there keeps open, and shows where players were. The build procedure
+  used to point at tools that only existed on one machine.
+- Docs: the live web-page limit is 12 within 64 blocks (the docs said 6).
+
 ### Linux: file-watcher limit
 
 - A busy desktop could use up the per-user inotify limit (128 on Ubuntu), and

@@ -163,7 +163,7 @@ everything from this repository, stops whenever you need to sign in or decide so
 Set up Omo Space for me from https://github.com/omoresearch/omo-space
 
 1. Read README.md. Install the latest release for my computer exactly as its Install section says: download, check SHA256SUMS, run the installer. Stop when I need to sign in with my own Minecraft account. Never sign in for me.
-2. Read docs/MAPS.md and docs/MAP-BUILD-PROCEDURE.md, and follow them to build my first world.
+2. Read docs/MAPS.md, docs/MAP-BUILD-PROCEDURE.md and the skills in skills/, and follow them to build my first world.
 3. My world: Ask me first what I want it to be (for example an office, a cosy home or a spaceship) and how many agents should work there. Wait for my answer before you build.
    Give each room a desk for an agent (a Hermes Computer with its own name), a terminal wall and a status lamp.
 4. Test the build on a copy of my save. Then give me the in-game commands to build it and to undo it.
@@ -285,8 +285,11 @@ not a sandbox. Details: [SECURITY.md](SECURITY.md).
 The repo holds the Fabric mod, the Python bridge, the tmux session server, the launcher, room kits, tests and the
 release bundle builder. CI tests the bridge, launcher and platforms on Linux, macOS and Windows.
 
+Letting an agent build your world? Give it the [building skills](skills/README.md): what about twenty real builds taught
+about safe datapacks, screens, web-page limits, doors and lifts. One `cp` installs them for Hermes or Claude Code.
+
 [Guide](docs/GUIDE.md) · [Agents and terminals](docs/AGENTS-AND-TERMINALS.md) · [Building](docs/builders/README.md) ·
-[Maps](docs/MAPS.md) · [Platforms](docs/PLATFORMS.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) ·
+[Maps](docs/MAPS.md) · [Agent skills](skills/README.md) · [Platforms](docs/PLATFORMS.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) ·
 [Changelog](CHANGELOG.md)
 
 <br>

@@ -44,7 +44,10 @@ jobs:
       - name: Bridge tests (disposable tmux server, stub hermes)
         env:
           OMO_TMUX: /tmp/omo-tmux
-        run: python3 tests/test_bridge.py
+        run: |
+          python3 tests/test_bridge.py
+          python3 tests/test_bridge_security.py
+          python3 tests/test_mod_security.py
       - name: Release guard - no host paths or secrets in tracked files
         run: |
           if git grep -nIP '/home/(?!you/|x/)[a-z]+/|API_SERVER_KEY=|BEGIN [A-Z ]*PRIVATE KEY' -- ':!bridge/vendor' ':!.github' ':!scripts/package.sh'; then

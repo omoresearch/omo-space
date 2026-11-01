@@ -156,6 +156,20 @@ class Feed(unittest.TestCase):
         self.assertEqual(len(self.snap()["sessions"]), hf.MAX_SESSIONS)
 
     # -- never outside HERMES_ROOT ---------------------------------------------
+    def test_cache_forgets_pruned_sessions(self):
+        """A long-running bridge must not keep one cache entry per session it ever saw."""
+        for i in range(30):
+            self.put(self.default, presence(f"gone-{i}"))
+        self.snap()
+        sdir = os.path.join(self.default, "sessions")
+        for i in range(30):
+            os.unlink(os.path.join(sdir, f"gone-{i}.json"))
+        self.put(self.default, presence("kept"))
+        self.reader.dirs.clear()            # the listing cache would hide the change within 2 s
+        self.assertEqual([s["session_id"] for s in self.snap()["sessions"]], ["kept"])
+        cached = [p for p in self.reader.files if os.path.dirname(p) == sdir]
+        self.assertEqual(cached, [os.path.join(sdir, "kept.json")])
+
     def test_symlink_escape_is_refused(self):
         outside = tempfile.mkdtemp(prefix="omo-outside-")
         self.addCleanup(shutil.rmtree, outside, True)

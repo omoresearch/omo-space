@@ -296,10 +296,16 @@ class FeedReader:
         out = []
         for fdir, profile in self.feeds:
             sdir = os.path.join(fdir, "sessions")
-            for name in self._session_names(sdir, root_real):
+            names = self._session_names(sdir, root_real)
+            for name in names:
                 s = norm_session(self._cached(os.path.join(sdir, name), root_real, read_json), profile)
                 if s:
                     out.append(s)
+            # Forget snapshots that left the dir (pruned by the writer, or past the cap): a
+            # long-running bridge would otherwise keep one cache entry per session ever seen.
+            keep = {os.path.join(sdir, n) for n in names}
+            for path in [p for p in self.files if os.path.dirname(p) == sdir and p not in keep]:
+                del self.files[path]
         out.sort(key=lambda s: s["updated"], reverse=True)
         return out[:MAX_SESSIONS]
 

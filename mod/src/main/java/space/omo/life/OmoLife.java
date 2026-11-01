@@ -8,6 +8,8 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
+import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
+import net.fabricmc.fabric.api.resource.v1.pack.PackActivationType;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -158,18 +160,29 @@ public final class OmoLife implements ModInitializer {
                 .icon(() -> new ItemStack(HERMES_COMPUTER_ITEM))
                 .build());
         // Stations, screens (a Slim Screen in every finish), pockets, then the builder blocks.
+        // By default only the Omo Computer and the Omo Monitor (see HiddenBlocks).
+        boolean showAll = OmoConfig.showAllBlocks();
         CreativeModeTabEvents.modifyOutputEvent(TAB).register(out -> {
             out.accept(HERMES_COMPUTER_ITEM);
-            out.accept(TERMINAL_ITEM);
-            out.accept(MONITOR_ITEM);
-            for (FrameFinish finish : FrameFinish.values()) {
-                out.accept(SlimScreenBlock.stack(SLIM_SCREEN_ITEM, finish));
+            if (showAll) {
+                out.accept(TERMINAL_ITEM);
             }
-            out.accept(OmoPocketItem.HERMES);
-            out.accept(OmoPocketItem.TERMINAL);
-            out.accept(NAME_PLATE_ITEM);
-            out.accept(STATUS_LAMP_ITEM);
+            out.accept(MONITOR_ITEM);
+            if (showAll) {
+                for (FrameFinish finish : FrameFinish.values()) {
+                    out.accept(SlimScreenBlock.stack(SLIM_SCREEN_ITEM, finish));
+                }
+                out.accept(OmoPocketItem.HERMES);
+                out.accept(OmoPocketItem.TERMINAL);
+                out.accept(NAME_PLATE_ITEM);
+                out.accept(STATUS_LAMP_ITEM);
+            }
         });
+        if (!showAll) {
+            hideExtraBlocks();
+        } else {
+            LOG.info("Omo Space: showing every Omo and CC: Tweaked block (showAllBlocks)");
+        }
 
         // A terminal-bound Omo monitor is a CC:T "monitor" peripheral, so
         // peripheral.find("monitor") and term.redirect work as players
@@ -188,7 +201,33 @@ public final class OmoLife implements ModInitializer {
         WallForming.register();
         StationStatus.register();
         Links.register();
-        LOG.info("Omo Space ready: Hermes Computer, Terminal, Monitor, Slim Screen, Name Plate, Status Lamp");
+        LOG.info("Omo Space ready: Omo Computer, Omo Monitor{}", showAll
+            ? ", Terminal, Slim Screen, Name Plate, Status Lamp, Linker, pockets" : "");
+    }
+
+    /**
+     * CC: Tweaked's blocks and Omo's extra ones leave every creative tab
+     * (CC:T's own tab is then empty, so vanilla hides it) and the search tab,
+     * and the built-in simple_blocks data pack switches off their recipes.
+     * They stay registered: old worlds and /give keep working.
+     */
+    private static void hideExtraBlocks() {
+        CreativeModeTabEvents.MODIFY_OUTPUT_ALL.register((tab, out) -> {
+            out.getDisplayStacks().removeIf(OmoLife::hiddenStack);
+            out.getSearchTabStacks().removeIf(OmoLife::hiddenStack);
+        });
+        boolean pack = FabricLoader.getInstance().getModContainer(MOD_ID)
+            .map(mod -> ResourceLoader.registerBuiltinPack(id(HiddenBlocks.PACK), mod,
+                Component.literal("Omo Space: Omo Computer and Omo Monitor only"), PackActivationType.ALWAYS_ENABLED))
+            .orElse(false);
+        if (!pack) {
+            LOG.warn("Omo Space: could not register the simple_blocks data pack; CC: Tweaked recipes stay on");
+        }
+    }
+
+    private static boolean hiddenStack(ItemStack stack) {
+        Identifier key = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        return key != null && HiddenBlocks.hidden(key.getNamespace(), key.getPath());
     }
 
     private static Item registerItem(String name, Block block) {

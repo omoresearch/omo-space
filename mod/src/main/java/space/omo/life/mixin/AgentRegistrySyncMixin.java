@@ -27,6 +27,6 @@ public abstract class AgentRegistrySyncMixin {
     private static void omolife$skipForLocalAgents(ServerConfigurationPacketListenerImpl handler,
             MinecraftServer server, CallbackInfo ci) {
         if (server.usesAuthentication() || handler.getOwner() == null) return;
-        if (space.omo.life.client.AgentLan.isAgent(handler.getOwner().name())) ci.cancel();
+        if (space.omo.life.client.AgentLanFlags.isAgent(handler.getOwner().name())) ci.cancel();
     }
 }

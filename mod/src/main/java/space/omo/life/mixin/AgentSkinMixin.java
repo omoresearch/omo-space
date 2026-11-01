@@ -13,7 +13,7 @@ import net.minecraft.core.ClientAsset;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.entity.player.PlayerSkin;
-import space.omo.life.client.AgentLan;
+import space.omo.life.client.AgentLanFlags;
 
 /** Gives the local agent body (an offline bot with no Mojang skin) the bundled Omo skin. */
 @Mixin(PlayerInfo.class)
@@ -26,7 +26,7 @@ public abstract class AgentSkinMixin {
 
     @Inject(method = "getSkin", at = @At("RETURN"), cancellable = true)
     private void omolife$agentSkin(CallbackInfoReturnable<PlayerSkin> cir) {
-        if (!AgentLan.isAgent(getProfile().name())) return;
+        if (!AgentLanFlags.isAgent(getProfile().name())) return;
         PlayerSkin base = cir.getReturnValue();
         cir.setReturnValue(new PlayerSkin(OMO_SKIN, base == null ? null : base.cape(),
             base == null ? null : base.elytra(), PlayerModelType.WIDE, true));

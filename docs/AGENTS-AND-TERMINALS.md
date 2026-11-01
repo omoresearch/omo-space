@@ -177,23 +177,31 @@ sessions.
 
 A Hermes desk agent works in its terminal. A separate agent runtime on your
 PC (for example the Omo Teacher's Mineflayer body) can also join your
-single-player world as a player:
+single-player world as a player. This is **off unless the game starts with
+`-Domo.agents.lan=true`**. The Omo Space launcher adds that flag to its own
+launches (opt out with `OMO_AGENT_LAN=0`, or `-Domo.agents.lan=false` in
+`runtime/local-jvm.json`); a mod installed from CurseForge or Modrinth never
+opens a world on its own.
 
-- When you open a single-player world and have joined it, the mod opens it to
-  LAN on port 25566 (the next free one up to 25570) and writes
+- When it is on and you have joined a single-player world, the mod opens it
+  on port 25566 (the next free one up to 25570) and writes
   `~/.config/omo/lan.json` (`host`, `port`, `world`, `version`) so the runtime
   can find it. The file is removed when the world closes.
-- A bot has no Microsoft account, so the world accepts offline logins. Those
-  players may join **from this computer only**: anyone else connecting
-  without authentication is disconnected. Your LAN still sees the world in
-  its server list.
+- The listener binds to **127.0.0.1 only** and the world is not announced on
+  your LAN, so no other computer can reach it. A bot has no Microsoft
+  account, so the world accepts offline logins; any unauthenticated player
+  not on this computer is disconnected as well.
+- Joined players never get your shells. Stations, monitors and `/omo` only
+  answer the world owner (matched by account UUID, not by name) and players
+  on the operator list (`/op`). "Allow cheats" for everyone does not count.
 - The agent bodies (`omo` and `teacher` by default) skip Fabric's registry
   check (they are plain Mineflayer clients), wear the bundled Omo skin and show
-  as **ChatGPT - <name>** over their heads, in the tab list and in chat.
-- JVM flags: `-Domo.agents.lan=false` turns it all off,
+  as **Agent - <name>** over their heads, in the tab list and in chat.
+- JVM flags: `-Domo.agents.lan=true` turns it on,
   `-Domo.agents.port=<n>` picks the port, `-Domo.agents.names=a,b` sets the
-  agent names, `-Domo.agents.allowRemote=true` also lets unauthenticated
-  players in from other computers (only on a network you trust).
+  agent names, `-Domo.agents.allowRemote=true` listens on every interface and
+  also lets unauthenticated players in from other computers (only on a
+  network you trust).
 
 ## 9. What is not built yet
 

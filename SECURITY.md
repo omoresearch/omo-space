@@ -19,16 +19,19 @@ Minecraft world. Treat it with the same care as a terminal.
 ## Limits
 
 - Singleplayer and trusted local worlds. Stations and monitors answer only to
-  the world owner, or to operators listed in `ops.json`. When the world runs
-  without Microsoft authentication (the LAN mode agent bodies use), an
-  operator entry only counts from this computer, because anyone can log in
-  under any name. Do **not** expose a world with Omo stations to players you
-  do not trust with your shell.
-- Agent bodies join through LAN on port 25566 without authentication, so Omo
-  only lets players from this computer in. `-Domo.agents.allowRemote=true`
-  lets anyone who can reach that port join, with the world's cheats. Use it
-  only on a network you control (for example a Tailscale share limited to that
-  port), never with a router port forward.
+  the world owner (matched by account UUID), or to operators listed in
+  `ops.json`. "Allow cheats" for everyone in a LAN world does not count. When
+  the world runs without Microsoft authentication (the LAN mode agent bodies
+  use), an operator entry only counts from this computer, because anyone can
+  log in under any name. Do **not** expose a world with Omo stations to
+  players you do not trust with your shell.
+- Agent LAN (local agent bodies joining your world) is off unless the game
+  starts with `-Domo.agents.lan=true`; the Omo Space launcher sets it for its
+  own installs. It listens on 127.0.0.1 only and accepts offline logins from
+  this computer only. `-Domo.agents.allowRemote=true` lets anyone who can
+  reach that port join, with the world's cheats. Use it only on a network you
+  control (for example a Tailscale share limited to that port), never with a
+  router port forward.
 - Station computers never boot from a floppy in an adjacent disk drive.
 - A block, a room or a pocket dimension is a presentation boundary, not a
   sandbox. Processes run as your user.

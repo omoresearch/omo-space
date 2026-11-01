@@ -99,8 +99,6 @@ class WebRuntime(unittest.TestCase):
             "space/omo/life/client/CefHooks.java": """
                 package space.omo.life.client;
                 final class CefHooks {
-                    static int started;
-                    static void started() { started++; }
                     static void attach(org.cef.browser.CefBrowser b, java.util.function.Consumer<String> title,
                                        java.util.function.Consumer<String> popup) { }
                     static void detach(org.cef.browser.CefBrowser b) { }
@@ -168,7 +166,6 @@ class WebRuntime(unittest.TestCase):
                         check(!McefRuntime.ready(), "API is not usable until client callback publishes it");
                         Minecraft.getInstance().drain();
                         check(McefRuntime.ready() && readyCalls[0] == 1, "initialize waiting pages exactly once");
-                        check(CefHooks.started == 1, "start the Firefox cookie import once Chromium is up");
                         check(status.get(status.size() - 1).isEmpty(), "clear startup status after success");
                         check(McefRuntime.create("https://example.invalid/") != null, "create a page from the published API");
                         check("https://example.invalid/".equals(openedUrl[0]) && !transparent[0], "preserve URL and opaque rendering");

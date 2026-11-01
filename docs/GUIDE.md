@@ -96,11 +96,8 @@ Master and Jukebox/Note Blocks sliders and fades with distance (full within 6
 blocks, silent from 40). Up to 12 pages run at once; past that, the page
 nobody has looked at for longest closes and reopens when you look back. A
 memory guard pauses new pages when the machine runs low and closes runaway
-Chromium processes. Logged-in pages: `-Domo.firefoxCookies=true` (or
-`OMO_FIREFOX_COOKIES=1`) copies your Firefox cookies in, one way, at start
-and when Firefox changes them. It is off by default, because every page a
-wall shows, including one another player pinned, would then browse with
-those logins.
+Chromium processes. To be logged in on a wall, sign in on the wall itself: Chromium keeps its
+cookies in `config/mcef-modern`, on this computer only.
 
 Chat commands (world owner or op): `/omo status`, `/omo workspaces` (click one
 to bind the station you look at), `/omo rebind <id>`, `/omo rename <name>`,

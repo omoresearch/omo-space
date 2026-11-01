@@ -360,16 +360,6 @@ public final class WebPages {
             }
         }
 
-        void reloadTabs() {
-            for (WebView v : tabs) {
-                try {
-                    v.reload();
-                } catch (RuntimeException ignored) {
-                    // mid-teardown
-                }
-            }
-        }
-
         public String currentUrl() {
             try {
                 WebView v = view();
@@ -575,13 +565,6 @@ public final class WebPages {
         }
     }
 
-    /** Reload every tab (new cookies arrived after the pages opened). */
-    static void reloadAll() {
-        for (Page p : PAGES.values()) {
-            p.reloadTabs();
-        }
-    }
-
     /** Blocks from the player to a wall (infinite with no player). */
     private static double blocksTo(BlockPos pos) {
         var player = Minecraft.getInstance().player;
@@ -782,7 +765,6 @@ public final class WebPages {
         drainClosing(now);
         GUARD.prune();
         if (MCEF && McefRuntime.ready()) {
-            CefHooks.maybeResync();
             BrowserGuard.MemLimits limits = HelperWatchdog.start(WebPages::onSample);
             if (limits != null) {
                 OmoLife.LOG.info("browser memory guard: limits {}", limits.describe());

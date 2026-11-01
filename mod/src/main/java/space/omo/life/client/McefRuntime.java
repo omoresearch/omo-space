@@ -57,7 +57,6 @@ final class McefRuntime {
             }
             api = readyApi;
             status.accept("");
-            CefHooks.started();
             onReady.run();
         }));
     }

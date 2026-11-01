@@ -1,23 +1,10 @@
 package space.omo.life.client;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
-import net.minecraft.client.Minecraft;
 import org.cef.CefClient;
 import org.cef.CefSettings;
 import org.cef.browser.CefBrowser;
@@ -25,14 +12,10 @@ import org.cef.browser.CefFrame;
 import org.cef.handler.CefDisplayHandler;
 import org.cef.handler.CefLoadHandler;
 import org.cef.network.CefRequest;
-import org.cef.network.CefCookie;
-import org.cef.network.CefCookieManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**
- * JCEF handlers MCEF Modern does not install, and the Firefox cookie import.
+ * JCEF handlers MCEF Modern does not install.
  * Like {@link McefRuntime}, only loaded when MCEF is present.
  *
  * <p><b>New tabs.</b> JCEF's native OnBeforePopup cancels every popup of an
@@ -42,22 +25,9 @@ import org.slf4j.LoggerFactory;
  * message with a private marker; the display handler swallows it and hands
  * the URL to the page's owner, which opens it as a tab. window.open returns
  * null, as when a popup blocker is active.
- *
- * <p><b>Cookies (opt-in).</b> With {@code -Domo.firefoxCookies=true} or
- * {@code OMO_FIREFOX_COOKIES=1}: on Chromium start, and whenever Firefox's cookie file
- * changes afterwards (checked once a minute; only cookies Firefox changed are
- * re-set), the user's Firefox cookies are copied in, so sites are
- * logged in like in Firefox. One way only (Firefox is the source); nothing is
- * written back to Firefox, and a cookie Firefox later deletes stays here until
- * it expires. Container and partitioned (third-party) cookies are skipped.
- * Off by default: any page a wall shows (including one another player pinned)
- * would browse with those logins. A specific profile directory with
- * {@code OMO_FIREFOX_PROFILE}.
  */
 final class CefHooks {
 
-    /** Same logger name as OmoLife.LOG, without loading the mod's block registry (testable standalone). */
-    private static final Logger LOG = LoggerFactory.getLogger("Omo Space");
 
     private static final class Hooked {
         final Consumer<String> title;
@@ -274,189 +244,5 @@ final class CefHooks {
         @Override
         public void onLoadError(CefBrowser browser, CefFrame frame, ErrorCode code, String text, String url) {
         }
-    }
-
-    // -- Firefox cookies --------------------------------------------------------------------
-
-    private static final long RESYNC_CHECK_MS = 60_000;
-    /**
-     * What Firefox had for each cookie at the last import. A re-import only
-     * sets cookies Firefox changed since then, so a cookie a site has since
-     * rotated inside the game is not overwritten with Firefox's older copy.
-     */
-    private static final Map<String, String> LAST = new ConcurrentHashMap<>();
-    private static final AtomicBoolean IMPORTING = new AtomicBoolean();
-    private static volatile Path profile;
-    private static volatile long importedStamp;
-    private static long lastCheck;
-
-    /** Prints {"profile": dir, "cookies": [[name, value, host, path, expiresMs, secure, httpOnly, createdMs, accessedMs]]}. */
-    private static final String EXPORT = String.join("\n",
-        "import configparser, json, os, shutil, sqlite3, sys, tempfile, time",
-        "home = os.path.expanduser('~')",
-        "roots = [home + '/snap/firefox/common/.mozilla/firefox', home + '/.mozilla/firefox',",
-        "         home + '/.var/app/org.mozilla.firefox/.mozilla/firefox', home + '/.config/mozilla/firefox']",
-        "want = os.environ.get('OMO_FIREFOX_PROFILE', '')",
-        "cands = [want] if want else []",
-        "for r in roots:",
-        "    ini = os.path.join(r, 'profiles.ini')",
-        "    if not os.path.isfile(ini): continue",
-        "    cp = configparser.RawConfigParser(); cp.read(ini)",
-        "    for s in cp.sections():",
-        "        if s.startswith('Install'):",
-        "            p = cp.get(s, 'Default', fallback=None); rel = p is not None and not os.path.isabs(p)",
-        "        elif s.startswith('Profile'):",
-        "            p = cp.get(s, 'Path', fallback=None); rel = cp.get(s, 'IsRelative', fallback='1') == '1'",
-        "        else: continue",
-        "        if p: cands.append(os.path.join(r, p) if rel else p)",
-        "def stamp(d):",
-        "    fs = [os.path.join(d, f) for f in ('cookies.sqlite', 'cookies.sqlite-wal')]",
-        "    return max([os.path.getmtime(f) for f in fs if os.path.exists(f)] or [0])",
-        "cands = [c for c in dict.fromkeys(cands) if os.path.isfile(os.path.join(c, 'cookies.sqlite'))]",
-        "if not cands:",
-        "    print(json.dumps({'error': 'no Firefox profile with cookies found'})); sys.exit(0)",
-        "prof = want if want in cands else max(cands, key=stamp)",
-        "tmp = tempfile.mkdtemp(prefix='omo-ffcookies-')",
-        "try:",
-        "    os.chmod(tmp, 0o700)",
-        "    for f in ('cookies.sqlite', 'cookies.sqlite-wal'):",
-        "        if os.path.exists(os.path.join(prof, f)): shutil.copyfile(os.path.join(prof, f), os.path.join(tmp, f))",
-        "    db = sqlite3.connect(os.path.join(tmp, 'cookies.sqlite'))",
-        "    now = time.time(); out = []",
-        "    for n, v, h, p, e, s, ho, c, a in db.execute(\"select name, value, host, path, expiry, isSecure, isHttpOnly,\"",
-        "            \" creationTime, lastAccessed from moz_cookies where originAttributes = ''\"):",
-        "        e = e / 1000.0 if e > 1e11 else float(e)",
-        "        if not h or e < now: continue",
-        "        out.append([n, v, h, p or '/', int(e * 1000), bool(s), bool(ho), int(c // 1000), int(a // 1000)])",
-        "    db.close()",
-        "finally:",
-        "    shutil.rmtree(tmp, ignore_errors=True)",
-        "print(json.dumps({'profile': prof, 'cookies': out}))");
-
-    /** Opt-in: {@code -Domo.firefoxCookies=true} or {@code OMO_FIREFOX_COOKIES=1}. */
-    private static boolean cookiesWanted() {
-        String env = System.getenv("OMO_FIREFOX_COOKIES");
-        return Boolean.parseBoolean(System.getProperty("omo.firefoxCookies",
-            env == null ? "false" : String.valueOf("1".equals(env) || "true".equalsIgnoreCase(env))));
-    }
-
-    /** Chromium is up: import once, then reload the pages that opened without the cookies. */
-    static void started() {
-        if (cookiesWanted()) {
-            importAsync(true);
-        }
-    }
-
-    /** From the client tick: re-import when Firefox's cookie file changed since the last import. */
-    static void maybeResync() {
-        long now = System.currentTimeMillis();
-        if (now - lastCheck < RESYNC_CHECK_MS || profile == null || IMPORTING.get()) {
-            return;
-        }
-        lastCheck = now;
-        if (stamp(profile) > importedStamp) {
-            importAsync(false);
-        }
-    }
-
-    private static long stamp(Path dir) {
-        long t = 0;
-        for (String f : new String[]{"cookies.sqlite", "cookies.sqlite-wal"}) {
-            try {
-                t = Math.max(t, Files.getLastModifiedTime(dir.resolve(f)).toMillis());
-            } catch (IOException ignored) {
-                // no WAL right now
-            }
-        }
-        return t;
-    }
-
-    private static void importAsync(boolean reloadAfter) {
-        if (!IMPORTING.compareAndSet(false, true)) {
-            return;
-        }
-        Thread t = new Thread(() -> {
-            try {
-                int n = importNow();
-                if (reloadAfter && n > 0) {
-                    Minecraft.getInstance().execute(WebPages::reloadAll);
-                }
-            } catch (Exception e) {
-                LOG.warn("Firefox cookie import failed: {}", e.toString());
-            } finally {
-                IMPORTING.set(false);
-            }
-        }, "omo-firefox-cookies");
-        t.setDaemon(true);
-        t.start();
-    }
-
-    /** Runs the exporter and hands each cookie to Chromium. Never logs cookie names or values. */
-    private static int importNow() throws IOException, InterruptedException {
-        String python = Files.isExecutable(Path.of("/usr/bin/python3")) ? "/usr/bin/python3" : "python3";
-        Process proc = new ProcessBuilder(python, "-c", EXPORT)
-            .redirectError(ProcessBuilder.Redirect.DISCARD)
-            .start();
-        String out;
-        try (InputStream in = proc.getInputStream()) {
-            out = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        }
-        if (!proc.waitFor(30, TimeUnit.SECONDS)) {
-            proc.destroyForcibly();
-            throw new IOException("exporter timed out");
-        }
-        if (proc.exitValue() != 0 || out.isBlank()) {
-            throw new IOException("exporter exited " + proc.exitValue());
-        }
-        JsonObject result = JsonParser.parseString(out.trim()).getAsJsonObject();
-        if (result.has("error")) {
-            LOG.info("Firefox cookies not imported: {}", result.get("error").getAsString());
-            return 0;
-        }
-        Path prof = Path.of(result.get("profile").getAsString());
-        long stampBefore = stamp(prof);
-        CefCookieManager manager = CefCookieManager.getGlobalManager();
-        if (manager == null) {
-            throw new IOException("no Chromium cookie manager");
-        }
-        JsonArray cookies = result.getAsJsonArray("cookies");
-        boolean first = LAST.isEmpty();
-        int ok = 0;
-        int changed = 0;
-        for (JsonElement el : cookies) {
-            JsonArray c = el.getAsJsonArray();
-            String key = c.get(0).getAsString() + '\0' + c.get(2).getAsString() + '\0' + c.get(3).getAsString();
-            String seen = c.get(1).getAsString() + '\0' + c.get(4).getAsLong();
-            if (seen.equals(LAST.put(key, seen))) {
-                continue;                       // unchanged in Firefox since the last import
-            }
-            changed++;
-            String host = c.get(2).getAsString();
-            boolean domainCookie = host.startsWith(".");
-            String bare = domainCookie ? host.substring(1) : host;
-            String path = c.get(3).getAsString();
-            boolean secure = c.get(5).getAsBoolean();
-            CefCookie cookie = new CefCookie(c.get(0).getAsString(), c.get(1).getAsString(),
-                domainCookie ? host : "", path, secure, c.get(6).getAsBoolean(),
-                new Date(c.get(7).getAsLong()), new Date(c.get(8).getAsLong()),
-                true, new Date(c.get(4).getAsLong()));
-            String url = (secure || !bare.equals("localhost") ? "https://" : "http://") + bare
-                + (path.startsWith("/") ? path : "/" + path);
-            try {
-                if (manager.setCookie(url, cookie)) {
-                    ok++;
-                }
-            } catch (RuntimeException ignored) {
-                // a cookie Chromium will not take; the rest still go in
-            }
-        }
-        profile = prof;
-        importedStamp = stampBefore;
-        if (first) {
-            LOG.info("Firefox cookies: {} of {} imported from {}", ok, cookies.size(), prof);
-        } else if (changed > 0) {
-            LOG.info("Firefox cookies: {} changed in Firefox, {} updated", changed, ok);
-        }
-        return ok;
     }
 }

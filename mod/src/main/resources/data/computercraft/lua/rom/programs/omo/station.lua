@@ -214,29 +214,33 @@ local function setToast(s, msg, secs)
   drawStatus(s)
 end
 
--- The Omo wing, as 2x3 teletext sub-pixels (CC characters 128-159).
-local WING = {
-  "......................###.",
-  "..................#######.",
-  "..##############.#######..",
-  "....############.######...",
-  ".................#####....",
-  ".....###########.####.....",
-  ".......#########.###......",
-  "..................##......",
-  ".........#######.##.......",
-  "...........#####.#........",
-  "..........................",
-  "..........................",
+-- The Omo mark (omo.sh): a double-framed box whose right side breaks apart,
+-- its pieces drifting free. 2x3 teletext sub-pixels (CC characters 128-159).
+local MARK = {
+  "#########.##..............",
+  "#............##....##....#",
+  "#.#######........#........",
+  "#.#..............#....#...",
+  "#.#.......................",
+  "#.#.............#..#......",
+  "#.#....##.....#.#..#....#.",
+  "#.#....##.....#.#.........",
+  "#.#.......................",
+  "#.#...........#.#....##...",
+  "#.#...........#.#.........",
+  "#.#...........#.#.........",
+  "#.#############.#.........",
+  "#...............#.........",
+  "#################.........",
 }
 
-local function drawWing(s, x, y, fg, bg)
+local function drawMark(s, x, y, fg, bg)
   local function px(row, col, r, c)
-    return WING[row * 3 + r]:sub(col * 2 + c, col * 2 + c) == "#"
+    return MARK[row * 3 + r]:sub(col * 2 + c, col * 2 + c) == "#"
   end
-  for row = 0, #WING / 3 - 1 do
+  for row = 0, #MARK / 3 - 1 do
     local t, f, b = "", "", ""
-    for col = 0, #WING[1] / 2 - 1 do
+    for col = 0, #MARK[1] / 2 - 1 do
       local bits = 0
       for _, p in ipairs({ { 1, 1, 1 }, { 1, 2, 2 }, { 2, 1, 4 }, { 2, 2, 8 }, { 3, 1, 16 } }) do
         if px(row, col, p[1], p[2]) then bits = bits + p[3] end
@@ -279,7 +283,7 @@ local SPLASH = {
                    { "Revive one from the panel above to carry on.", C.dim } },
 }
 
--- The splash: a centred Omo Space title card (the wing, the name, who this
+-- The splash: a centred Omo Space title card (the mark, the name, who this
 -- station is), the state in a soft pill, and the keys along the bottom.
 local function centre(s, y, text, fg)
   put(s, math.max(1, math.floor((s.w - #text) / 2) + 1), y, text, fg)
@@ -342,16 +346,18 @@ local function splash(s)
   s.dev.blit(string.char(131):rep(s.w), accent:rep(s.w), C.bg:rep(s.w))
 
   local keys = s.h >= 16
-  local block = 4 + 1 + 1 + 1 + 1 + 2 + 1 + #lines    -- wing, title, kind, name, rule, pill, messages
+  local tight = s.h < 22                              -- computer-sized: drop two spacer rows
+  local gap = tight and 0 or 1
+  local block = 5 + gap + 1 + 1 + 1 + gap + 1 + 2 + 1 + #lines   -- mark, title, kind, name, rule, pill, messages
   local y = math.max(3, math.floor((s.h - block - (keys and 3 or 0)) / 2) + 2)
 
-  drawWing(s, math.floor((s.w - 13) / 2) + 1, y, accent, C.bg)
-  y = y + 4
+  drawMark(s, math.floor((s.w - 13) / 2) + 1, y, accent, C.bg)
+  y = y + 5 + gap
   centre(s, y, "O M O   S P A C E", C.gold)
   centre(s, y + 1, hermes and "Hermes Computer" or "Terminal", C.dim)
   centre(s, y + 2, name, C.bright)
-  rule(s, y + 4, math.min(34, s.w - 8), C.dim)
-  y = y + 6
+  rule(s, y + 3 + gap, math.min(34, s.w - 8), C.dim)
+  y = y + 5 + gap
 
   -- the state as a pill: coloured dot, label
   local pill = " \7 " .. mood[2] .. " "

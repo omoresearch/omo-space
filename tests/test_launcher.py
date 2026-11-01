@@ -756,7 +756,7 @@ class Link(unittest.TestCase):
         (game / "config").mkdir()
         (game / "config/omolife.properties").write_text("showAllBlocks=true\nbridgePort=1\n")
         with mock.patch.object(S, "PORT", 18790):
-            S.link(["--game-dir", str(game)])
+            S.link_instances(["--game-dir", str(game)])
         self.assertEqual(S.cct_rule_state((game / "config/computercraft-server.toml").read_text(), 18790), "ok")
         props = (game / "config/omolife.properties").read_text()
         self.assertIn("showAllBlocks=true\n", props)            # other settings stay
@@ -764,14 +764,14 @@ class Link(unittest.TestCase):
         self.assertNotIn("bridgePort=1\n", props)
         self.assertNotIn("bridgeData=", props)                  # the default data folder needs no entry
         with mock.patch.object(S, "OMO", self.base / "elsewhere"):
-            S.link(["--game-dir", str(game)])
+            S.link_instances(["--game-dir", str(game)])
         self.assertIn(f"bridgeData={self.base / 'elsewhere'}\n", (game / "config/omolife.properties").read_text())
         for f in (game / "config").iterdir():                   # never the token
             self.assertNotIn("token", f.read_text().lower())
 
     def test_prism_instance_folder_resolves_to_its_minecraft_dir(self):
         game = self.instance("prism/instances/Pack/minecraft")
-        S.link([f"--game-dir={game.parent}"])
+        S.link_instances([f"--game-dir={game.parent}"])
         self.assertTrue((game / "config/computercraft-server.toml").is_file())
         self.assertFalse((game.parent / "config").exists())
 
@@ -783,7 +783,7 @@ class Link(unittest.TestCase):
                  (self.base / "missing", "*")]
         with mock.patch.object(S, "store_instance_roots", return_value=roots):
             self.assertEqual(S.store_instances(), [with_mod, modrinth])
-            S.link([])
+            S.link_instances([])
         self.assertTrue((with_mod / "config/computercraft-server.toml").is_file())
         self.assertTrue((modrinth / "config/omolife.properties").is_file())
         self.assertFalse((without / "config").exists())
@@ -791,10 +791,10 @@ class Link(unittest.TestCase):
     def test_nothing_found_says_how(self):
         with mock.patch.object(S, "store_instance_roots", return_value=[]):
             with self.assertRaises(SystemExit) as e:
-                S.link([])
+                S.link_instances([])
         self.assertIn("--game-dir", str(e.exception))
         with self.assertRaises(SystemExit):
-            S.link(["--bogus"])
+            S.link_instances(["--bogus"])
 
     def test_roots_cover_the_three_launchers(self):
         roots = " ".join(str(r) for r, _ in S.store_instance_roots())

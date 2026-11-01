@@ -918,7 +918,7 @@ def link_game_dir(game_dir):
     return game
 
 
-def link(argv=()):
+def link_instances(argv=()):
     """omo_setup.py link [--game-dir DIR ...]: without --game-dir, every
     CurseForge / Modrinth App / Prism instance that has the Omo Space mod."""
     dirs, args = [], list(argv)
@@ -1869,13 +1869,13 @@ def play(show_prism=False):
 
 
 COMMANDS = {"status": status, "setup": setup, "repair": repair, "play": play, "services": services,
-            "signin": signin, "signout": signout, "fix-inotify": fix_inotify, "link": link}
+            "signin": signin, "signout": signout, "fix-inotify": fix_inotify, "link": link_instances}
 
 if __name__ == "__main__":
     op = sys.argv[1] if len(sys.argv) > 1 else "status"
     if op not in COMMANDS:
         sys.exit(f"usage: {Path(sys.argv[0]).name} {{{'|'.join(COMMANDS)}}} [--show] [--game-dir DIR]")
     if op == "link":
-        link(sys.argv[2:])
+        link_instances(sys.argv[2:])
     else:
         COMMANDS[op](*([True] if op == "play" and "--show" in sys.argv else []))

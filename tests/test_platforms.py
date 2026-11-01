@@ -128,7 +128,7 @@ class DataDirs(unittest.TestCase):
         self.assertTrue(own.endswith("bin/PrismLauncher.AppImage"))
 
     def test_mod_reads_the_same_dirs(self):
-        """BridgeLink.dataDir() must name the same folders as default_data_dir()."""
+        """BridgeLink.defaultDataDir() must name the same folders as default_data_dir()."""
         src = (REPO / "mod/src/main/java/space/omo/life/station/BridgeLink.java").read_text()
         self.assertIn('Path.of(home, "Library", "Application Support", "OmoResearch")', src)
         self.assertIn('System.getenv("LOCALAPPDATA")', src)
@@ -138,11 +138,11 @@ class DataDirs(unittest.TestCase):
         if not Path(java).exists():
             self.skipTest("no java to run the mod's dataDir()")
         # Run the real method body (copied from the source, not retyped) under each os.name.
-        body = src[src.index("public static Path dataDir()"):]
+        body = src[src.index("public static Path defaultDataDir()"):]
         body = body[:body.index("\n    }\n") + 6]
         prog = ROOT / "D.java"
         prog.write_text("import java.nio.file.Path;\npublic class D {\n" + body.replace("public static", "static")
-                        + "\n public static void main(String[] a) { System.out.println(dataDir()); }\n}\n")
+                        + "\n public static void main(String[] a) { System.out.println(defaultDataDir()); }\n}\n")
         for osname, want in (("Mac OS X", "Library/Application Support/OmoResearch"),
                              ("Windows 11", "AppData/Local/OmoResearch"), ("Linux", ".local/share/omo")):
             out = subprocess.run([java, f"-Dos.name={osname}", f"-Duser.home={ROOT}/jh", str(prog)],

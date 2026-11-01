@@ -71,12 +71,17 @@ public final class BridgeLink {
         return "ws://" + HOST + ":" + port() + "/ws";
     }
 
+    /** {@code -Domo.data}, else {@code bridgeData} in config/omolife.properties, else {@link #defaultDataDir()}. */
     public static Path dataDir() {
         String prop = OmoConfig.value(System.getProperty("omo.data"), OmoConfig.get(), "bridgeData");
         if (prop != null) {
             return Path.of(prop);
         }
-        // Must match launcher/omo_setup.py default_data_dir().
+        return defaultDataDir();
+    }
+
+    /** The per-user data folder. Must match launcher/omo_setup.py default_data_dir(). */
+    public static Path defaultDataDir() {
         String os = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT);
         String home = System.getProperty("user.home");
         if (os.startsWith("mac")) {
@@ -89,6 +94,7 @@ public final class BridgeLink {
         }
         return Path.of(home, ".local", "share", "omo");
     }
+
 
     /** The bridge token, or null when the bridge has never run on this host. */
     public static String token() {

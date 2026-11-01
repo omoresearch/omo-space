@@ -1405,6 +1405,150 @@ def fuse_headroom():
     return True
 
 
+# Linux caps inotify instances per user (fs.inotify.max_user_instances, 128 on
+# Ubuntu/Debian). Every editor, terminal UI, Electron app and `tail -f` holds
+# some, and a busy desktop uses them all up. Minecraft then dies at start: CC:
+# Tweaked can't watch its config ("User limit of inotify instances reached")
+# and the launcher only sees "stopped before its window opened".
+# Measured on a real launch: the game holds 2, MCEF 1, Prism 6.
+INOTIFY_NEED_GAME = int(os.environ.get("OMO_INOTIFY_NEED", "4"))     # game + MCEF + one spare
+INOTIFY_NEED_PRISM = 6
+INOTIFY_TARGET = 1024
+INOTIFY_CONF = "/etc/sysctl.d/60-omo-inotify.conf"
+INOTIFY_FIX = (f"echo fs.inotify.max_user_instances={INOTIFY_TARGET} | sudo tee {INOTIFY_CONF}"
+               " && sudo sysctl --system")
+INOTIFY_CRASH = "User limit of inotify instances reached"
+
+
+def inotify_usage(proc=Path("/proc")):
+    """(limit, used, {command: count}) for this user's inotify instances, or
+    None where Linux's /proc isn't there to ask."""
+    try:
+        limit = int((proc / "sys/fs/inotify/max_user_instances").read_text())
+    except (OSError, ValueError):
+        return None
+    uid, used, holders = os.getuid(), 0, {}
+
+    def is_inotify(fd):
+        try:
+            return os.readlink(fd) == "anon_inode:inotify"
+        except OSError:                                   # closed while we looked
+            return False
+
+    for d in proc.iterdir():
+        if not d.name.isdigit():
+            continue
+        try:
+            if d.stat().st_uid != uid:
+                continue
+            n = sum(1 for fd in (d / "fd").iterdir() if is_inotify(fd))
+            name = (d / "comm").read_text().strip() if n else ""
+        except OSError:                                   # gone, or not ours to read
+            continue
+        if n:
+            used += n
+            holders[name] = holders.get(name, 0) + n
+    return limit, used, holders
+
+
+def inotify_need(prism, holders):
+    """Free instances a launch needs. A Prism that is already open has spent
+    its share, and `prismlauncher -l` hands the launch to it."""
+    prism_open = any("prismlauncher" in name.lower() for name in holders)
+    return INOTIFY_NEED_GAME + (INOTIFY_NEED_PRISM if prism and not prism_open else 0)
+
+
+def raise_inotify_limit(limit):
+    """Ask for the administrator password (polkit's own dialog) and raise the
+    limit for good. True once the new limit is live. Only tried from a desktop
+    session: pkexec has nobody to ask over SSH or in a service."""
+    target = max(INOTIFY_TARGET, limit * 2)
+    pkexec = shutil.which("pkexec")
+    if (not pkexec or os.environ.get("OMO_NO_PKEXEC")
+            or not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))):
+        return False
+    say(f"asking for your password to raise the file-watcher limit to {target} (once; kept across reboots)")
+    script = (f"printf 'fs.inotify.max_user_instances={target}\\n' > {INOTIFY_CONF}"
+              f" && sysctl -q -p {INOTIFY_CONF}")
+    try:
+        subprocess.run([pkexec, "/bin/sh", "-c", script], timeout=180,
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    usage = inotify_usage()
+    if usage and usage[0] >= target:
+        say(f"file-watcher limit is now {usage[0]}")
+        return True
+    say("the file-watcher limit was not changed (password dialog cancelled?)")
+    return False
+
+
+def inotify_headroom(prism=True, usage=None, fix=raise_inotify_limit):
+    """True when enough inotify instances are free for Minecraft to start.
+    When they aren't, offer to raise the limit once (`fix`), then say why
+    and give the one-line command."""
+    usage = usage or inotify_usage()
+    if not usage:
+        return True
+    limit, used, holders = usage
+    need = inotify_need(prism, holders)
+    if limit - used >= need:
+        return True
+    top = ", ".join(f"{n} {name}" for name, n in sorted(holders.items(), key=lambda kv: -kv[1])[:4])
+    say(f"WARNING: {used} of the {limit} inotify instances Linux allows you are in use ({top}).")
+    say(f"  Minecraft needs {need} free to start.")
+    if fix and fix(limit):
+        return True
+    say(f"  Raise the limit once (kept across reboots):  {INOTIFY_FIX}")
+    say("  Or close some apps that watch files (editors, terminal UIs, chat apps) and press Play again.")
+    return False
+
+
+def fix_inotify():
+    """`omo_setup.py fix-inotify`: raise the limit now, before it bites."""
+    usage = inotify_usage()
+    if not usage:
+        raise SystemExit("nothing to do: this system has no inotify limit to raise")
+    limit, used, _ = usage
+    if limit >= INOTIFY_TARGET:
+        say(f"file-watcher limit is {limit} ({used} in use); nothing to do")
+        return
+    if not raise_inotify_limit(limit):
+        raise SystemExit(f"could not raise it from here. Run once:  {INOTIFY_FIX}")
+
+
+CRASH_HINTS = (
+    (INOTIFY_CRASH, "Linux's per-user limit on file watchers (inotify instances) is used up. "
+                    f"Raise it once with:  {INOTIFY_FIX}"),
+)
+
+
+def crash_hint(since, game=None):
+    """A plain-words cause for a game that died while starting: known
+    signatures in the crash report or log written since `since`, else the
+    crash report's path. Empty when there is nothing to go on."""
+    game = Path(game or GAME)
+    reports = sorted((p for p in (game / "crash-reports").glob("crash-*.txt") if fresh(p, since)),
+                     key=lambda p: p.stat().st_mtime, reverse=True)
+    log = game / "logs/latest.log"
+    for path in [*reports, *([log] if fresh(log, since) else [])]:
+        try:
+            text = path.read_text(errors="replace")
+        except OSError:
+            continue
+        for needle, hint in CRASH_HINTS:
+            if needle in text:
+                return hint
+    return f"Crash report: {reports[0]}" if reports else ""
+
+
+def fresh(path, since):
+    try:
+        return path.stat().st_mtime >= since - 1
+    except OSError:
+        return False
+
+
 # --------------------------------------------------------------------------- commands
 def installed():
     """The game runtime is complete for the current manifest (cheap checks)."""
@@ -1567,6 +1711,9 @@ def play(show_prism=False):
             say(f"bridge: {problem}; starting services")
             ensure_services(ensure_tmux())                # raises with the reason if still not ready
         migrate()                                         # worlds that were busy at setup time
+        if OS == "linux" and not inotify_headroom(prism=not client_id()):
+            raise SystemExit("cannot play: Linux's file-watcher limit (inotify instances) is used up. "
+                             f"Raise it once with:  {INOTIFY_FIX}")
         env = game_env()
         if client_id():
             try:
@@ -1600,7 +1747,7 @@ def play(show_prism=False):
 
 
 COMMANDS = {"status": status, "setup": setup, "repair": repair, "play": play, "services": services,
-            "signin": signin, "signout": signout}
+            "signin": signin, "signout": signout, "fix-inotify": fix_inotify}
 
 if __name__ == "__main__":
     op = sys.argv[1] if len(sys.argv) > 1 else "status"

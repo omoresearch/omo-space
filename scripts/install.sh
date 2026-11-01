@@ -152,6 +152,29 @@ VERSION="$(cat "$HERE/VERSION" 2>/dev/null || echo dev)"
 banner "Your AI workspace, built in Minecraft · $VERSION"
 ok "$([ "$OS" = Darwin ] && echo macOS || echo Linux) $(uname -m) · $("$PY" -c 'import platform; print("Python", platform.python_version())')"
 
+# Linux allows 128 inotify instances per user on Ubuntu/Debian. Busy desktops
+# (editors, terminal UIs, chat apps) use them all, and Minecraft then dies at
+# start ("User limit of inotify instances reached"). Offer to raise it once.
+# Play asks again (polkit password dialog) if it is still too low later.
+INOTIFY_FIX='echo fs.inotify.max_user_instances=1024 | sudo tee /etc/sysctl.d/60-omo-inotify.conf >/dev/null && sudo sysctl -q --system'
+if [ "$OS" = Linux ]; then
+  inotify_max="$(cat /proc/sys/fs/inotify/max_user_instances 2>/dev/null || echo 1024)"
+  if [ "$inotify_max" -lt 512 ] 2>/dev/null; then
+    warn "Linux lets you watch files from only $inotify_max places at once (fs.inotify.max_user_instances)."
+    note "With many apps open, Minecraft can fail to start. 1024 is safe and survives reboots."
+    answer=n
+    if [ -t 0 ] && command -v sudo >/dev/null; then
+      printf '    Raise it to 1024 now with sudo? [Y/n] '; read -r answer || answer=n
+      case "$answer" in ""|[Yy]*) answer=y ;; esac
+    fi
+    if [ "$answer" = y ] && sh -c "$INOTIFY_FIX"; then
+      ok "File-watcher limit raised to $(cat /proc/sys/fs/inotify/max_user_instances)"
+    else
+      note "To do it later:  $INOTIFY_FIX"
+    fi
+  fi
+fi
+
 say "Installing the app into $(tilde "$APP")"
 mkdir -p "$APP.new"
 cp -a "$HERE/." "$APP.new/"

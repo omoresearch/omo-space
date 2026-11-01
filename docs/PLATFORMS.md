@@ -59,6 +59,29 @@ The mod reads the token from the same folder the launcher writes it to
 (`BridgeLink.dataDir()` and `omo_setup.default_data_dir()`). A test runs the
 mod's real method under each OS name and checks that both give the same path.
 
+## Linux: "Minecraft stopped before its window opened"
+
+If the crash report says `User limit of inotify instances reached`, your
+desktop has used up Linux's per-user limit on file watchers
+(`fs.inotify.max_user_instances`, 128 on Ubuntu and Debian). Editors, terminal
+UIs, Electron apps and `tail -f` each hold some, and ComputerCraft then can't
+watch its config, so the game stops while it starts. Raise the limit once. The
+setting survives reboots:
+
+    echo fs.inotify.max_user_instances=1024 | sudo tee /etc/sysctl.d/60-omo-inotify.conf && sudo sysctl --system
+
+Omo Space does this for you where it can:
+
+- `install.sh` offers to raise it when the limit is below 512.
+- Before each launch, Play counts the free watchers (the game needs 4, plus 6
+  for Prism unless Prism is already open). If too few are left, it asks for
+  your password in the system's own dialog (polkit) and raises the limit to
+  1024. Cancel the dialog and Play stops with the command above instead of
+  starting a game that would crash. Set `OMO_NO_PKEXEC=1` to never be asked.
+- `omo_setup.py fix-inotify` raises it ahead of time.
+- If the game still dies at start, the launcher reads the fresh crash report
+  and names the cause.
+
 ## macOS
 
 Install these first:

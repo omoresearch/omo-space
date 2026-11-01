@@ -61,6 +61,11 @@ the in-use view a focus-in so it takes the size back.
 
 Plain HTTP on the same port: /health, /board (+ /board.json, a read-only live
 status page for web monitors), and token-guarded /ticket and /api/<op>.
+
+Hermes feed (bridge/hermesfeed.py): when the omo-space Hermes plugin is
+installed, /board.json also says what every Hermes agent is doing (`hermes`,
+and `activity` on the tab it runs in), and an agent's `notify` events reach
+every connected ui client once, as a toast.
 """
 import asyncio
 import base64
@@ -89,6 +94,7 @@ from websockets.asyncio.server import serve
 from websockets.datastructures import Headers
 from websockets.http11 import Response
 
+import hermesfeed
 import termcore
 
 VERSION = "1.2.0"
@@ -130,6 +136,9 @@ IS_WSL = bool(os.environ.get("WSL_DISTRO_NAME")) or "microsoft" in os.uname().re
 URL_OPENER = os.environ.get("OMO_OPEN") or (
     "open" if IS_MAC else (shutil.which("wslview") or "explorer.exe") if IS_WSL else "xdg-open")
 STARTED = int(time.time())
+# What Hermes agents are doing, from the omo-space Hermes plugin's feed (read-only).
+FEED = hermesfeed.FeedReader(HERMES_ROOT, started=time.time())
+FEED_EVERY = float(os.environ.get("OMO_FEED_EVERY", "1"))
 
 # Pause before a typed Enter so TUIs read it as its own keypress (see type_in).
 ENTER_GAP = 0.04
@@ -1279,6 +1288,22 @@ async def remember_loop():
             log(f"remember error: {exc!r}")
 
 
+async def feed_loop():
+    """Forward each new Hermes `notify` event once, as a toast to every ui client."""
+    while True:
+        await asyncio.sleep(FEED_EVERY)
+        try:
+            events = await asyncio.to_thread(FEED.new_notifies)
+        except Exception as exc:        # a bad feed must never take the bridge down
+            log(f"hermes feed error: {exc!r}")
+            continue
+        for ev in events:
+            ui = [c for c in CONNS if c.role == "ui" and not c.closed]
+            log(f"hermes notify from {ev['profile']} to {len(ui)} ui client(s)")
+            for c in ui:
+                await c.toast(hermesfeed.toast_text(ev))
+
+
 async def sleep_loop():
     if SLEEP_AFTER <= 0:
         log("auto-sleep off (OMO_SLEEP_AFTER=0)")
@@ -2053,18 +2078,42 @@ async def handler(ws):
 
 
 # --------------------------------------------------------------------------- board
+def feed_snapshot():
+    try:
+        return FEED.snapshot()
+    except Exception as exc:
+        log(f"hermes feed error: {exc!r}")
+        return {"sessions": [], "events": [], "tabs": {}}
+
+
+def board_tab(w, t, acts):
+    tab = {"name": t["name"], "kind": t["kind"], "state": t["state"], "busy": t["busy"],
+           "command": t["command"], "sleeping": t.get("sleeping", False)}
+    if (w["id"], t["id"]) in acts:
+        tab["activity"] = acts[(w["id"], t["id"])]
+    return tab
+
+
 async def board():
-    """Read-only status for the /board page. Names and states only: no ids,
-    no tokens, nothing that grants control."""
+    """Read-only status for the /board page. Names and states only: no tokens,
+    nothing that grants control. A Hermes presence names the workspace its
+    agent runs in; one with no workspace here is `elsewhere` (a gateway, cron,
+    a plain terminal, a subagent)."""
     items = await asyncio.to_thread(WS.list)
+    feed = await asyncio.to_thread(feed_snapshot)
+    acts = feed["tabs"]
+    names = {(w["id"], t["id"]): w["name"] for w in items for t in w["tabs"]}
+    for s in feed["sessions"]:
+        key = (s["omo"] or {}).get("workspace"), (s["omo"] or {}).get("tab")
+        s["workspace"] = names.get(key)
+        s["elsewhere"] = key not in names
     return {"version": VERSION, "tmux": await asyncio.to_thread(TM.alive), "uptime": int(time.time()) - STARTED,
             "screens": sum(1 for c in CONNS if c.role == "screen" and c.view),
             "workspaces": [{"name": w["name"], "kind": w["kind"], "state": w["state"],
                             "profile": w["profile"] or "default",
-                            "tabs": [{"name": t["name"], "kind": t["kind"], "state": t["state"],
-                                      "busy": t["busy"], "command": t["command"],
-                                      "sleeping": t.get("sleeping", False)} for t in w["tabs"]]}
-                           for w in sorted(items, key=lambda w: (w["state"] != "live", w["name"].lower()))]}
+                            "tabs": [board_tab(w, t, acts) for t in w["tabs"]]}
+                           for w in sorted(items, key=lambda w: (w["state"] != "live", w["name"].lower()))],
+            "hermes": {"sessions": feed["sessions"], "events": feed["events"]}}
 
 
 # --------------------------------------------------------------------------- plain HTTP
@@ -2174,11 +2223,13 @@ async def main():
                      process_request=process_request):
         sleeper = asyncio.create_task(sleep_loop())
         rememberer = asyncio.create_task(remember_loop())
+        feeder = asyncio.create_task(feed_loop())
         try:
             await asyncio.Future()
         finally:
             sleeper.cancel()
             rememberer.cancel()
+            feeder.cancel()
 
 
 if __name__ == "__main__":

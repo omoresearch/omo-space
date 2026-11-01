@@ -53,6 +53,11 @@ class Env:
         os.makedirs(self.data)
         os.makedirs(self.stub)
         os.makedirs(os.path.join(self.hermes_root, "profiles", "omo-dev"))
+        # The omo-space Hermes plugin's feed (format v1), present from the start.
+        self.feed = os.path.join(self.hermes_root, "plugin-data", "omo-space", "feed")
+        os.makedirs(os.path.join(self.feed, "sessions"))
+        with open(os.path.join(self.feed, "omo-feed.json"), "w") as fh:
+            json.dump({"v": 1, "plugin": "omo-space", "profile": "default", "updated": time.time()}, fh)
         self.calls = os.path.join(self.dir, "hermes-calls")
         # A stand-in for the Hermes TUI: its status bar and input line, a
         # clean /exit, "work" to look busy, "bg"/"fg" to own a child process.
@@ -722,6 +727,33 @@ async def stalled_tmux(env, ui):
     check("the screen works again once tmux answers", await ui.screen_has("after-stall", 10) is True)
 
 
+async def hermes_feed(env, ui, herm):
+    """The plugin's feed lights the tab its agent runs in, lists the rest as
+    elsewhere, and a notify event reaches the ui client once as a toast."""
+    now = time.time()
+    tab = herm["tabs"][0]["id"]
+    for sid, omo, platform in (("in-desk", {"workspace": herm["id"], "tab": tab}, "tui"), ("tg", None, "telegram")):
+        with open(os.path.join(env.feed, "sessions", sid + ".json"), "w") as fh:
+            json.dump({"v": 1, "session_id": sid, "profile": "default", "platform": platform, "state": "tool",
+                       "tool": "terminal", "tool_since": now - 3, "turns": 2, "updated": now, "pid": os.getpid(),
+                       "omo": omo}, fh)
+    board = env.http("/board.json")
+    act = next((t.get("activity") for w in board["workspaces"] if w["name"] == "Test Hermes" for t in w["tabs"]
+                if t["name"] == herm["tabs"][0]["name"]), None)
+    check("the board shows what the tab's Hermes is doing", act and act["tool"] == "terminal", str(act))
+    where = {s["session_id"]: s["elsewhere"] for s in board.get("hermes", {}).get("sessions", [])}
+    check("a session outside the world is listed as elsewhere", where == {"in-desk": False, "tg": True}, str(where))
+    with open(os.path.join(env.feed, "events.jsonl"), "a") as fh:
+        for ts, text in ((now - 3600, "from before the bridge"), (time.time(), "tests are green")):
+            fh.write(json.dumps({"v": 1, "ts": ts, "profile": "default", "session_id": "tg", "kind": "notify",
+                                 "text": text}) + "\n")
+    toast = await ui.expect(lambda m: m["t"] == "toast" and m["m"].startswith("default: "), 6)
+    check("a Hermes notify reaches the ui client as a toast", toast and toast["m"] == "default: tests are green",
+          str(toast))
+    again = await ui.expect(lambda m: m["t"] == "toast" and m["m"].startswith("default: "), 2.5)
+    check("each notify is forwarded once, none from before the bridge started", again is None, str(again))
+
+
 async def run(env):
     units()
     env.start_display()
@@ -783,7 +815,8 @@ async def run(env):
 
     # -- Hermes workspace: autorun, profile, sibling tabs -------------------
     await ui.send(t="ws_create", name="Test Hermes", kind="hermes")
-    herm = (await ui.expect(lambda m: m["t"] == "workspace"))["ws"]
+    # By name: a late broadcast about the terminal workspace may still be queued.
+    herm = (await ui.expect(lambda m: m["t"] == "workspace" and m["ws"]["name"] == "Test Hermes"))["ws"]
     await asyncio.sleep(1.5)
     calls = open(env.calls).read() if os.path.exists(env.calls) else ""
     check("Hermes tab autoruns its titled conversation",
@@ -812,6 +845,7 @@ async def run(env):
     await ui.send(t="tab_close", ws=herm["id"], tab=new_tab)
     confirm = await ui.expect(lambda m: m["t"] == "confirm", 4)
     check("closing a busy tab asks first", bool(confirm))
+    await hermes_feed(env, ui, herm)
     await auto_sleep(env)
     await agent_tabs(env, welcome)
 

@@ -657,7 +657,7 @@ window.look-paper button.o-pill.accent { background: #1a1008; border-color: #1a1
 window.look-paper button.o-pill.accent label { color: #f5f0e8; }
 
 /* the plugin catalogue (the veil, glows and motes behind it are drawn by Aura) */
-.o-plugins { background: none; padding: 92px 60px 44px 64px; }
+.o-plugins { background: none; padding: 86px 60px 40px 64px; }
 .o-title.cat { font-size: 66px; }
 window.omo label.o-soon { font-family: "IBM Plex Mono", monospace; font-size: 9.5px; font-weight: 500; letter-spacing: 2.6px;
           color: #f3d7a8; background-color: rgba(232,196,143,0.10); border: 1px solid rgba(232,196,143,0.45);
@@ -678,14 +678,15 @@ window.look-paper button.o-pill.chip.on label { color: #f5f0e8; }
 window.look-paper button.o-pill.chip label { color: #4a3b2f; }
 
 /* cards: quiet glass that wakes up (gold edge, glowing tile, a lift) under the pointer */
-.o-plugin { border: 1px solid rgba(245,240,232,0.08); border-radius: 18px; padding: 18px 20px 18px 18px;
+.o-plugin { border: 1px solid rgba(245,240,232,0.08); border-radius: 18px; padding: 15px 20px 15px 16px;
             background-image: linear-gradient(165deg, rgba(245,240,232,0.06), rgba(245,240,232,0.015) 70%);
             box-shadow: inset 0 1px rgba(255,255,255,0.05), 0 10px 30px rgba(0,0,0,0.22);
             transition: border-color 260ms ease, box-shadow 320ms ease, transform 320ms cubic-bezier(.2,.7,.2,1); }
 .o-plugin:hover { border-color: rgba(232,196,143,0.42); transform: translateY(-3px);
                   box-shadow: inset 0 1px rgba(255,255,255,0.07), 0 0 0 1px rgba(232,196,143,0.10),
                               0 0 34px rgba(232,196,143,0.14), 0 18px 38px rgba(0,0,0,0.34); }
-.o-tile { font-family: "Crimson Text", serif; font-size: 20px; font-weight: 600; color: #1a1008;
+window.omo label.o-tile { color: #2a1c10; }
+.o-tile { font-family: "Crimson Text", serif; font-size: 20px; font-weight: 600;
           border-radius: 11px; background-image: linear-gradient(145deg, #f3dcb3, #c99a5e);
           box-shadow: inset 0 1px rgba(255,255,255,0.45), 0 0 0 rgba(232,196,143,0);
           transition: box-shadow 320ms ease; }
@@ -697,10 +698,14 @@ window.look-paper button.o-pill.chip label { color: #4a3b2f; }
 .o-tile.c-science    { background-image: linear-gradient(145deg, #d8eee9, #7fb0a6); }
 .o-tile.c-streaming  { background-image: linear-gradient(145deg, #e8dcf2, #a08bbd); }
 .o-tile.c-tools      { background-image: linear-gradient(145deg, #eee9df, #aaa08d); }
-.o-card-name { font-family: "Crimson Text", serif; font-size: 20px; font-weight: 600; }
-.o-card-cat { font-family: "IBM Plex Mono", monospace; font-size: 9.5px; letter-spacing: 1.4px;
-              color: rgba(232,196,143,0.75); margin-top: -1px; }
-.o-card-text { font-family: "Crimson Text", serif; font-size: 15px; color: rgba(245,240,232,0.62); }
+/* readable first: bigger serif, steady contrast, no tiny tracking */
+.o-card-name { font-family: "Crimson Text", serif; font-size: 22px; font-weight: 600; color: #fbf7f0; }
+window.omo label.o-card-cat { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; font-weight: 500; letter-spacing: 1.2px;
+              color: rgba(232,196,143,0.88); margin-top: 1px; }
+.o-card-text { font-family: "Crimson Text", serif; font-size: 17px; line-height: 1.12;
+               color: rgba(245,240,232,0.84); }
+.o-cat-side .o-body { font-size: 19px; color: #f5f0e8; text-shadow: none; }
+.o-cat-side .o-note { font-style: normal; font-size: 16.5px; line-height: 1.3; color: rgba(245,240,232,0.74); }
 .o-state { font-family: "IBM Plex Mono", monospace; font-size: 9px; letter-spacing: 1.8px; border-radius: 999px;
            padding: 2px 8px; color: rgba(245,240,232,0.55); border: 1px solid rgba(245,240,232,0.16); }
 .o-state.ready { color: #1a1008; background-color: #e8c48f; border-color: #e8c48f; }
@@ -715,8 +720,11 @@ window.look-paper .o-plugin { border-color: #e2dacd; background-image: none; bac
                               box-shadow: 0 8px 22px rgba(26,16,8,0.06); }
 window.look-paper .o-plugin:hover { border-color: #c99a5e;
                                     box-shadow: 0 0 30px rgba(201,154,94,0.18), 0 14px 30px rgba(26,16,8,0.10); }
-window.look-paper .o-card-text { color: #4a3b2f; }
-window.look-paper .o-card-cat { color: #a87a3e; }
+window.look-paper .o-card-text { color: #3a2c20; }
+window.look-paper .o-card-name { color: #1a1008; }
+window.look-paper .o-card-cat { color: #8a5a22; }
+window.look-paper .o-cat-side .o-body { color: #1a1008; }
+window.look-paper .o-cat-side .o-note { color: #4a3b2f; }
 window.look-paper .o-state { color: #6b5a4a; border-color: #d4cdc0; }
 
 /* open places */
@@ -1998,7 +2006,7 @@ def gui():
             self.catalogue = load_catalogue()
             self.cat_filter = None
             self.cat_grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=3,
-                                        min_children_per_line=3, column_spacing=12, row_spacing=12,
+                                        min_children_per_line=3, column_spacing=12, row_spacing=10,
                                         homogeneous=True, valign=Gtk.Align.START)
             self.cat_grid.set_filter_func(self.cat_visible)
             scroller = Gtk.ScrolledWindow(child=self.cat_grid, hscrollbar_policy=Gtk.PolicyType.NEVER,
@@ -2019,12 +2027,12 @@ def gui():
                                 self.cat_status,
                                 box(True, 0, self.cat_body, margin_top=22),
                                 label("New rooms, agents and worlds for Omo Space, one click to install.",
-                                      "o-note", chars=30, margin_top=8),
+                                      "o-note", chars=26, margin_top=8),
                                 box(True, 0, discord, margin_top=28),
                                 box(True, 0, vexpand=True),
                                 hexpand=False, css=["o-cat-side"])
-            self.cat_side.set_size_request(290, -1)
-            panel = box(False, 56, self.cat_side, box(True, 0, self.cat_chips, scroller, hexpand=True),
+            self.cat_side.set_size_request(262, -1)
+            panel = box(False, 44, self.cat_side, box(True, 0, self.cat_chips, scroller, hexpand=True),
                         css=["o-plugins"])
             self.aura = Aura()
             layered = Gtk.Overlay(child=self.aura)
@@ -2129,14 +2137,14 @@ def gui():
             tile.add_css_class("c-" + re.sub(r"[^a-z]", "", cat.lower())[:12])
             tile.set_size_request(36, 36)
             head = box(True, 0, label(it["name"], "o-card-name", wrap=False, ellipsize=Pango.EllipsizeMode.END),
-                       label(cat.lower(), "o-card-cat", wrap=False),
+                       label(cat.upper(), "o-card-cat", wrap=False),
                        valign=Gtk.Align.CENTER, hexpand=True)
             row = box(False, 12, tile, head)
             if ready:                                   # while everything is "soon", the side says it once
                 row.append(label("INSTALL", "o-state", "ready", wrap=False, valign=Gtk.Align.START))
-            text = label(it.get("tagline", ""), "o-card-text", chars=24, lines=2,
+            text = label(it.get("tagline", ""), "o-card-text", chars=30, lines=2,
                          ellipsize=Pango.EllipsizeMode.END)
-            card = box(True, 12, row, text, css=["o-plugin"])
+            card = box(True, 9, row, text, css=["o-plugin"])
             card.set_tooltip_text(f"{it['name']} by {it.get('author', '?')}")
             card.cat = cat
             card.set_size_request(-1, 118)

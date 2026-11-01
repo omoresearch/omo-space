@@ -2,7 +2,7 @@
   {"id": "microduck", "name": "Microduck", "tagline": "Pollen Robotics' little robot duck, walking on a real robot brain.", "category": "Robots", "author": "Omo Research", "status": "soon"},
   {"id": "glados", "name": "GLaDOS", "tagline": "An original ceiling AI that hangs in your lab and talks back.", "category": "Characters", "author": "Omo Research", "status": "soon"},
   {"id": "rp1", "name": "RP1 Humanoid", "tagline": "RoboParty's open-source humanoid, walking on its own.", "category": "Robots", "author": "Omo Research", "status": "soon"},
-  {"id": "fruit-fly", "name": "Fruit Fly Brain", "tagline": "A whole fruit fly connectome, embodied and alive in your world.", "category": "Science", "author": "Omo Research", "status": "soon"},
+  {"id": "fruit-fly", "name": "Fruit Fly Brain", "tagline": "A whole fruit fly connectome, alive in your world.", "category": "Science", "author": "Omo Research", "status": "soon"},
   {"id": "omo-voice", "name": "Omo Voice", "tagline": "Talk to Omo out loud with push-to-talk.", "category": "Agents", "author": "Omo Research", "status": "soon"},
   {"id": "agent-toast", "name": "Agent Toast", "tagline": "A quiet note in game when Hermes or Claude Code finishes.", "category": "Agents", "author": "Omo Research", "status": "soon"},
   {"id": "teleporter", "name": "Teleporter", "tagline": "Press J to travel to spawn, your bed or your saved places.", "category": "World", "author": "Omo Research", "status": "soon"},

@@ -11,6 +11,7 @@ the game quits).
 Falls back to a terminal menu when there is no display or no GTK.
 """
 import json
+import math
 import os
 import re
 import shutil
@@ -654,12 +655,15 @@ window.look-paper button.o-pill label { color: #1a1008; }
 window.look-paper button.o-pill.accent { background: #1a1008; border-color: #1a1008; }
 window.look-paper button.o-pill.accent label { color: #f5f0e8; }
 
-/* the plugin catalogue */
-.o-plugins { background-color: rgba(10,7,4,0.92); padding: 92px 56px 44px 64px; }
-window.look-paper .o-plugins { background-color: #f5f0e8; }
-.o-title.cat { font-size: 64px; }
-window.omo label.o-soon { font-family: "IBM Plex Mono", monospace; font-size: 10px; font-weight: 500; letter-spacing: 2.5px;
-          color: #1a1008; background-color: #e8c48f; border-radius: 999px; padding: 4px 12px; margin-top: 8px; }
+/* the plugin catalogue (the veil, glows and motes behind it are drawn by Aura) */
+.o-plugins { background: none; padding: 92px 60px 44px 64px; }
+.o-title.cat { font-size: 66px; }
+window.omo label.o-soon { font-family: "IBM Plex Mono", monospace; font-size: 9.5px; font-weight: 500; letter-spacing: 2.6px;
+          color: #f3d7a8; background-color: rgba(232,196,143,0.10); border: 1px solid rgba(232,196,143,0.45);
+          border-radius: 999px; padding: 3px 12px; margin-top: 10px;
+          box-shadow: 0 0 18px rgba(232,196,143,0.18); }
+window.look-paper label.o-soon { color: #8a5a22; background-color: rgba(201,154,94,0.10);
+                                 border-color: rgba(201,154,94,0.55); box-shadow: none; }
 .o-cat-scroll, .o-cat-scroll > viewport { background: transparent; }
 .o-cat-scroll > scrollbar { opacity: 0; transition: opacity 200ms ease; }
 .o-cat-scroll:hover > scrollbar { opacity: 1; }
@@ -672,43 +676,51 @@ window.look-paper button.o-pill.chip.on { background: #1a1008; border-color: #1a
 window.look-paper button.o-pill.chip.on label { color: #f5f0e8; }
 window.look-paper button.o-pill.chip label { color: #4a3b2f; }
 
-/* cards: a soft glass tile, a lift on hover, and a staggered rise when the catalogue opens */
-.o-plugin { border: 1px solid rgba(245,240,232,0.10); border-radius: 16px; padding: 16px 18px 16px 16px;
-            background-image: linear-gradient(160deg, rgba(245,240,232,0.075), rgba(245,240,232,0.025));
-            box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.18);
-            transition: border-color 220ms ease, box-shadow 260ms ease, transform 260ms cubic-bezier(.2,.7,.2,1); }
-.o-plugin:hover { border-color: rgba(232,196,143,0.45); transform: translateY(-3px);
-                  box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 16px 34px rgba(0,0,0,0.32); }
-.o-tile { font-family: "Crimson Text", serif; font-size: 22px; font-weight: 600; color: #1a1008;
-          border-radius: 11px; background-image: linear-gradient(145deg, #f3dcb3, #c99a5e); }
-.o-tile.c-robots     { background-image: linear-gradient(145deg, #dfe7ee, #93a8bb); }
-.o-tile.c-agents     { background-image: linear-gradient(145deg, #f3dcb3, #c99a5e); }
-.o-tile.c-world      { background-image: linear-gradient(145deg, #dbe8cf, #8fab78); }
-.o-tile.c-characters { background-image: linear-gradient(145deg, #f2cdb8, #c47f5d); }
-.o-tile.c-science    { background-image: linear-gradient(145deg, #d4ebe6, #7fb0a6); }
-.o-tile.c-streaming  { background-image: linear-gradient(145deg, #e3d6ef, #a08bbd); }
-.o-tile.c-tools      { background-image: linear-gradient(145deg, #ebe6dc, #aaa08d); }
+/* cards: quiet glass that wakes up (gold edge, glowing tile, a lift) under the pointer */
+.o-plugin { border: 1px solid rgba(245,240,232,0.08); border-radius: 18px; padding: 18px 20px 18px 18px;
+            background-image: linear-gradient(165deg, rgba(245,240,232,0.06), rgba(245,240,232,0.015) 70%);
+            box-shadow: inset 0 1px rgba(255,255,255,0.05), 0 10px 30px rgba(0,0,0,0.22);
+            transition: border-color 260ms ease, box-shadow 320ms ease, transform 320ms cubic-bezier(.2,.7,.2,1); }
+.o-plugin:hover { border-color: rgba(232,196,143,0.42); transform: translateY(-3px);
+                  box-shadow: inset 0 1px rgba(255,255,255,0.07), 0 0 0 1px rgba(232,196,143,0.10),
+                              0 0 34px rgba(232,196,143,0.14), 0 18px 38px rgba(0,0,0,0.34); }
+.o-tile { font-family: "Crimson Text", serif; font-size: 20px; font-weight: 600; color: #1a1008;
+          border-radius: 11px; background-image: linear-gradient(145deg, #f3dcb3, #c99a5e);
+          box-shadow: inset 0 1px rgba(255,255,255,0.45), 0 0 0 rgba(232,196,143,0);
+          transition: box-shadow 320ms ease; }
+.o-plugin:hover .o-tile { box-shadow: inset 0 1px rgba(255,255,255,0.5), 0 0 22px rgba(232,196,143,0.45); }
+.o-tile.c-robots     { background-image: linear-gradient(145deg, #e4ebf1, #93a8bb); }
+.o-tile.c-agents     { background-image: linear-gradient(145deg, #f6e2bd, #c99a5e); }
+.o-tile.c-world      { background-image: linear-gradient(145deg, #e0ecd5, #8fab78); }
+.o-tile.c-characters { background-image: linear-gradient(145deg, #f4d5c2, #c47f5d); }
+.o-tile.c-science    { background-image: linear-gradient(145deg, #d8eee9, #7fb0a6); }
+.o-tile.c-streaming  { background-image: linear-gradient(145deg, #e8dcf2, #a08bbd); }
+.o-tile.c-tools      { background-image: linear-gradient(145deg, #eee9df, #aaa08d); }
 .o-card-name { font-family: "Crimson Text", serif; font-size: 20px; font-weight: 600; }
-.o-card-text { font-family: "Crimson Text", serif; font-size: 15px; color: rgba(245,240,232,0.66); }
+.o-card-cat { font-family: "IBM Plex Mono", monospace; font-size: 9.5px; letter-spacing: 1.4px;
+              color: rgba(232,196,143,0.75); margin-top: -1px; }
+.o-card-text { font-family: "Crimson Text", serif; font-size: 15px; color: rgba(245,240,232,0.62); }
 .o-state { font-family: "IBM Plex Mono", monospace; font-size: 9px; letter-spacing: 1.8px; border-radius: 999px;
            padding: 2px 8px; color: rgba(245,240,232,0.55); border: 1px solid rgba(245,240,232,0.16); }
 .o-state.ready { color: #1a1008; background-color: #e8c48f; border-color: #e8c48f; }
-.enter { animation: rise 560ms cubic-bezier(.2,.7,.2,1) both; }
-@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-.enter.i1 { animation-delay: 40ms; }  .enter.i2 { animation-delay: 80ms; }  .enter.i3 { animation-delay: 120ms; }
-.enter.i4 { animation-delay: 160ms; } .enter.i5 { animation-delay: 200ms; } .enter.i6 { animation-delay: 240ms; }
-.enter.i7 { animation-delay: 280ms; } .enter.i8 { animation-delay: 320ms; } .enter.i9 { animation-delay: 360ms; }
-.enter.i10 { animation-delay: 400ms; } .enter.i11 { animation-delay: 440ms; }
-.o-cat-side.enter { animation-duration: 480ms; }
-window.look-paper .o-plugin { border-color: #ddd5c7; background-image: none; background-color: #fbf8f3;
-                              box-shadow: 0 6px 18px rgba(26,16,8,0.06); }
-window.look-paper .o-plugin:hover { border-color: #c99a5e; box-shadow: 0 14px 30px rgba(26,16,8,0.12); }
+.enter { animation: rise 640ms cubic-bezier(.2,.7,.2,1) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(16px) scale(0.985); } to { opacity: 1; transform: none; } }
+.enter.i1 { animation-delay: 45ms; }  .enter.i2 { animation-delay: 90ms; }  .enter.i3 { animation-delay: 135ms; }
+.enter.i4 { animation-delay: 180ms; } .enter.i5 { animation-delay: 225ms; } .enter.i6 { animation-delay: 270ms; }
+.enter.i7 { animation-delay: 315ms; } .enter.i8 { animation-delay: 360ms; } .enter.i9 { animation-delay: 405ms; }
+.enter.i10 { animation-delay: 450ms; } .enter.i11 { animation-delay: 495ms; }
+.o-cat-side.enter { animation-duration: 560ms; }
+window.look-paper .o-plugin { border-color: #e2dacd; background-image: none; background-color: rgba(255,253,249,0.85);
+                              box-shadow: 0 8px 22px rgba(26,16,8,0.06); }
+window.look-paper .o-plugin:hover { border-color: #c99a5e;
+                                    box-shadow: 0 0 30px rgba(201,154,94,0.18), 0 14px 30px rgba(26,16,8,0.10); }
 window.look-paper .o-card-text { color: #4a3b2f; }
+window.look-paper .o-card-cat { color: #a87a3e; }
 window.look-paper .o-state { color: #6b5a4a; border-color: #d4cdc0; }
 
 /* open places */
-.o-slot { border: 1px dashed rgba(245,240,232,0.16); border-radius: 16px; padding: 16px 18px;
-          background-color: rgba(245,240,232,0.02); }
+.o-slot { border: 1px dashed rgba(245,240,232,0.11); border-radius: 18px; padding: 16px 18px;
+          background-color: transparent; }
 box.o-slot { animation: breathe 3.2s ease-in-out infinite alternate; }
 .o-slot.d1 { animation-delay: 0.4s; } .o-slot.d2 { animation-delay: 0.8s; } .o-slot.d3 { animation-delay: 1.2s; }
 .o-slot.d4 { animation-delay: 1.6s; }
@@ -1192,6 +1204,154 @@ def gui():
                 s.append_stroke(path, Gsk.Stroke.new(width), rgba("#1a1008") if self.ink else rgba("#f5f0e8", 0.95))
             s.append_color(rgba("#1a1008") if self.ink else rgba("#e8c48f"), rect(95, 95, 10, 10))
             s.restore()
+
+    class Aura(Gtk.Widget):
+        """Behind the plugin catalogue: a deep veil over the film, two slow aurora glows and
+        gold motes drifting up and twinkling. Runs only while it is on screen."""
+
+        MOTES = 24
+
+        def __init__(self):
+            super().__init__(hexpand=True, vexpand=True, can_target=False)
+            import random
+            r = random.Random(7)
+            # x, start y, rise speed (fraction of height a second), radius, twinkle rate, phase
+            self.motes = [(r.random(), r.random(), 0.006 + 0.018 * r.random(), 0.8 + 2.2 * r.random() ** 2,
+                           0.4 + 1.2 * r.random(), r.random() * 6.283) for _ in range(self.MOTES)]
+            self.t0, self.tick_id = None, 0
+            self.connect("map", lambda *_: self.start())
+            self.connect("unmap", lambda *_: self.stop())
+
+        def start(self):
+            if not self.tick_id:
+                self.t0 = None
+                self.tick_id = self.add_tick_callback(self.tick)
+
+        def stop(self):
+            if self.tick_id:
+                self.remove_tick_callback(self.tick_id)
+                self.tick_id = 0
+
+        def tick(self, widget, clock):
+            now = clock.get_frame_time() / 1e6
+            self.t0 = self.t0 or now
+            # the motes are slow: 30 redraws a second is plenty, 8 on a software renderer
+            step = 1 / 30 if MagicTitle.gpu(self) else 1 / 8
+            if now - self.t0 - getattr(self, "t", -1.0) >= step:
+                self.t = now - self.t0
+                self.queue_draw()
+            return True
+
+        def do_snapshot(self, s):
+            w, h = self.get_width(), self.get_height()
+            if w <= 0 or h <= 0:
+                return
+            t = getattr(self, "t", 0.0)
+            root = self.get_root()
+            paper = bool(root and root.has_css_class("look-paper"))
+            ease = min(t / 0.9, 1.0)                       # glows and motes fade in as it opens
+            s.append_color(rgba("#f5f0e8", 0.97) if paper else rgba("#0a0705", 0.90), rect(0, 0, w, h))
+            gold = "#c99a5e" if paper else "#e8c48f"
+            for cx, cy, rad, col, a in ((0.66 + 0.04 * math.sin(t * 0.11), 0.34 + 0.03 * math.cos(t * 0.09),
+                                         0.46, gold, 0.13 if paper else 0.11),
+                                        (0.92 + 0.03 * math.cos(t * 0.07), 0.92, 0.40, "#8fb3c4", 0.06),
+                                        (0.18, 0.95 + 0.02 * math.sin(t * 0.13), 0.30, gold, 0.05)):
+                breathe = 0.8 + 0.2 * math.sin(t * 0.35 + cx * 9)
+                s.append_radial_gradient(rect(0, 0, w, h), point(cx * w, cy * h), rad * w, rad * w * 0.8, 0.0, 1.0,
+                                         stops((0.0, rgba(col, a * breathe * ease)), (1.0, rgba(col, 0.0))))
+            for x, y0, speed, r, rate, phase in self.motes:
+                y = ((y0 - t * speed) % 1.0) * (h + 40) - 20
+                tw = 0.5 + 0.5 * math.sin(t * rate + phase)
+                a = (0.06 + 0.40 * tw * tw) * ease * (0.6 if paper else 1.0)
+                mx = x * w + 6 * math.sin(t * 0.3 + phase)
+                g = r * 3.2
+                s.append_radial_gradient(rect(mx - g, y - g, 2 * g, 2 * g), point(mx, y), g, g, 0.0, 1.0,
+                                         stops((0.0, rgba("#fff3dc" if not paper else "#b8843f", a)),
+                                               (0.25, rgba(gold, a * 0.6)), (1.0, rgba(gold, 0.0))))
+
+    class MagicTitle(Gtk.Widget):
+        """A serif word that writes itself in: letters rise out of a soft blur, one after another,
+        then a band of warm light crosses it; every few seconds a fainter shimmer passes again."""
+
+        FONT = "Crimson Text Semi-Bold 66"
+
+        def __init__(self, word):
+            super().__init__(halign=Gtk.Align.START)
+            self.word, self.t0, self.t, self.tick_id = word, None, 0.0, 0
+            lay = self.layout(word)
+            tw, th = lay.get_pixel_size()
+            self.set_size_request(tw + 16, th + 4)
+            self.connect("unmap", lambda *_: self.stop())
+
+        def layout(self, text):
+            lay = self.create_pango_layout(text)
+            lay.set_font_description(Pango.FontDescription.from_string(self.FONT))
+            attrs = Pango.AttrList()
+            attrs.insert(Pango.attr_letter_spacing_new(int(-1.0 * Pango.SCALE)))
+            lay.set_attributes(attrs)
+            return lay
+
+        def gpu(self):
+            native = self.get_native()
+            renderer = native.get_renderer() if native else None
+            return renderer is not None and "Cairo" not in type(renderer).__name__
+
+        def play(self):
+            self.t0, self.t, self.drawn_t = None, 0.0, 0.0
+            if not self.tick_id:
+                self.tick_id = self.add_tick_callback(self.tick)
+
+        def stop(self):
+            if self.tick_id:
+                self.remove_tick_callback(self.tick_id)
+                self.tick_id = 0
+
+        def tick(self, widget, clock):
+            now = clock.get_frame_time() / 1e6
+            self.t0 = self.t0 or now
+            self.t = now - self.t0
+            settled = getattr(self, "drawn_t", 0.0) >= 1.8       # a slow frame must not leave it half drawn
+            if not settled or (self.t - 1.75) % 7.0 < 1.5:      # otherwise only while the shimmer passes
+                self.queue_draw()
+            return True
+
+        def do_snapshot(self, s):
+            t = self.t if self.tick_id else 99.0
+            self.drawn_t = t
+            root = self.get_root()
+            paper = bool(root and root.has_css_class("look-paper"))
+            ink, light = ("#1a1008", "#b07a35") if paper else ("#fbf7f0", "#ffe7b8")
+            word = self.word
+            full = self.layout(word)
+            tw, th = full.get_pixel_size()
+            for i, ch in enumerate(word):
+                k = ease(span(t, 0.15 + i * 0.06, 0.8))
+                if k <= 0:
+                    continue
+                pos = full.index_to_pos(i)
+                blur = 8.0 * (1 - k) if self.gpu() else 0.0     # software rendering: fade and rise only
+                s.save()
+                s.translate(point(pos.x / Pango.SCALE, 10 * (1 - k)))
+                if blur > 0.3:
+                    s.push_blur(blur)
+                s.append_layout(self.layout(ch), rgba(ink, k))
+                if blur > 0.3:
+                    s.pop()
+                s.restore()
+            if not hasattr(s, "push_mask"):              # GTK < 4.10: no glint
+                return
+            g = span(t, 0.75, 1.0)
+            strength = 0.9
+            if g >= 1:                                   # afterwards, a soft shimmer every 7 s
+                g, strength = span((t - 1.75) % 7.0, 0.0, 1.4), 0.35
+            if 0 < g < 1:
+                band = -90 + (tw + 180) * ease(g)
+                s.push_mask(Gsk.MaskMode.ALPHA)
+                s.append_linear_gradient(rect(-100, 0, tw + 200, th), point(band - 70, 0), point(band + 70, 0),
+                                         stops((0, rgba("#000", 0)), (0.5, rgba("#000", strength)), (1, rgba("#000", 0))))
+                s.pop()
+                s.append_layout(full, rgba(light))
+                s.pop()
 
     # -- widgets ---------------------------------------------------------------------------
     def label(text="", *classes, wrap=True, xalign=0.0, chars=60, **kw):
@@ -1851,23 +2011,25 @@ def gui():
             discord.set_halign(Gtk.Align.START)
             back = button("←  BACK", "o-link", self.hide_plugins)
             back.set_halign(Gtk.Align.START)
+            self.cat_title = MagicTitle("Plugins")
             self.cat_side = box(True, 0,
-                                box(True, 0, back, margin_bottom=18),
-                                label("Plugins", "o-title", "cat", wrap=False),
+                                box(True, 0, back, margin_bottom=22),
+                                self.cat_title,
                                 self.cat_status,
-                                box(True, 0, self.cat_body, margin_top=20),
-                                label("New rooms, agents, tools and worlds for Omo Space, one click to "
-                                      "install. Help shape them on our Discord.", "o-note", chars=30,
-                                      margin_top=10),
-                                box(True, 0, discord, margin_top=26),
+                                box(True, 0, self.cat_body, margin_top=22),
+                                label("New rooms, agents and worlds for Omo Space, one click to install.",
+                                      "o-note", chars=30, margin_top=8),
+                                box(True, 0, discord, margin_top=28),
                                 box(True, 0, vexpand=True),
-                                self.cat_count,
                                 hexpand=False, css=["o-cat-side"])
-            self.cat_side.set_size_request(300, -1)
-            panel = box(False, 52, self.cat_side, box(True, 0, self.cat_chips, scroller, hexpand=True),
+            self.cat_side.set_size_request(290, -1)
+            panel = box(False, 56, self.cat_side, box(True, 0, self.cat_chips, scroller, hexpand=True),
                         css=["o-plugins"])
-            view = Gtk.Revealer(transition_type=Gtk.RevealerTransitionType.CROSSFADE, transition_duration=300,
-                                child=panel, reveal_child=False, can_target=False)
+            self.aura = Aura()
+            layered = Gtk.Overlay(child=self.aura)
+            layered.add_overlay(panel)
+            view = Gtk.Revealer(transition_type=Gtk.RevealerTransitionType.CROSSFADE, transition_duration=420,
+                                child=layered, reveal_child=False, can_target=False)
             view.set_visible(False)
             self.fill_catalogue(self.catalogue)
             return view
@@ -1896,7 +2058,7 @@ def gui():
             for it in items:
                 c = (it.get("category") or "Plugin").strip()
                 cats[c] = cats.get(c, 0) + 1
-            self.cat_chips.set_visible(len(cats) > 1)
+            self.cat_chips.set_visible(len(cats) > 1 and n > 12)       # filters once there are many
             self.cat_chip_btns = []
             for name in [None] + sorted(cats, key=lambda c: (-cats[c], c)):
                 chip = button("ALL" if name is None else name.upper(), "o-pill",
@@ -1964,16 +2126,16 @@ def gui():
             ready = it.get("status") == "ready"
             tile = label(it["name"][:1].upper(), "o-tile", wrap=False, xalign=0.5, valign=Gtk.Align.CENTER)
             tile.add_css_class("c-" + re.sub(r"[^a-z]", "", cat.lower())[:12])
-            tile.set_size_request(38, 38)
-            head = box(True, 1, label(cat.upper(), "o-kicker", "warm", wrap=False),
-                       label(it["name"], "o-card-name", wrap=False, ellipsize=Pango.EllipsizeMode.END),
+            tile.set_size_request(36, 36)
+            head = box(True, 0, label(it["name"], "o-card-name", wrap=False, ellipsize=Pango.EllipsizeMode.END),
+                       label(cat.lower(), "o-card-cat", wrap=False),
                        valign=Gtk.Align.CENTER, hexpand=True)
             row = box(False, 12, tile, head)
             if ready:                                   # while everything is "soon", the side says it once
                 row.append(label("INSTALL", "o-state", "ready", wrap=False, valign=Gtk.Align.START))
             text = label(it.get("tagline", ""), "o-card-text", chars=24, lines=2,
                          ellipsize=Pango.EllipsizeMode.END)
-            card = box(True, 10, row, text, css=["o-plugin"])
+            card = box(True, 12, row, text, css=["o-plugin"])
             card.set_tooltip_text(f"{it['name']} by {it.get('author', '?')}")
             card.cat = cat
             card.set_size_request(-1, 118)
@@ -1986,6 +2148,7 @@ def gui():
             self.left_clamp.set_visible(False)
             self.reel_box.set_visible(False)
             self.plugins_btn.add_css_class("on")
+            self.cat_title.play()
             self.cat_side.remove_css_class("enter")
             GLib.timeout_add(30, lambda: (self.cat_side.add_css_class("enter"), False)[1])
             self.animate_cards()

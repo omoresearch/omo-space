@@ -729,7 +729,7 @@ async def stalled_tmux(env, ui):
 
 async def hermes_feed(env, ui, herm):
     """The plugin's feed lights the tab its agent runs in, lists the rest as
-    elsewhere, and a notify event reaches the ui client once as a toast."""
+    elsewhere, and a notify event reaches the ui client once as a toast and a notice."""
     now = time.time()
     tab = herm["tabs"][0]["id"]
     for sid, omo, platform in (("in-desk", {"workspace": herm["id"], "tab": tab}, "tui"), ("tg", None, "telegram")):
@@ -746,11 +746,15 @@ async def hermes_feed(env, ui, herm):
     with open(os.path.join(env.feed, "events.jsonl"), "a") as fh:
         for ts, text in ((now - 3600, "from before the bridge"), (time.time(), "tests are green")):
             fh.write(json.dumps({"v": 1, "ts": ts, "profile": "default", "session_id": "tg", "kind": "notify",
-                                 "text": text}) + "\n")
+                                 "text": text, "level": "success"}) + "\n")
     toast = await ui.expect(lambda m: m["t"] == "toast" and m["m"].startswith("default: "), 6)
     check("a Hermes notify reaches the ui client as a toast", toast and toast["m"] == "default: tests are green",
           str(toast))
-    again = await ui.expect(lambda m: m["t"] == "toast" and m["m"].startswith("default: "), 2.5)
+    notice = await ui.expect(lambda m: m["t"] == "notice", 3)
+    check("and as a HUD notice with its profile and level",
+          notice == {"t": "notice", "m": "tests are green", "profile": "default", "level": "success"}, str(notice))
+    again = await ui.expect(lambda m: (m["t"] == "toast" and m["m"].startswith("default: ")) or m["t"] == "notice",
+                            2.5)
     check("each notify is forwarded once, none from before the bridge started", again is None, str(again))
 
 

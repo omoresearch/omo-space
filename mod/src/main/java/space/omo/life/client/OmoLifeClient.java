@@ -69,7 +69,9 @@ public final class OmoLifeClient implements ClientModInitializer {
             if (tickCounter % 4 == 0) {
                 WebPages.audioTick();
             }
+            HermesNotices.tick(client);
         });
+        HermesNotices.init();  // Hermes notify events as HUD cards during play
         RemoteWall.init();
         LinkerClient.init();
         startTestDriver();

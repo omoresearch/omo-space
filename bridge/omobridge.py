@@ -65,7 +65,9 @@ status page for web monitors), and token-guarded /ticket and /api/<op>.
 Hermes feed (bridge/hermesfeed.py): when the omo-space Hermes plugin is
 installed, /board.json also says what every Hermes agent is doing (`hermes`,
 and `activity` on the tab it runs in), and an agent's `notify` events reach
-every connected ui client once, as a toast.
+every connected ui client once, as a toast (the station panel shows it) and as
+  <- notice {m, profile, level: info|success|warn}
+which the mod draws in the HUD during play. Older mods ignore the unknown frame.
 """
 import asyncio
 import base64
@@ -1288,8 +1290,15 @@ async def remember_loop():
             log(f"remember error: {exc!r}")
 
 
+def notice_frame(ev):
+    """The HUD frame for one notify event: the bare text, who sent it and how it went."""
+    level = ev.get("level") if ev.get("level") in ("info", "success", "warn") else "info"
+    return {"t": "notice", "m": ev.get("text") or "", "profile": ev.get("profile") or "hermes", "level": level}
+
+
 async def feed_loop():
-    """Forward each new Hermes `notify` event once, as a toast to every ui client."""
+    """Forward each new Hermes `notify` event once to every ui client: a toast
+    for the station panel (old mods too) and a notice for the HUD."""
     while True:
         await asyncio.sleep(FEED_EVERY)
         try:
@@ -1300,8 +1309,10 @@ async def feed_loop():
         for ev in events:
             ui = [c for c in CONNS if c.role == "ui" and not c.closed]
             log(f"hermes notify from {ev['profile']} to {len(ui)} ui client(s)")
+            notice = notice_frame(ev)
             for c in ui:
                 await c.toast(hermesfeed.toast_text(ev))
+                await c.send(notice)
 
 
 async def sleep_loop():

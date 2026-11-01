@@ -288,6 +288,17 @@ class Board(unittest.TestCase):
         self.assertEqual(where, {"here": (False, "Desk"), "tg": (True, None), "gone": (True, None)})
         json.dumps(got)
 
+    def test_notice_frame(self):
+        """The HUD frame for a notify: bare text, profile, level (unknown -> info)."""
+        ev = {"ts": NOW, "profile": "dev", "kind": "notify", "text": "deploy done", "level": "success"}
+        self.assertEqual(self.b.notice_frame(ev), {"t": "notice", "m": "deploy done", "profile": "dev",
+                                                   "level": "success"})
+        self.assertEqual(self.b.notice_frame({"text": "x", "level": "loud"}),
+                         {"t": "notice", "m": "x", "profile": "hermes", "level": "info"})
+        parsed = hf.parse_events([json.dumps(event(NOW, text="hi", level="warn"))])[0]
+        self.assertEqual(self.b.notice_frame(parsed)["level"], "warn")
+        json.dumps(self.b.notice_frame(ev))
+
 
 if __name__ == "__main__":
     unittest.main()

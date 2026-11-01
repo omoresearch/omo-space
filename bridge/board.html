@@ -72,6 +72,16 @@
   .elsewhere li { border: 1px solid var(--line); border-radius: 10px; padding: 4px 10px; background: var(--panel); font-size: .85em; }
   .elsewhere .who { color: var(--gold); white-space: nowrap; }
   .elsewhere .where { color: var(--muted); font-size: .85em; white-space: nowrap; }
+  /* omo_notify messages: also on the wall, so a player who is not at a station still sees them. */
+  .notes { margin-top: clamp(10px, 2vw, 18px); display: grid; gap: 6px; }
+  .notes h2 { font: 600 .75em/1 ui-sans-serif, system-ui, sans-serif; color: var(--muted); letter-spacing: .08em;
+              text-transform: uppercase; }
+  .note { display: flex; align-items: baseline; gap: .6em; font-size: .85em; border-left: 3px solid var(--gold);
+          background: var(--panel); border-radius: 6px; padding: 4px 10px; min-width: 0; }
+  .note.success { border-color: var(--live); } .note.warn { border-color: var(--down); }
+  .note .who { color: var(--gold); white-space: nowrap; }
+  .note .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .note .when { margin-left: auto; color: var(--muted); font-size: .8em; white-space: nowrap; }
   footer { margin-top: 14px; text-align: center; color: #7d705f; font-size: .7em; }
 </style>
 </head>
@@ -93,6 +103,7 @@
 </header>
 <main class="grid" id="grid"></main>
 <section class="elsewhere" id="elsewhere"></section>
+<section class="notes" id="notes"></section>
 <div class="resting" id="resting"></div>
 <footer>live from this computer · names and states only</footer>
 <script>
@@ -152,6 +163,13 @@ async function refresh() {
         `<span class="who">◆ ${esc(s.profile)}</span><span class="where">${esc(s.platform || "hermes")}</span>` +
         `<span class="cmd${busy ? " agent" : ""}">${esc(doing(s) || s.state)} · ${age(s.age)} ago</span></li>`;
     }).join("") + `</ul>` : "";
+    // the newest omo_notify messages of the last 15 minutes (the toast only reaches open station panels)
+    const now = Date.now() / 1000;
+    const notes = ((b.hermes || {}).events || []).filter((e) => e.kind === "notify" && e.text && now - e.ts < 900)
+      .slice(-3).reverse();
+    $("notes").innerHTML = notes.length ? `<h2>Messages</h2>` + notes.map((e) =>
+      `<div class="note ${esc(e.level || "info")}"><span class="who">◆ ${esc(e.profile)}</span>` +
+      `<span class="txt">${esc(e.text)}</span><span class="when">${age(now - e.ts)} ago</span></div>`).join("") : "";
     $("resting").innerHTML = resting.length ? `<h2>Resting</h2>` + resting.map((w) =>
       `<span class="rest" title="${esc(STATE[w.state])}"><span class="dot ${w.state === "ended" ? "exited" : "interrupted"}"></span>${esc(w.name)}</span>`).join("") : "";
   } catch (e) {
@@ -159,6 +177,7 @@ async function refresh() {
     $("grid").innerHTML = `<div class="offline">The Omo bridge is not answering. Nothing shown here is current.</div>`;
     $("resting").innerHTML = "";
     $("elsewhere").innerHTML = "";
+    $("notes").innerHTML = "";
   }
 }
 

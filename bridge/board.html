@@ -83,7 +83,7 @@
 <footer>live from this computer · names and states only</footer>
 <script>
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const STATE = { live: "working", ended: "ended · every tab exited", interrupted: "interrupted · host or session server restarted" };
 
 function tick() {
@@ -95,7 +95,7 @@ function tick() {
 function card(w) {
   const tabs = w.tabs.map((t) => {
     const dot = t.state !== "live" ? t.state : t.sleeping ? "sleeping" : t.busy ? "busy" : "live";
-    const cmd = t.state === "live" ? (t.sleeping ? "asleep · opens on use" : t.busy ? t.command : "idle") : t.state;
+    const cmd = t.state === "live" ? (t.sleeping ? "asleep · opens on use" : t.busy ? (t.command || "running") : "idle") : t.state;
     return `<li><span class="dot ${dot}"></span><span class="tab">${esc(t.name)}</span><span class="cmd">${esc(cmd)}</span></li>`;
   }).join("");
   const chip = w.kind === "hermes" || w.profile !== "default" ? `◆ ${esc(w.profile)}` : "terminal";

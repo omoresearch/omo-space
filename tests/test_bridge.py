@@ -31,6 +31,9 @@ TMUX = os.environ.get("OMO_TMUX") or os.path.expanduser("~/.local/share/omo/bin/
 if not os.path.exists(TMUX):
     TMUX = shutil.which("tmux")
 RESULTS = []
+# Another copy of the bridge can be put under the same checks (to watch a
+# regression test fail on an unfixed one).
+BRIDGE = os.environ.get("OMO_TEST_BRIDGE") or os.path.join(REPO, "bridge", "omobridge.py")
 
 
 def check(name, ok, evidence=""):
@@ -147,7 +150,7 @@ class Env:
                # Never the desktop's clipboard: the private display, or one that does not exist.
                "OMO_DISPLAY": self.display or ":65000", "DISPLAY": self.display or ":65000"}
         env.pop("WAYLAND_DISPLAY", None)
-        self.bridge = subprocess.Popen([sys.executable, os.path.join(REPO, "bridge", "omobridge.py")], env=env,
+        self.bridge = subprocess.Popen([sys.executable, BRIDGE], env=env,
                                        stdout=subprocess.DEVNULL, stderr=open(os.path.join(self.dir, "stderr"), "w"))
         for _ in range(50):
             try:
@@ -164,7 +167,8 @@ class Env:
 
     @property
     def token(self):
-        return open(os.path.join(self.data, "token")).read().strip()
+        with open(os.path.join(self.data, "token")) as fh:
+            return fh.read().strip()
 
     def http(self, path, host=None):
         req = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}")

@@ -26,6 +26,7 @@ import net.minecraft.world.phys.BlockHitResult;
 
 import space.omo.life.OmoLife;
 import space.omo.life.builder.OmoAdvancements;
+import space.omo.life.station.OwnerPresence;
 import space.omo.life.station.StationSignals;
 import space.omo.life.station.Stations;
 
@@ -99,6 +100,8 @@ public class HermesComputerBlock extends ComputerBlock<StationBlockEntity> {
         if (!be.isUsable(player)) {
             return InteractionResult.SUCCESS;
         }
+        be.station();                                // minted before the owner's use is recorded
+        OwnerPresence.touch(be, sp);                 // a live owner use: this station may connect
         be.ensureWorkspace();
         ServerComputer computer = be.createServerComputer();
         computer.turnOn();

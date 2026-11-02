@@ -19,29 +19,46 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Lets local AI agents (the Omo Teacher's Mineflayer body) join your
- * single-player world as real players.
+ * single-player world as real players. <b>Off unless {@code -Domo.agents.lan=true}</b>
+ * (the Omo Space launcher sets it for its own installs; a mod installed from a
+ * store never opens a world on its own).
  *
- * When a world opens, it is published to LAN on a fixed port (25566 by
+ * When on and a world opens, it is published on a fixed port (25566 by
  * default) and offline logins are accepted, because a bot has no Microsoft
- * account. To keep that from opening the world to anyone on the network,
- * unauthenticated players may join only from this computer (loopback), unless
- * you opt in to remote joins.
+ * account. The listener binds to 127.0.0.1 only, so nothing off this computer
+ * can connect, the LAN broadcast is skipped, and the join guard below still
+ * disconnects any unauthenticated player that is not on loopback. Joiners are
+ * never let at host shells: {@link space.omo.life.station.HostAccess} ignores
+ * "cheats for everyone".
  *
  * The chosen port is written to ~/.config/omo/lan.json so the agent runtime
  * can find the world.
  *
  * JVM flags (Prism: Edit instance → Settings → Java arguments):
- *   -Domo.agents.lan=false          turn the whole feature off
+ *   -Domo.agents.lan=true           turn the feature on
  *   -Domo.agents.port=25566         preferred LAN port
- *   -Domo.agents.allowRemote=true   also accept unauthenticated LAN players
+ *   -Domo.agents.allowRemote=true   bind all interfaces and accept unauthenticated LAN players
  */
 public final class AgentLan {
-    private static final boolean ENABLED = !"false".equalsIgnoreCase(System.getProperty("omo.agents.lan", "true"));
+    private static final boolean ENABLED = AgentLanFlags.enabled();
     private static final int PORT = Integer.getInteger("omo.agents.port", 25566);
     private static final boolean ALLOW_REMOTE = Boolean.getBoolean("omo.agents.allowRemote");
     private static final Path STATE = Path.of(System.getProperty("user.home"), ".config", "omo", "lan.json");
 
+    /** True only while {@link #publish} calls vanilla's publishServer, so the bind mixin leaves the Open to LAN screen alone. */
+    private static volatile boolean publishing;
+
     private AgentLan() {}
+
+    /** From the bind mixin: the address vanilla's LAN listener should use. */
+    public static java.net.InetAddress bindAddress(java.net.InetAddress requested) {
+        return publishing ? AgentLanFlags.bindAddress(ALLOW_REMOTE, requested) : requested;
+    }
+
+    /** From the bind mixin: skip the LAN broadcast for a loopback-only agent listener. */
+    public static boolean announceOnLan() {
+        return !publishing || ALLOW_REMOTE;
+    }
 
     public static void register() {
         if (!ENABLED) return;
@@ -63,12 +80,19 @@ public final class AgentLan {
         } else {
             boolean commands = server.getWorldData().isAllowCommands();
             for (int candidate = PORT; candidate < PORT + 5 && port < 0; candidate++) {
+                publishing = true;
                 try {
-                    if (server.publishServer(MinecraftServer.MultiplayerScope.LAN, server.getDefaultGameType(), commands, candidate)) {
+                    // Commands off for joiners: with cheats, every LAN joiner would be a gamemaster
+                    // (CC:T's /computercraft view and friends). Agent bodies get their own
+                    // gamemaster level instead (AgentLanFlags.agentCommands, AgentPermissionsMixin).
+                    if (server.publishServer(MinecraftServer.MultiplayerScope.LAN, server.getDefaultGameType(), false, candidate)) {
+                        AgentLanFlags.agentCommands = commands;
                         port = candidate;
                     }
                 } catch (RuntimeException e) {
                     System.err.println("[omolife] opening to LAN on " + candidate + " failed: " + e);
+                } finally {
+                    publishing = false;
                 }
             }
         }
@@ -79,36 +103,35 @@ public final class AgentLan {
         // A bot has no Microsoft account; the join guard below keeps this local.
         server.setUsesAuthentication(false);
         writeState(port, server.getWorldData().getLevelName());
-        System.out.println("[omolife] agents can join this world at 127.0.0.1:" + port);
+        System.out.println("[omolife] agents can join this world at 127.0.0.1:" + port
+            + (ALLOW_REMOTE ? " (remote joins allowed)" : " (this computer only)"));
     }
-
-    /** Lower-case usernames of the local agent bodies. */
-    public static final java.util.Set<String> AGENT_NAMES = java.util.Set.of(
-        System.getProperty("omo.agents.names", "omo,teacher").toLowerCase(java.util.Locale.ROOT).split(","));
 
     public static boolean isAgent(String name) {
-        return name != null && AGENT_NAMES.contains(name.toLowerCase(java.util.Locale.ROOT));
+        return AgentLanFlags.isAgent(name);
     }
 
-    // Shows the agent as "ChatGPT - OMO" over his head, in the tab list and in chat.
+    // Shows the agent as "Agent - omo" over its head, in the tab list and in chat.
     private static void tag(ServerPlayer player, MinecraftServer server) {
         var board = server.getScoreboard();
         PlayerTeam team = board.getPlayerTeam("omo_agents");
         if (team == null) team = board.addPlayerTeam("omo_agents");
-        team.setPlayerPrefix(Component.literal("ChatGPT - ").withStyle(ChatFormatting.AQUA));
+        team.setPlayerPrefix(Component.literal(AgentLanFlags.TAG_PREFIX).withStyle(ChatFormatting.AQUA));
         board.addPlayerToTeam(player.getScoreboardName(), team);
     }
 
     private static void guard(ServerPlayer player, MinecraftServer server) {
         if (!server.usesAuthentication() && isAgent(player.getScoreboardName())) tag(player, server);
         if (ALLOW_REMOTE || server.usesAuthentication()) return;
-        if (server.isSingleplayerOwner(player.nameAndId())) return;
+        // The owner by UUID: vanilla's isSingleplayerOwner matches names, which offline logins can fake.
+        var owner = server.getSingleplayerProfile();
+        if (owner != null && player.getUUID().equals(owner.id())) return;
         SocketAddress address = player.connection.getRemoteAddress();
         boolean local = !(address instanceof InetSocketAddress inet) || inet.getAddress() == null
             || inet.getAddress().isLoopbackAddress();
         if (!local) {
             player.connection.disconnect(Component.literal(
-                "This world only accepts local Omo agents. The host can allow LAN players with -Domo.agents.allowRemote=true."));
+                "This world only accepts local Omo agents."));
         }
     }
 
@@ -124,6 +147,7 @@ public final class AgentLan {
     }
 
     private static void clearState() {
+        AgentLanFlags.agentCommands = false;
         try {
             Files.deleteIfExists(STATE);
         } catch (IOException ignored) {

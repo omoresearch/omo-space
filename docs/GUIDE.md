@@ -20,7 +20,7 @@ Creative inventory → **Omo Space**:
 | **Terminal** (espresso and copper) | A persistent shell. Nothing starts an agent unless you do. |
 | **Omo Monitor** | Shows a station's terminal, or pins a real web page that keeps running. Walls join like CC:T monitors. |
 | **Omo Linker** | A wand: links monitor walls (and other screens) to a station anywhere nearby, and opens a station's setup. See *Building with Omo*. |
-| **Omo Pocket** (Hermes or Terminal) | The same station in your hand: right-click for the same screen and header. Its workspace is made on first use and stays on the item; two pockets are two workspaces. CC:T's own pocket computers work the same way (a Terminal workspace); `craftos` on one drops to CraftOS. |
+| **Omo Pocket** (Hermes or Terminal) | The same station in your hand: right-click for the same screen and header. Its workspace is made on first use and stays on the item; two pockets are two workspaces. A CC:T pocket computer becomes one when its owner right-clicks it (a Terminal workspace). |
 | **Slim Screen** | An Omo Monitor as a 3 px flat screen on a wall, floor or ceiling (it mounts on the face you click). Same walls, terminal or web page, remote control and settings. Bone meal or a brown, yellow, orange, black or white dye refinishes the frame of the whole wall: cream, espresso, gold, copper, black, white. |
 | **Name Plate** | A small plaque (on a wall, a desk or a ceiling) with the nearest station's workspace name and a state dot. |
 | **Status Lamp** | A paper andon that glows with the nearest station: gold while Hermes or a command works, green when idle, red once interrupted, dark without a workspace. Standing or hanging. |
@@ -96,11 +96,8 @@ Master and Jukebox/Note Blocks sliders and fades with distance (full within 6
 blocks, silent from 40). Up to 12 pages run at once; past that, the page
 nobody has looked at for longest closes and reopens when you look back. A
 memory guard pauses new pages when the machine runs low and closes runaway
-Chromium processes. Logged-in pages: `-Domo.firefoxCookies=true` (or
-`OMO_FIREFOX_COOKIES=1`) copies your Firefox cookies in, one way, at start
-and when Firefox changes them. It is off by default, because every page a
-wall shows, including one another player pinned, would then browse with
-those logins.
+Chromium processes. To be logged in on a wall, sign in on the wall itself: Chromium keeps its
+cookies in `config/mcef-modern`, on this computer only.
 
 Chat commands (world owner or op): `/omo status`, `/omo workspaces` (click one
 to bind the station you look at), `/omo rebind <id>`, `/omo rename <name>`,

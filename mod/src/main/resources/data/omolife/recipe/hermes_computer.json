@@ -4,11 +4,13 @@
   "key": {
     "F": "minecraft:feather",
     "G": "#c:ingots/gold",
-    "C": "computercraft:computer_advanced"
+    "R": "#c:dusts/redstone",
+    "P": "#c:glass_panes"
   },
   "pattern": [
-    " F ",
-    "GCG"
+    "GFG",
+    "GRG",
+    "GPG"
   ],
   "result": {
     "id": "omolife:hermes_computer"

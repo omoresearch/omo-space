@@ -26,7 +26,7 @@ import space.omo.life.station.Stations;
  */
 public final class OmoNetworking {
 
-    private static final double REACH_SQ = 64 * 64;
+    private static final double REACH_SQ = 32 * 32;     // a wall in sight (RemoteWalls.RANGE + 8), not across the map
 
     private OmoNetworking() {
     }

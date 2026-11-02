@@ -63,9 +63,25 @@ public abstract class McefArgsMixin {
     private String[] omolife$noGpu(String[] args) {
         String ua = "--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/"
             + omolife$chromeMajor() + ".0.0.0 Safari/537.36";
-        String[] out = Arrays.copyOf(args, args.length + OMOLIFE_EXTRA_ARGS.length + 1);
-        System.arraycopy(OMOLIFE_EXTRA_ARGS, 0, out, args.length, OMOLIFE_EXTRA_ARGS.length);
+        // MCEF Modern passes --disable-web-security, which turns off the same-origin policy:
+        // any page on a wall (e.g. from a downloaded map) could then read localhost services
+        // and other sites with the player's cookies. Walls never need it, so drop it.
+        String[] kept = Arrays.stream(args).filter(a -> !omolife$unsafe(a)).toArray(String[]::new);
+        String[] out = Arrays.copyOf(kept, kept.length + OMOLIFE_EXTRA_ARGS.length + 1);
+        System.arraycopy(OMOLIFE_EXTRA_ARGS, 0, out, kept.length, OMOLIFE_EXTRA_ARGS.length);
         out[out.length - 1] = ua;
         return out;
+    }
+
+    private static boolean omolife$unsafe(String arg) {
+        if (arg == null) {
+            return false;
+        }
+        String a = arg.trim().toLowerCase(java.util.Locale.ROOT);
+        return a.startsWith("--disable-web-security")
+            || a.startsWith("--allow-file-access-from-files")
+            || a.startsWith("--allow-universal-access-from-files")
+            || a.startsWith("--allow-running-insecure-content")
+            || a.startsWith("--disable-site-isolation-trials");
     }
 }

@@ -21,26 +21,31 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 import space.omo.life.lua.OmoLuaApi;
+import space.omo.life.station.OwnerPresence;
 import space.omo.life.station.Stations;
 
 /**
- * Every pocket computer a player uses is a station: CC:T's own pocket
- * computers (normal and advanced) as much as the Omo Pockets. Called by
+ * Pocket stations: the Omo Pockets always, and a CC:T pocket computer (normal
+ * or advanced) once the owner right-clicks it. Called by
  * {@code PocketComputerMixin} from CC:T's pocket item.
  *
- * <p>A pocket becomes a station when its computer is built for a player who
- * may use stations ({@link Stations#allowed}), and stays one from then on
- * (the station id on its stack says so); an Omo Pocket always is one. Its
+ * <p>A plain CC:T pocket becomes a station only through an explicit owner
+ * action: a right-click by a player who may use stations
+ * ({@link Stations#allowed}). Merely holding one, or finding one in a map,
+ * leaves it a plain CC:T pocket. It stays a station from then on (the station
+ * id on its stack says so); an Omo Pocket always is one. Its
  * computer is built with the {@code omo} API and at the station terminal
  * size, so the rom autorun starts the same station screen as on a Hermes
  * Computer, and right-click opens the same GUI with the same header, in
  * either hand. A plain CC:T pocket gets a terminal workspace, an Omo Pocket
- * (Hermes) a Hermes one. {@code craftos} on it still drops to CraftOS.
+ * (Hermes) a Hermes one. Ctrl+Shift+Q on it still leaves to CraftOS.
  */
 public final class Pockets {
 
     /** Set while CC:T builds a station pocket's computer, so the hook lets that call through. */
     private static final ThreadLocal<Boolean> BUILDING = new ThreadLocal<>();
+    /** Set while the owner's right-click turns a plain CC:T pocket into a station. */
+    private static final ThreadLocal<Boolean> CONVERTING = new ThreadLocal<>();
 
     private Pockets() {
     }
@@ -60,8 +65,8 @@ public final class Pockets {
      * already runs, or this pocket is not a station).
      */
     public static PocketBrain build(PocketComputerItem item, PocketHolder holder, ItemStack stack) {
-        if (BUILDING.get() != null || item.getBrain(holder, stack) != null || !isStation(item, stack)
-            && !(holder instanceof PocketHolder.PlayerHolder p && Stations.allowed(p.entity()))) {
+        if (BUILDING.get() != null || item.getBrain(holder, stack) != null
+            || !isStation(item, stack) && CONVERTING.get() == null) {
             return null;
         }
         PocketStation station = PocketStation.claim(holder.level().getServer(), stack, hermes(item));
@@ -96,6 +101,27 @@ public final class Pockets {
     }
 
     /**
+     * The owner's right-click on a plain CC:T pocket: the one explicit action
+     * that makes it a station (holding it, or a pocket found in a map, never
+     * does). A computer CC:T already runs for it as a plain pocket is let go
+     * (CC:T drops it once nothing keeps it alive) and the station computer is
+     * built in its place.
+     */
+    private static void convert(PocketComputerItem item, PocketHolder holder, ItemStack stack) {
+        PocketBrain old = item.getBrain(holder, stack);
+        if (old != null) {
+            old.computer().shutdown();
+            stack.remove(ModRegistry.DataComponents.COMPUTER.get());
+        }
+        CONVERTING.set(Boolean.TRUE);
+        try {
+            item.getOrCreateBrain(holder, stack);
+        } finally {
+            CONVERTING.remove();
+        }
+    }
+
+    /**
      * Right-click, with the station rules: only the world owner may use it,
      * the workspace is made on first use, either hand opens the full screen
      * (CC:T's off-hand typing view has no terminal to put a header on), and
@@ -116,12 +142,16 @@ public final class Pockets {
             return InteractionResult.SUCCESS;
         }
         PocketHolder.PlayerHolder holder = new PocketHolder.PlayerHolder(sp, InventoryUtil.getHandSlot(player, hand));
+        if (!isStation(item, stack)) {
+            convert(item, holder, stack);
+        }
         PocketBrain brain = item.getOrCreateBrain(holder, stack);
         ServerComputer computer = brain.computer();
         PocketStation station = PocketStation.of(computer);
         if (station == null) {
-            return null;                                     // built as a plain pocket before; CC:T's own screen
+            return null;                                     // not a station after all; CC:T's own screen
         }
+        OwnerPresence.touch(station, sp);
         computer.turnOn();
         if (brain.onRightClick((ServerLevel) level)) {
             return InteractionResult.SUCCESS;                // an upgrade took the click

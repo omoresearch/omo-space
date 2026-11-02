@@ -91,7 +91,7 @@ from websockets.http11 import Response
 
 import termcore
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 HOME = os.path.expanduser("~")
 DATA_DIR = os.environ.get("OMO_DATA", os.path.join(HOME, ".local", "share", "omo"))
 TOKEN_FILE = os.path.join(DATA_DIR, "token")
@@ -194,13 +194,62 @@ def find_tmux():
     raise SystemExit("omo-bridge: tmux not found (looked in OMO_TMUX, OMO_DATA/bin, PATH)")
 
 
+LOG_MAX = 5 * 1024 * 1024           # bridge.log rotates to bridge.log.1 past this
+
+
+def private_dir(path):
+    """The data directory holds the token and names/paths of every shell:
+    owner-only (0700), created that way and tightened if it already exists."""
+    os.makedirs(path, mode=0o700, exist_ok=True)
+    try:
+        if os.path.realpath(path) != os.path.realpath(HOME):
+            st = os.stat(path)
+            if st.st_uid == os.getuid() and st.st_mode & 0o077:
+                os.chmod(path, st.st_mode & 0o700)
+    except OSError:
+        pass
+
+
+def private_file(path):
+    """Owner-only (0600) for a file the bridge keeps in its data directory."""
+    try:
+        if os.path.exists(path) and os.stat(path).st_mode & 0o077:
+            os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+
 def log(msg):
     try:
-        os.makedirs(DATA_DIR, exist_ok=True)
-        with open(LOG_FILE, "a", encoding="utf-8", errors="replace") as fh:
+        private_dir(DATA_DIR)
+        try:
+            if os.path.getsize(LOG_FILE) > LOG_MAX:
+                os.replace(LOG_FILE, LOG_FILE + ".1")
+        except OSError:
+            pass
+        fd = os.open(LOG_FILE, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        with os.fdopen(fd, "a", encoding="utf-8", errors="replace") as fh:
             fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {msg}\n")
     except OSError:
         pass
+
+
+# Refused hellos come from anything that can reach the port (any local
+# process, any CC:T computer): log a few, then one summary line per window,
+# so nobody can grow bridge.log without bound.
+DENIED_WINDOW, DENIED_BURST = 60.0, 5
+_denied = {"start": 0.0, "n": 0}
+
+
+def log_denied(station):
+    now = time.monotonic()
+    if now - _denied["start"] > DENIED_WINDOW:
+        if _denied["n"] > DENIED_BURST:
+            log(f"DENIED x{_denied['n'] - DENIED_BURST} more in the last {int(DENIED_WINDOW)}s (not logged)")
+        _denied["start"], _denied["n"] = now, 0
+    _denied["n"] += 1
+    if _denied["n"] <= DENIED_BURST:
+        log(f"DENIED station={clean(station, 40)}")
 
 
 def clean(value, n=64):
@@ -214,21 +263,69 @@ def clean_name(value, n):
 
 
 def same(a, b):
-    return hmac.compare_digest(str(a).encode(), str(b).encode())
+    """Constant-time compare that never matches an empty secret: an empty
+    presented token must not open anything, even against an empty one."""
+    a, b = str(a or ""), str(b or "")
+    if not a or not b:
+        return False
+    return hmac.compare_digest(a.encode(), b.encode())
+
+
+def tmux_literal(s):
+    """tmux format-expands -n, -c and rename-window arguments, including
+    #(shell command) jobs and #{...} lookups; '##' is a literal '#'. Every
+    client- or world-supplied string headed for one goes through here."""
+    return str(s).replace("#", "##")
+
+
+TOKEN_RE = re.compile(r"[0-9a-f]{32,}")
+
+
+def _write_token(tok):
+    """Atomic, owner-only: a crash leaves the old file or the new one, never
+    a short or empty token."""
+    tmp = f"{TOKEN_FILE}.tmp-{os.getpid()}"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write(tok)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, TOKEN_FILE)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
 
 
 def load_token():
-    os.makedirs(DATA_DIR, exist_ok=True)
+    private_dir(DATA_DIR)
     if not os.path.exists(TOKEN_FILE):
-        fd = os.open(TOKEN_FILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, "w") as fh:
-            fh.write(secrets.token_hex(16))
+        try:
+            fd = os.open(TOKEN_FILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            fd = None
+        if fd is not None:
+            with os.fdopen(fd, "w") as fh:
+                fh.write(secrets.token_hex(16))
+                fh.flush()
+                os.fsync(fh.fileno())
     os.chmod(TOKEN_FILE, 0o600)
     with open(TOKEN_FILE) as fh:
-        return fh.read().strip()
+        tok = fh.read().strip()
+    if not TOKEN_RE.fullmatch(tok):
+        # Empty (disk full mid-write, a truncated file) or too short to be a
+        # secret: never run on it. A fresh one; the mod reads the file again.
+        tok = secrets.token_hex(16)
+        _write_token(tok)
+        log("token file was empty or invalid; a new token was written")
+    if not TOKEN_RE.fullmatch(tok):
+        raise SystemExit("omo-bridge: no usable token; refusing to start")
+    return tok
 
 
 TOKEN = load_token()
+for _f in (LOG_FILE, LOG_FILE + ".1", META_FILE):
+    private_file(_f)
 
 # --------------------------------------------------------------------------- tickets
 # The long-lived token stays host-side (bridge + mod). The Lua client inside
@@ -490,7 +587,7 @@ class Meta:
         # Durable replace: a power cut leaves either the old file or the new
         # one, never an empty file that would forget every workspace.
         tmp = self.path + ".tmp"
-        with open(tmp, "w") as fh:
+        with os.fdopen(os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as fh:
             json.dump(self.data, fh, indent=2, sort_keys=True)
             fh.flush()
             os.fsync(fh.fileno())
@@ -785,7 +882,9 @@ class Workspaces:
         Reviving one tab of an interrupted workspace starts only that tab."""
         session = ws_session(ws["id"])
         cwd = tab.get("cwd") if tab.get("cwd") and os.path.isdir(tab["cwd"]) else HOME
-        common = ("-n", tab["name"], "-c", cwd, *tab_env(ws, tab, autorun), SHELL_CMD)
+        # Names and the restored cwd come from clients, presets in world files
+        # and directory names: literal for tmux, never format-expanded.
+        common = ("-n", tmux_literal(tab["name"]), "-c", tmux_literal(cwd), *tab_env(ws, tab, autorun), SHELL_CMD)
         if TM.has_session(session):
             p = TM.run("new-window", "-d", "-P", "-F", "#{window_id}", "-t", "=" + session, *common)
         else:
@@ -866,7 +965,7 @@ class Workspaces:
             server = TM.server_id()
             win = self._windows_locked(ws, server).get(tab_id)
             if win:
-                TM.run("rename-window", "-t", f"={ws_session(ws_id)}:{win['id']}", "--", name)
+                TM.run("rename-window", "-t", f"={ws_session(ws_id)}:{win['id']}", "--", tmux_literal(name))
             META.save()
             return self._describe_locked(ws, server)
 
@@ -1735,13 +1834,13 @@ class Conn:
     # -- message dispatch --------------------------------------------------
     async def hello(self, msg):
         station, ws_id = clean(msg.get("station") or "-"), clean(msg.get("ws"))
-        if msg.get("token") is not None and same(msg.get("token"), TOKEN):
+        if TOKEN and msg.get("token") is not None and same(msg.get("token"), TOKEN):
             self.role = "ui" if msg.get("role") == "ui" else "screen"
         elif msg.get("ticket") is not None and check_ticket(str(msg["ticket"]), station, ws_id):
             self.role, self.scope = "screen", ws_id
         else:
             await self.error("bad token")
-            log(f"DENIED station={station}")
+            log_denied(station)
             return False
         self.authed, self.station, self.world = True, station, clean(msg.get("world") or "-")
         CONNS.add(self)
@@ -2053,32 +2152,59 @@ async def handler(ws):
 
 
 # --------------------------------------------------------------------------- board
-async def board():
+async def board(full=False):
     """Read-only status for the /board page. Names and states only: no ids,
-    no tokens, nothing that grants control."""
+    no tokens, nothing that grants control. Anyone who can reach the port can
+    read it (every local account, every CC:T computer in any world, a web
+    wall that was simply pointed at /board), so the foreground command of
+    each tab (process names) is only included for a token holder (`full`)."""
     items = await asyncio.to_thread(WS.list)
     return {"version": VERSION, "tmux": await asyncio.to_thread(TM.alive), "uptime": int(time.time()) - STARTED,
             "screens": sum(1 for c in CONNS if c.role == "screen" and c.view),
             "workspaces": [{"name": w["name"], "kind": w["kind"], "state": w["state"],
                             "profile": w["profile"] or "default",
                             "tabs": [{"name": t["name"], "kind": t["kind"], "state": t["state"],
-                                      "busy": t["busy"], "command": t["command"],
-                                      "sleeping": t.get("sleeping", False)} for t in w["tabs"]]}
+                                      "busy": t["busy"], "sleeping": t.get("sleeping", False),
+                                      **({"command": t["command"]} if full else {})} for t in w["tabs"]]}
                            for w in sorted(items, key=lambda w: (w["state"] != "live", w["name"].lower()))]}
 
 
 # --------------------------------------------------------------------------- plain HTTP
+# The board page is static: its own inline script and style, a same-origin
+# fetch of /board.json, nothing else, and it is never framed.
+CSP = ("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; "
+       "img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+
+
 def _response(code, body, ctype="text/plain; charset=utf-8"):
     if not isinstance(body, bytes):
         body = (json.dumps(body) if ctype == "application/json" else str(body)).encode()
     reason = {200: "OK", 403: "Forbidden", 404: "Not Found", 409: "Conflict", 500: "Error"}[code]
     return Response(code, reason, Headers([("Content-Type", ctype), ("Content-Length", str(len(body))),
-                                           ("Cache-Control", "no-store")]), body)
+                                           ("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"),
+                                           ("Content-Security-Policy", CSP), ("Referrer-Policy", "no-referrer")]),
+                    body)
 
 
 def _host_ok(host):
     name = host.rsplit(":", 1)[0] if host.count(":") == 1 or host.startswith("[") else host
     return name.strip("[]") in ("127.0.0.1", "localhost", "::1")
+
+
+ALLOWED_ORIGINS = {f"http://{h}:{PORT}" for h in ("127.0.0.1", "localhost", "[::1]")}
+
+
+def _origin_ok(headers):
+    """Browsers say where a request comes from; only the bridge's own pages
+    may talk to it. No Origin at all is fine: the mod's Java HttpClient,
+    CC:T's HTTP requests and the launcher send none, and CC:T's websocket
+    (Netty) sends http://127.0.0.1:<port>, which is ours. Any other origin,
+    including "null" (sandboxed frames, file:// pages), and any request a
+    browser marks cross-site is refused, WebSocket upgrades included."""
+    origin = headers.get("Origin")
+    if origin is not None and origin.strip().lower() not in ALLOWED_ORIGINS:
+        return False
+    return headers.get("Sec-Fetch-Site", "").strip().lower() != "cross-site"
 
 
 async def _api(op, q):
@@ -2118,10 +2244,13 @@ async def process_request(connection, request):
     """Plain HTTP endpoints on the websocket port; upgrades pass through."""
     if not _host_ok(request.headers.get("Host", "")):
         return _response(403, "forbidden host")
+    if not _origin_ok(request.headers):
+        return _response(403, "forbidden origin")
     if request.headers.get("Upgrade", "").lower() == "websocket":
         return None
     path, _, query = request.path.partition("?")
     q = dict(urllib.parse.parse_qsl(query))
+    authed = bool(TOKEN) and same(q.get("token", ""), TOKEN)
     if path == "/health":
         return _response(200, {"ok": True, "version": VERSION, "tmux": await asyncio.to_thread(TM.alive),
                                "workspaces": len(META.workspaces), "views": len(VIEWS)}, "application/json")
@@ -2129,8 +2258,8 @@ async def process_request(connection, request):
         with open(BOARD_FILE, "rb") as fh:
             return _response(200, fh.read(), "text/html; charset=utf-8")
     if path == "/board.json":
-        return _response(200, await board(), "application/json")
-    if not same(q.get("token", ""), TOKEN):
+        return _response(200, await board(full=authed), "application/json")
+    if not authed:
         return _response(403, "forbidden")
     if path == "/ticket":
         return _response(200, mint_ticket(clean(q.get("station", "-")), clean(q.get("ws", ""))))

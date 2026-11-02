@@ -511,6 +511,19 @@ class Units(unittest.TestCase):
                 os.environ.pop("OMO_BRIDGE_PORT", None)
                 self.assertNotIn("-Domo.port=18781", S.extra_jvm_args())   # default: the mod's own default
 
+    def test_agent_lan_flag(self):
+        """The mod's agent LAN is opt-in; Omo's own launches opt in unless told not to."""
+        with mock.patch.object(S, "local_jvm", return_value={}):
+            with mock.patch.dict(os.environ, {"OMO_JVM_ARGS": "", "OMO_AGENT_LAN": ""}):
+                self.assertIn("-Domo.agents.lan=true", S.extra_jvm_args())
+            with mock.patch.dict(os.environ, {"OMO_JVM_ARGS": "", "OMO_AGENT_LAN": "0"}):
+                self.assertFalse([a for a in S.extra_jvm_args() if "agents.lan" in a])
+            with mock.patch.dict(os.environ, {"OMO_JVM_ARGS": "-Domo.agents.lan=false", "OMO_AGENT_LAN": ""}):
+                self.assertEqual([a for a in S.extra_jvm_args() if "agents.lan" in a], ["-Domo.agents.lan=false"])
+        with mock.patch.object(S, "local_jvm", return_value={"jvm_args": ["-Domo.agents.lan=false"]}), \
+                mock.patch.dict(os.environ, {"OMO_JVM_ARGS": "", "OMO_AGENT_LAN": ""}):
+            self.assertEqual([a for a in S.extra_jvm_args() if "agents.lan" in a], ["-Domo.agents.lan=false"])
+
     def test_find_agent_cli(self):
         home = Path(tempfile.mkdtemp(dir=ROOT))
         cli = home / ".local/bin/claude"

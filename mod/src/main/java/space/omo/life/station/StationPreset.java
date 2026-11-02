@@ -30,7 +30,17 @@ public record StationPreset(String name, boolean hermes, String profile, List<Ta
 
     public static final String NBT = "OmoPreset";
 
+    /** Every preset, whatever made it, is cleaned here ({@link PresetText}): no '#', capped, a safe profile. */
+    public StationPreset {
+        name = PresetText.name(name, PresetText.NAME_MAX);
+        profile = PresetText.profile(profile);
+        tabs = tabs == null ? List.of() : List.copyOf(tabs.subList(0, Math.min(tabs.size(), PresetText.TABS_MAX)));
+    }
+
     public record Tab(String name, boolean hermes) {
+        public Tab {
+            name = PresetText.name(name, PresetText.TAB_MAX);
+        }
     }
 
     /** The preset in {@code tag}, or null when there is none. */

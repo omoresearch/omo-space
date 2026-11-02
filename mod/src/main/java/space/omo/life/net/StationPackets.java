@@ -17,6 +17,7 @@ import space.omo.life.OmoLife;
 import space.omo.life.block.StationBlockEntity;
 import space.omo.life.pocket.PocketStation;
 import space.omo.life.station.BridgeLink;
+import space.omo.life.station.OwnerPresence;
 import space.omo.life.station.Station;
 import space.omo.life.station.StationTarget;
 import space.omo.life.station.Stations;
@@ -108,10 +109,14 @@ public final class StationPackets {
     }
 
     private static void act(ServerPlayer player, Station station, String action, String value) {
+        OwnerPresence.touch(station, player);
         if (station instanceof StationBlockEntity be && be.lockedFor(player)
             && ("rename".equals(action) || "switch".equals(action) || "create".equals(action))) {
             sendInfo(player, station, "Locked by the map maker: this station keeps its workspace and name.");
             return;
+        }
+        if ("switch".equals(action) && !value.matches("[A-Za-z0-9_-]{1,32}")) {
+            return;                                  // a workspace id, nothing else
         }
         switch (action) {
             case "ensure" -> {

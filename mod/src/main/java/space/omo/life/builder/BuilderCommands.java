@@ -31,6 +31,7 @@ import space.omo.life.block.StationBlockEntity;
 import space.omo.life.builder.ExportCheck.Finding;
 import space.omo.life.builder.ExportCheck.Kind;
 import space.omo.life.station.StationSignals;
+import space.omo.life.station.CommandGate;
 import space.omo.life.station.Stations;
 
 /**
@@ -69,9 +70,13 @@ public final class BuilderCommands {
                 .then(Commands.literal("export-clean").executes(c -> export(c.getSource(), true)))));
     }
 
+    /**
+     * The world owner or an operator typing it, or the server console; never
+     * a command block, data pack function or command computer (a shared map
+     * ships those). See {@link CommandGate}.
+     */
     private static boolean allowed(CommandSourceStack src) {
-        ServerPlayer p = src.getPlayer();
-        return !src.isPlayer() || p != null && Stations.allowed(p);
+        return CommandGate.trusted(src);
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> preset() {

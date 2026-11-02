@@ -505,6 +505,13 @@ def extra_jvm_args():
     # A bridge moved with OMO_BRIDGE_PORT is only reachable if the mod is told too.
     if os.environ.get("OMO_BRIDGE_PORT") and not any(a.startswith("-Domo.port=") for a in out):
         out.append(f"-Domo.port={PORT}")
+    # Local agent bodies (Omo Teacher) join single-player worlds over a
+    # loopback-only LAN listener. The mod keeps that off unless told, so a
+    # store install never opens a world; Omo's own launches turn it on.
+    # Opt out: OMO_AGENT_LAN=0, or -Domo.agents.lan=false in OMO_JVM_ARGS or
+    # runtime/local-jvm.json.
+    if os.environ.get("OMO_AGENT_LAN", "1") != "0" and not any(a.startswith("-Domo.agents.lan=") for a in out):
+        out.append("-Domo.agents.lan=true")
     return out
 
 

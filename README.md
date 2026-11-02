@@ -155,8 +155,8 @@ once, across 22 separate Hermes profiles.
 <p><img src="docs/media/s-agent-player.webp" alt="An AI agent joins the world as a player and follows you around" width="100%"><br>
 <sub><code>FROM OUR STREAM</code> An AI agent joins the world as a player and follows you around</sub></p>
 
-Since v1.2.0, agents running on the same computer can also join the world as players, over a LAN port that refuses
-offline logins from other machines ([how](docs/AGENTS-AND-TERMINALS.md#8-agent-bodies-in-your-world-lan-join)). Our robots and the Omo agent player are built
+Since v1.2.0, agents running on the same computer can also join the world as players, over a loopback-only port that
+other machines can't reach (the Omo Space launcher turns this on; it is off in a plain mod install) ([how](docs/AGENTS-AND-TERMINALS.md#8-agent-bodies-in-your-world-lan-join)). Our robots and the Omo agent player are built
 on that: [Omo, brought to life](https://github.com/omoresearch/omo-brought-to-life) and [Omo Microduck](https://github.com/omoresearch/omo-microduck).
 
 ## Quick start with your agent

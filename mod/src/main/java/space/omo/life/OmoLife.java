@@ -44,6 +44,8 @@ import space.omo.life.lua.OmoLuaApi;
 import space.omo.life.net.OmoNetworking;
 import space.omo.life.pocket.OmoPocketItem;
 import space.omo.life.station.StationCommands;
+import space.omo.life.station.OwnerPresence;
+import space.omo.life.station.RomCheck;
 
 /**
  * Omo Space: Hermes computers, terminals and monitors for Minecraft.
@@ -178,6 +180,10 @@ public final class OmoLife implements ModInitializer {
 
         // The `omo` Lua API: only station computers get it (see OmoLuaApi).
         ComputerCraftAPI.registerAPIFactory(OmoLuaApi::create);
+        // ...and it only mints tickets while the computer ROM is the mods' own
+        // and the owner has used the station live (security review C1).
+        RomCheck.register();
+        OwnerPresence.register();
 
         OmoNetworking.registerCommon();
         StationCommands.register();

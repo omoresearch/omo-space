@@ -19,6 +19,8 @@ jobs:
     # "pwsh not installed" (both accepted; the Windows installer parse still runs on
     # windows-2022 in the platforms job below).
     runs-on: [self-hosted, ci-shared]
+    # Self-hosted runners must never run code from forks: only pushes and same-repo PRs.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
       - name: Python (image system python3)
@@ -29,6 +31,8 @@ jobs:
         run: python3 tests/test_launcher.py
       - name: Benchmark logic tests (stats, regression verdicts, port guard; no game)
         run: python3 tests/test_bench.py
+      - name: Mod access rules without the game (host access, agent LAN; Java parts skip without a JDK)
+        run: python3 tests/test_host_access.py
       - name: Pinned tmux (the one the product ships, not Ubuntu's)
         run: |
           python3 - <<'PY'
@@ -42,7 +46,10 @@ jobs:
       - name: Bridge tests (disposable tmux server, stub hermes)
         env:
           OMO_TMUX: /tmp/omo-tmux
-        run: python3 tests/test_bridge.py
+        run: |
+          python3 tests/test_bridge.py
+          python3 tests/test_bridge_security.py
+          python3 tests/test_mod_security.py
       - name: Release guard - no host paths or secrets in tracked files
         run: |
           if git grep -nIP '/home/(?!you/|x/)[a-z]+/|API_SERVER_KEY=|BEGIN [A-Z ]*PRIVATE KEY' -- ':!bridge/vendor' ':!.github' ':!scripts/package.sh'; then

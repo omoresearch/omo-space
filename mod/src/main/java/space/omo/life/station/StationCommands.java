@@ -67,12 +67,13 @@ public final class StationCommands {
                 .executes(c -> status(c.getSource()))));
     }
 
+    /**
+     * The world owner or an operator typing it, or the server console; never
+     * a command block, data pack function or command computer (a shared map
+     * ships those). See {@link CommandGate}.
+     */
     private static boolean allowed(CommandSourceStack src) {
-        if (!src.isPlayer()) {
-            return true;                      // console / command blocks run as the server
-        }
-        ServerPlayer p = src.getPlayer();
-        return p != null && Stations.allowed(p);
+        return CommandGate.trusted(src);
     }
 
     /** The station block the player looks at, else the running Omo Pocket in their hand. */
@@ -82,10 +83,10 @@ public final class StationCommands {
             return null;
         }
         HitResult hit = p.pick(6.0, 0.0F, false);
-        if (hit instanceof BlockHitResult bh && p.level().getBlockEntity(bh.getBlockPos()) instanceof StationBlockEntity be) {
-            return be;
-        }
-        return PocketStation.held(p);
+        Station st = hit instanceof BlockHitResult bh
+            && p.level().getBlockEntity(bh.getBlockPos()) instanceof StationBlockEntity be ? be : PocketStation.held(p);
+        OwnerPresence.touch(st, p);               // the owner's own command on this station is a live use
+        return st;
     }
 
     private static Station boundLookedAt(CommandSourceStack src) {
@@ -189,7 +190,11 @@ public final class StationCommands {
         return 1;
     }
 
-    private static int rename(CommandSourceStack src, String name) {
+    private static int rename(CommandSourceStack src, String rawName) {
+        String name = PresetText.name(rawName, PresetText.NAME_MAX);
+        if (name.isEmpty()) {
+            return 0;
+        }
         Station be = boundLookedAt(src);
         if (be == null || locked(src, be)) {
             return 0;

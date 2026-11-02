@@ -29,6 +29,7 @@ import space.omo.life.OmoLife;
 import space.omo.life.lua.OmoLuaApi;
 import space.omo.life.net.StationPackets;
 import space.omo.life.station.Station;
+import space.omo.life.station.StationComputers;
 import space.omo.life.station.StationPreset;
 import space.omo.life.station.StationSignals;
 import space.omo.life.station.Stations;
@@ -84,6 +85,7 @@ public class StationBlockEntity extends ComputerBlockEntity implements Station {
     private CompoundTag preset;
     private boolean signalsWork;
     private long verifyAt;                          // game time of the next check that the workspace exists; -1 done
+    private volatile boolean stale;                 // bound to a workspace this host does not have (a map from another PC)
 
     public StationBlockEntity(BlockEntityType<? extends StationBlockEntity> type, BlockPos pos,
                               BlockState state) {
@@ -179,12 +181,26 @@ public class StationBlockEntity extends ComputerBlockEntity implements Station {
         workspace = ws == null ? "" : ws;
         workspaceName = name == null ? "" : name;
         verifyAt = -1;                               // just made or chosen here: it exists
+        stale = false;
         setChanged();
         sync();
         ServerComputer computer = getServerComputer();
         if (computer != null) {
             computer.queueEvent("omo_bound", new Object[]{workspace, workspaceName});
         }
+    }
+
+    @Override
+    public void nudge() {
+        ServerComputer computer = getServerComputer();
+        if (computer != null) {
+            computer.queueEvent("omo_owner", new Object[0]);
+        }
+    }
+
+    /** Bound to a workspace this host does not have: the owner's next use makes a fresh one. */
+    public boolean isStale() {
+        return stale;
     }
 
     @Override
@@ -241,18 +257,22 @@ public class StationBlockEntity extends ComputerBlockEntity implements Station {
     @Override
     protected ServerComputer createComputer(int id) {
         station();                                   // mint on the server thread, never on the Lua side
-        return OmoLuaApi.createFor(this, () -> super.createComputer(id));
+        ServerComputer computer = OmoLuaApi.createFor(this, () -> super.createComputer(id));
+        StationComputers.mark(computer, this);
+        return computer;
     }
 
     /**
-     * Make sure a workspace exists for this station. Called when a player
-     * opens it (and from Lua), so a station placed while the bridge was down
-     * gets its workspace the moment the bridge is back. Never creates a
-     * second workspace for a bound station.
+     * Make sure a workspace exists for this station. Called when the owner
+     * opens it, from its panel, and from Lua only within a moment of such a
+     * use ({@code OmoLuaApi.ensure}), so a station placed while the bridge
+     * was down gets its workspace the moment the bridge is back. Never
+     * creates a second workspace for a bound station, except one bound to a
+     * workspace this host does not have ({@link #isStale}).
      */
     @Override
     public void ensureWorkspace() {
-        if (level == null || level.isClientSide() || isBound() || creating) {
+        if (level == null || level.isClientSide() || isBound() && !stale || creating) {
             return;
         }
         MinecraftServer server = level.getServer();
@@ -266,11 +286,12 @@ public class StationBlockEntity extends ComputerBlockEntity implements Station {
 
     /**
      * A running station checks once that its workspace exists on this host.
-     * A map made on another PC carries workspace ids that mean nothing here:
-     * such a station makes a fresh workspace from its recipe instead of
-     * showing an error. The id is never guessed at; only the bridge's
-     * "no such workspace" does this, and a bridge that is down is asked again
-     * later.
+     * A map made on another PC carries workspace ids that mean nothing here.
+     * Such a station is marked stale and waits: its preset (world data) only
+     * becomes a host workspace when the owner opens the station, never on
+     * its own, because preset names, tabs and profiles come from whoever
+     * made the map. The id is never guessed at; only the bridge's "no such
+     * workspace" does this, and a bridge that is down is asked again later.
      */
     @Override
     protected void serverTick() {
@@ -291,15 +312,11 @@ public class StationBlockEntity extends ComputerBlockEntity implements Station {
                 verifyAt = -1;
             } else if (error.startsWith("no such workspace")) {
                 verifyAt = -1;
-                creating = true;
-                OmoLife.LOG.info("station {}: workspace {} is not on this host; making a fresh one from its preset",
-                    station, ws);
-                Stations.createFor(server, this, recipe(), e -> {
-                    creating = false;
-                    if (e == null) {
-                        StationPackets.tellAll(server, this, "A fresh workspace for this map, from its preset.");
-                    }
-                });
+                stale = true;
+                OmoLife.LOG.info("station {}: workspace {} is not on this host; it makes one from its preset "
+                    + "when the owner opens it", station, ws);
+                StationPackets.tellAll(server, this,
+                    "This map's station '" + displayName() + "' has no workspace here. Open it to create one.");
             }
         });
     }

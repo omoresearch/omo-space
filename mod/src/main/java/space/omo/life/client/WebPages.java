@@ -452,7 +452,7 @@ public final class WebPages {
         }
         guardRefusal = GUARD.deny(origin, live(),
             BrowserGuard.nearExempt(lastSample, blocksTo(origin), nearOpen()));
-        if (!guardRefusal.isEmpty() || PAGES.size() >= MAX_PAGES && !evictUnseen()) {
+        if (!guardRefusal.isEmpty() || PAGES.size() >= MAX_PAGES && !evictUnseen() && !evictFarther(origin)) {
             return null;
         }
         page = new Page(origin, url);
@@ -538,6 +538,33 @@ public final class WebPages {
 
     public static void forgetAllowedWalls() {
         ALLOWED_WALLS.clear();
+    }
+
+    /**
+     * At the cap with every page in view: a wall near the player takes the
+     * page of the farthest wall that is clearly farther away
+     * ({@link BrowserGuard#displaceable}). That wall keeps its pinned URL
+     * and gets a page again when the player comes back to it.
+     */
+    private static boolean evictFarther(BlockPos origin) {
+        long now = System.currentTimeMillis();
+        double near = blocksTo(origin);
+        Page farthest = null;
+        double farthestBlocks = -1;
+        for (Page p : PAGES.values()) {
+            double d = blocksTo(p.pos);
+            if (BrowserGuard.displaceable(now, near, d, p.createdAt, p.interactive) && d > farthestBlocks) {
+                farthest = p;
+                farthestBlocks = d;
+            }
+        }
+        if (farthest == null) {
+            return false;
+        }
+        OmoLife.LOG.info("page cap: nearer wall {} ({} blocks) takes the page of {} ({} blocks) -> {}",
+            origin.toShortString(), Math.round(near), farthest.pos.toShortString(), Math.round(farthestBlocks), farthest.url);
+        close(farthest.pos);
+        return true;
     }
 
     /** Why a wall without a page is dark. */

@@ -14,6 +14,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 
 import dan200.computercraft.shared.computer.core.ServerComputer;
+import dan200.computercraft.shared.computer.menu.ComputerMenu;
 import space.omo.life.link.LinkMirror;
 
 import space.omo.life.block.StationBlockEntity;
@@ -71,6 +72,13 @@ public final class StationSignals {
     static final int RESEND = 100;
     private static final Map<StationBlockEntity, Boolean> NEAR = new WeakHashMap<>();
     private static final Map<StationBlockEntity, Long> NEAR_SENT = new WeakHashMap<>();
+    /**
+     * Whether a player has the station computer's own screen (its GUI) open:
+     * {@code omo_gui true|false}, sent with {@code omo_near}. Only then does
+     * the computer surface size the PTY; otherwise station.lua lets an
+     * adjacent wall (what the player actually sees) size it.
+     */
+    private static final Map<StationBlockEntity, Boolean> GUI = new WeakHashMap<>();
 
     private StationSignals() {
     }
@@ -105,11 +113,28 @@ public final class StationSignals {
         double range = was == null || was ? PARK : WAKE;
         boolean near = playerWithin(level, pos, range) || LinkMirror.watched(level, pos, range);
         Long sent = NEAR_SENT.get(be);
-        if (was == null || was != near || sent == null || now - sent >= RESEND) {
+        boolean resend = sent == null || now - sent >= RESEND;
+        if (was == null || was != near || resend) {
             NEAR.put(be, near);
             NEAR_SENT.put(be, now);
             computer.queueEvent("omo_near", new Object[]{near});
         }
+        boolean gui = screenOpen(level, computer);
+        Boolean guiWas = GUI.get(be);
+        if (guiWas == null || guiWas != gui || resend) {
+            GUI.put(be, gui);
+            computer.queueEvent("omo_gui", new Object[]{gui});
+        }
+    }
+
+    /** Whether any player has this computer's own screen open. */
+    static boolean screenOpen(Level level, ServerComputer computer) {
+        for (Player p : level.players()) {
+            if (p.containerMenu instanceof ComputerMenu menu && menu.getComputer() == computer) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Every server tick of a station block: refresh the reading, tell neighbours when it changed. */

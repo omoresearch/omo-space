@@ -2,6 +2,126 @@
 
 ## Unreleased
 
+### Two blocks: the Omo Computer and the Omo Monitor
+
+- The creative menu shows just the **Omo Computer** (the block formerly
+  called Hermes Computer; same id, `omolife:hermes_computer`) and the **Omo
+  Monitor**. CC: Tweaked is still required, but its own blocks and items
+  (computers, turtles, pocket computers, monitors, disk drives, printers,
+  modems, cables, speakers) and Omo's extra blocks (Terminal, Slim Screen,
+  Name Plate, Status Lamp, Linker, pockets) leave the creative menu, and
+  their recipes are switched off by a built-in data pack
+  (`omolife:simple_blocks`). Set an Omo Computer to Terminal or Hermes in its
+  setup (Shift+right-click).
+- Nothing is unregistered: blocks already placed in your worlds keep working,
+  `/give` still works, and room kits still place every block.
+- The Omo Computer has its own recipe now, without CC: Tweaked parts: gold
+  ingots around a feather, redstone and a glass pane.
+- Want everything back? Start the game with `-Domo.showAllBlocks=true`, or put
+  `showAllBlocks=true` in `config/omolife.properties`.
+
+### Installing from CurseForge or Modrinth; dedicated servers
+
+- `install.sh --bridge-only` installs just the bridge and its session server
+  (no Minecraft, Java or Prism) and links your instances.
+- `omo_setup.py link [--game-dir DIR]` (also the `omo-space-link` command)
+  writes CC: Tweaked's loopback rule and the bridge port into a CurseForge,
+  Modrinth App or Prism instance. Without `--game-dir` it finds every
+  instance that has the Omo Space mod. The bridge token is never copied.
+- When a station can't reach the bridge (not installed, blocked by CC:
+  Tweaked's HTTP rules, or not running), its setup screen says which, and a
+  **Setup guide** button opens the install section of the README (after
+  Minecraft's usual link confirmation). The station panel's status pill reads
+  **Set up** and does the same. The mod never downloads or runs anything.
+- New `config/omolife.properties` (`bridgePort`, `bridgeData`) for launchers
+  where JVM flags are awkward; flags still win.
+- On a dedicated server the mod no longer talks to a bridge on the server
+  machine unless the server starts with `-Domo.bridge.dedicated=true`.
+  Before, every loaded station polled the bridge port about 20 times a
+  second with the server account's token; stations now say "Omo bridge is
+  off on this dedicated server".
+
+### Hermes agents on the Board and in your HUD
+
+- **See what every Hermes agent is doing.** When the omo-space Hermes plugin
+  writes its activity feed, the Hermes Board shows on each tab what its agent
+  is doing (`running terminal 12s`, `thinking`, `idle · 3 turns`) and lists
+  agents outside the world (Telegram, cron, plain terminals) under
+  *Elsewhere*. With more than 24 live workspaces the Board switches to compact
+  cards so one wall still shows them all.
+- **Agent messages reach you while you play.** An agent's `notify` shows as an
+  Omo card in the top-left of the HUD (up to three, about 5 seconds each) and
+  as a toast in an open station panel. Turn the HUD cards off with
+  `/omonotices off` or `hermesNotices=false` in
+  `config/omolife-client.properties`; `/omonotices test` shows a sample.
+- **Status only on walls.** The Board is visible to other players and on
+  stream, so `/board.json` carries profile, platform, state, tool name, turn
+  count and age: no session ids, pids, titles, models, kanban tasks or
+  conversation text. Listing the `notify` messages on the Board is opt-in with
+  `OMO_BOARD_MESSAGES=1` on the bridge service. The bridge reads the feed
+  read-only, at most the last 64 KiB of each event log, and never follows a
+  link out of the Hermes folder.
+
+### Agent bodies: optional name labels
+
+- Local agent bodies can now show a name you choose instead of
+  `ChatGPT - <name>`: `-Domo.agents.labels=omo=Omo;builder_bot=Builder` puts
+  the label over the body's head, in the tab list and in chat. Labels only
+  apply to agent bodies (`-Domo.agents.names`), are plain text up to 32
+  characters (formatting codes and control characters are dropped), and a
+  malformed value is skipped rather than stopping the game. Without the flag
+  nothing changes.
+
+### Web walls: the wall in front of you gets a page first
+
+- With 12 pages open on walls that were all in view, a wall the player walked
+  up to said "Page limit reached (12)" for good: only pages nobody could see
+  were closed to make room. Now a wall within 20 blocks takes the page of the
+  farthest wall in view that is at least 4 blocks farther away and has been
+  open for 5 seconds or more. That wall keeps its address and gets a page
+  back when the player returns. The margin and the minimum age stop two walls
+  at about the same distance from trading a page back and forth. The log
+  says `page cap: nearer wall ... takes the page of ...`.
+
+### Station walls: a TUI fills the wall without a click
+
+- With a monitor wall next to a station, the computer's own screen (80x29)
+  sized the tab even when nobody had its GUI open, and walls yielded the size
+  back to it on every attach and resume. A TUI such as Hermes then sat at
+  80x29 in a corner of the wall, or was cropped, until the wall was
+  right-clicked. The mod now tells the station whether a player has the
+  computer's screen open (`omo_gui true|false`, sent with `omo_near`), and
+  station.lua lets the wall own the size whenever it is not: at boot, when the
+  GUI closes, and after a remote session on the wall ends (`omo_release`).
+  The surface in use also claims the size as soon as its view is live, not
+  only on the next key or click. A station without a wall is unchanged.
+- New `tests/test_station_sizing.py` runs the real station.lua (Lua 5.4 via
+  `lupa`, with ComputerCraft stubs) against a throwaway bridge and tmux
+  server and checks the tab's window size; it is skipped when `lupa` is not
+  installed.
+
+### Station splash: an Omo Space title card
+
+- The screen a station shows before and between sessions (connecting,
+  setting up, bridge offline, refused, interrupted, ended) is now a centred
+  Omo Space title card: the omo.sh mark (the double frame breaking free on
+  the right, drawn in CC teletext characters from
+  `launcher/assets/omo-mark.svg`), the station kind and workspace name, a
+  thin rule, the state in a coloured pill, the message, and the copy, paste
+  and find keys along the bottom.
+- Messages wrap to the screen instead of running off the edge, so a 51x19
+  computer and a small one-monitor wall show every line; computer-sized
+  screens drop two spacer rows and very small ones get a two-line version.
+
+### Terminals: copying from a TUI leaves out its scrollbar
+
+- A TUI that draws a scrollbar or frame edge down the last column (Hermes
+  draws `│` on every row) made every selected row run to the last column, so
+  a multi-line copy came out as one long line with the bar glyphs inside it.
+  A multi-row copy now drops a last column that holds only such edge glyphs
+  and keeps the line breaks. A single-row selection still copies exactly what
+  was highlighted, and real wrapped lines still copy as one line.
+
 ### Security review fixes (01a, 01b)
 
 - **Agent LAN is off unless asked for.** v1.2.0 opened every single-player

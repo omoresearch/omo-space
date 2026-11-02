@@ -19,6 +19,7 @@ mod/build.sh                     # release jar -> mod/build/  (needs a set-up Om
 OMO_TEST=1 mod/build.sh          # jar with the in-game test driver
 python3 tests/test_launcher.py   # offline, fake HOME
 python3 tests/test_bridge.py     # disposable tmux server, stub hermes
+python3 -m unittest tests.test_hermes_feed   # Hermes feed reader + /board.json, fake HERMES_ROOT
 tests/launch-test.sh & python3 tests/acceptance.py   # full in-game run on Xvfb
 scripts/package.sh               # dist/ release bundle + install.sh + SHA256SUMS
 ```

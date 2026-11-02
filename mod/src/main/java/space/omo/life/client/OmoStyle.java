@@ -154,6 +154,11 @@ public final class OmoStyle {
         play(SoundEvents.AMETHYST_BLOCK_CHIME, 1.25F, 0.55F);
     }
 
+    /** A quieter chime for HUD notices. */
+    public static void softChime() {
+        play(SoundEvents.AMETHYST_BLOCK_CHIME, 1.4F, 0.3F);
+    }
+
     public static void lowNote() {
         play(SoundEvents.NOTE_BLOCK_BASS.value(), 0.6F, 0.45F);
     }

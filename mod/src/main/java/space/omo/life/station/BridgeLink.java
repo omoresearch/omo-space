@@ -16,6 +16,10 @@ import java.util.concurrent.CompletableFuture;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.loader.api.FabricLoader;
+
+import space.omo.life.OmoConfig;
 import space.omo.life.OmoLife;
 
 /**
@@ -23,8 +27,10 @@ import space.omo.life.OmoLife;
  * user's own data directory.
  *
  * <p>Where the bridge lives is fixed to {@code 127.0.0.1}; only the port and
- * the data directory can move, through JVM system properties so a test
- * instance can run against its own bridge:
+ * the data directory can move, through JVM system properties (so a test
+ * instance can run against its own bridge) or, for store installs where JVM
+ * flags are awkward, {@code bridgePort} / {@code bridgeData} in
+ * {@code config/omolife.properties} ({@link OmoConfig}; the flag wins):
  * <ul>
  *   <li>{@code -Domo.port=8780} (default 8780)</li>
  *   <li>{@code -Domo.data=/path} the directory holding {@code token}
@@ -52,9 +58,9 @@ public final class BridgeLink {
     private BridgeLink() {
     }
 
+    /** {@code -Domo.port}, else {@code bridgePort} in config/omolife.properties, else 8780. */
     public static int port() {
-        int p = Integer.getInteger("omo.port", DEFAULT_PORT);
-        return p > 0 && p < 65536 ? p : DEFAULT_PORT;
+        return OmoConfig.port(System.getProperty("omo.port"), OmoConfig.get(), DEFAULT_PORT);
     }
 
     public static String baseUrl() {
@@ -65,12 +71,17 @@ public final class BridgeLink {
         return "ws://" + HOST + ":" + port() + "/ws";
     }
 
+    /** {@code -Domo.data}, else {@code bridgeData} in config/omolife.properties, else {@link #defaultDataDir()}. */
     public static Path dataDir() {
-        String prop = System.getProperty("omo.data");
-        if (prop != null && !prop.isBlank()) {
+        String prop = OmoConfig.value(System.getProperty("omo.data"), OmoConfig.get(), "bridgeData");
+        if (prop != null) {
             return Path.of(prop);
         }
-        // Must match launcher/omo_setup.py default_data_dir().
+        return defaultDataDir();
+    }
+
+    /** The per-user data folder. Must match launcher/omo_setup.py default_data_dir(). */
+    public static Path defaultDataDir() {
         String os = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT);
         String home = System.getProperty("user.home");
         if (os.startsWith("mac")) {
@@ -84,8 +95,12 @@ public final class BridgeLink {
         return Path.of(home, ".local", "share", "omo");
     }
 
+
     /** The bridge token, or null when the bridge has never run on this host. */
     public static String token() {
+        if (!enabled()) {
+            return null;
+        }
         long now = System.currentTimeMillis();
         if (cachedToken != null && now - tokenReadAt < 30_000L) {
             return cachedToken;
@@ -98,6 +113,21 @@ public final class BridgeLink {
         }
         tokenReadAt = now;
         return cachedToken;
+    }
+
+    /**
+     * The bridge is a per-computer service (host terminals, Hermes workspaces).
+     * On a dedicated server it is off by default: the server must not poll
+     * 127.0.0.1 or read a token from the server account's home directory, and
+     * players' stations must not reach terminals on the server host. Turn it
+     * on only for a server that deliberately runs its own bridge:
+     * {@code -Domo.bridge.dedicated=true}.
+     */
+    public static boolean enabled() {
+        if (FabricLoader.getInstance().getEnvironmentType() != EnvType.SERVER) {
+            return true;
+        }
+        return Boolean.getBoolean("omo.bridge.dedicated");
     }
 
     public static boolean available() {
@@ -184,6 +214,9 @@ public final class BridgeLink {
     }
 
     public static CompletableFuture<Boolean> health() {
+        if (!enabled()) {
+            return CompletableFuture.completedFuture(false);
+        }
         HttpRequest req = HttpRequest.newBuilder(URI.create(baseUrl() + "/health"))
             .timeout(Duration.ofSeconds(3)).GET().build();
         return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString())
@@ -191,12 +224,18 @@ public final class BridgeLink {
     }
 
     public static String notSetUp() {
+        if (!enabled()) {
+            return "Omo bridge is off on this dedicated server (host terminals are not available here)";
+        }
         return "Omo bridge is not set up on this computer (no token in " + dataDir() + ")";
     }
 
     public static String describeSetupHint() {
-        return "Start it with: systemctl --user start omo-tmux omo-bridge";
+        return "Start it with: systemctl --user start omo-tmux omo-bridge. Setup guide: " + SETUP_GUIDE;
     }
+
+    /** The README's install section (a docs page, never a download). */
+    public static final String SETUP_GUIDE = "https://github.com/omoresearch/omo-space#install";
 
     private static JsonObject error(String m) {
         JsonObject o = new JsonObject();
@@ -213,6 +252,10 @@ public final class BridgeLink {
     }
 
     static {
-        OmoLife.LOG.info("Omo bridge endpoint {} (data {})", baseUrl(), dataDir());
+        if (enabled()) {
+            OmoLife.LOG.info("Omo bridge endpoint {} (data {})", baseUrl(), dataDir());
+        } else {
+            OmoLife.LOG.info("Omo bridge off: dedicated server (enable with -Domo.bridge.dedicated=true)");
+        }
     }
 }

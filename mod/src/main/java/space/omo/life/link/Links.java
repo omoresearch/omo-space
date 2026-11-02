@@ -61,7 +61,9 @@ public final class Links {
         ResourceKey<Item> key = ResourceKey.create(Registries.ITEM, OmoLife.id("linker"));
         LINKER = Registry.register(BuiltInRegistries.ITEM, key,
             new LinkerItem(new Item.Properties().setId(key).stacksTo(1)));
-        CreativeModeTabEvents.modifyOutputEvent(OmoLife.TAB).register(out -> out.accept(LINKER));
+        if (space.omo.life.OmoConfig.showAllBlocks()) {         // hidden by default (HiddenBlocks)
+            CreativeModeTabEvents.modifyOutputEvent(OmoLife.TAB).register(out -> out.accept(LINKER));
+        }
         UseBlockCallback.EVENT.register(Links::useBlock);
         LinkMirror.register();
         LinkPackets.register();

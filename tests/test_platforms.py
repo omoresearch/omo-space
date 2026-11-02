@@ -128,7 +128,7 @@ class DataDirs(unittest.TestCase):
         self.assertTrue(own.endswith("bin/PrismLauncher.AppImage"))
 
     def test_mod_reads_the_same_dirs(self):
-        """BridgeLink.dataDir() must name the same folders as default_data_dir()."""
+        """BridgeLink.defaultDataDir() must name the same folders as default_data_dir()."""
         src = (REPO / "mod/src/main/java/space/omo/life/station/BridgeLink.java").read_text()
         self.assertIn('Path.of(home, "Library", "Application Support", "OmoResearch")', src)
         self.assertIn('System.getenv("LOCALAPPDATA")', src)
@@ -138,11 +138,11 @@ class DataDirs(unittest.TestCase):
         if not Path(java).exists():
             self.skipTest("no java to run the mod's dataDir()")
         # Run the real method body (copied from the source, not retyped) under each os.name.
-        body = src[src.index("public static Path dataDir()"):]
+        body = src[src.index("public static Path defaultDataDir()"):]
         body = body[:body.index("\n    }\n") + 6]
         prog = ROOT / "D.java"
         prog.write_text("import java.nio.file.Path;\npublic class D {\n" + body.replace("public static", "static")
-                        + "\n public static void main(String[] a) { System.out.println(dataDir()); }\n}\n")
+                        + "\n public static void main(String[] a) { System.out.println(defaultDataDir()); }\n}\n")
         for osname, want in (("Mac OS X", "Library/Application Support/OmoResearch"),
                              ("Windows 11", "AppData/Local/OmoResearch"), ("Linux", ".local/share/omo")):
             out = subprocess.run([java, f"-Dos.name={osname}", f"-Duser.home={ROOT}/jh", str(prog)],
@@ -630,7 +630,7 @@ class Installers(unittest.TestCase):
     TOOLS = ("bash", "sh", "mkdir", "cp", "mv", "rm", "cat", "grep", "find", "tar", "dirname", "uname",
              "printf", "mktemp", "chmod", "ln", "sed", "head", "id")
 
-    def run_install(self, pythons):
+    def run_install(self, pythons, args=("--no-setup",), prepare=None):
         """install.sh --no-setup from this tree, in a throwaway HOME, with only `pythons`
         ({name: real exe, or "old" for a 3.10 stand-in}) on PATH."""
         t = Path(tempfile.mkdtemp(dir=ROOT))
@@ -654,9 +654,34 @@ class Installers(unittest.TestCase):
             else:
                 (bindir / name).symlink_to(exe)
         env = {"HOME": str(home), "PATH": str(bindir), "OMO_NO_SERVICES": "1", "LANG": "C.UTF-8"}
-        p = subprocess.run([str(bindir / "bash"), str(pkg / "install.sh"), "--no-setup"],
+        if prepare:
+            prepare(home, pkg)
+        p = subprocess.run([str(bindir / "bash"), str(pkg / "install.sh"), *args],
                            env=env, capture_output=True, text=True, timeout=120)
         return p, home
+
+    @unittest.skipUnless(sys.platform.startswith("linux") and sys.version_info >= (3, 11), "Linux installer path")
+    def test_install_sh_bridge_only_links_store_instances(self):
+        def prepare(home, pkg):
+            for rel in ("config", "scripts", "bridge"):
+                src = REPO / rel
+                shutil.copytree(src, pkg / rel)
+            tmux = home / ".local/share/omo/bin/tmux"            # present already: no download
+            tmux.parent.mkdir(parents=True)
+            tmux.write_text("#!/bin/sh\necho tmux 3.5a\n")
+            tmux.chmod(0o755)
+            mods = home / "curseforge/minecraft/Instances/Omo Pack/mods"
+            mods.mkdir(parents=True)
+            (mods / "omolife-1.3.0+mc26.2.jar").write_bytes(b"jar")
+        p, home = self.run_install({"python3": sys.executable}, ("--bridge-only",), prepare)
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+        game = home / "curseforge/minecraft/Instances/Omo Pack"
+        self.assertIn("127.0.0.1", (game / "config/computercraft-server.toml").read_text())
+        self.assertIn("bridgePort=8780", (game / "config/omolife.properties").read_text())
+        self.assertTrue((home / ".local/bin/omo-space-link").is_file())
+        self.assertFalse((home / ".local/share/omo/runtime/minecraft").exists())   # no game download
+        self.assertFalse((home / ".local/share/applications/space.omo.research.launcher.desktop").exists())
+        self.assertIn("bridge is installed", p.stdout)
 
     @unittest.skipUnless(sys.platform.startswith("linux") and sys.version_info >= (3, 11), "Linux installer path")
     def test_install_sh_uses_a_versioned_python_when_python3_is_too_old(self):

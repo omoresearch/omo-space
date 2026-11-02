@@ -25,7 +25,14 @@ Behind them:
 - **`omo-bridge`** on `127.0.0.1:8780` paints those sessions onto the screens
   in the game and sends your keys back. It listens on your PC only.
 - **The Hermes Board** at `http://127.0.0.1:8780/board` lists every
-  workspace and what it is doing.
+  workspace and what it is doing. With the omo-space Hermes plugin it also
+  shows what each Hermes agent is doing (running a tool, thinking, idle) and
+  lists agents outside the world (Telegram, cron, a plain terminal) under
+  *Elsewhere*. The Board hangs on walls that other players and your stream
+  can see, so it shows status only: never conversation text, session titles,
+  models or ids. Messages an agent sends you with `notify` pop up in your own
+  HUD (`/omonotices off` hides them); to also list them on the Board, set
+  `OMO_BOARD_MESSAGES=1` on the bridge service.
 
 ## 2. Make an agent desk
 
@@ -197,6 +204,14 @@ opens a world on its own.
 - The agent bodies (`omo` and `teacher` by default) skip Fabric's registry
   check (they are plain Mineflayer clients), wear the bundled Omo skin and show
   as **Agent - <name>** over their heads, in the tab list and in chat.
+- To show an agent body by a name of your choice instead, give it a label:
+  `-Domo.agents.labels=omo=Omo;builder_bot=Builder` (entries split by `;`,
+  username and label by the first `=`). The label replaces
+  `Agent - <name>` over its head, in the tab list and in chat. Labels apply
+  only to agent bodies (names in `-Domo.agents.names`), are plain text (no `§`
+  formatting codes) of at most 32 characters, and malformed entries are
+  skipped. There are no labels by default. Labels are read when the game
+  starts.
 - JVM flags: `-Domo.agents.lan=true` turns it on,
   `-Domo.agents.port=<n>` picks the port, `-Domo.agents.names=a,b` sets the
   agent names, `-Domo.agents.allowRemote=true` listens on every interface and

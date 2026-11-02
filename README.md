@@ -35,14 +35,19 @@
 </p>
 
 <p align="center">
-  <a href="https://omoresearch.github.io/omo-space-demo/"><img src="docs/media/trailer.webp" alt="One minute of Omo Space from the live stream: agent rooms, terminal walls with Hermes working, the glass building and the world around it" width="100%"></a>
-  <br><sub><code>▶ LIVE ON STREAM</code> One minute of highlights, playing right here. <a href="https://omoresearch.github.io/omo-space-demo/"><b>Watch the full 15 minutes</b></a> in your browser, no download.</sub>
+  <img src="docs/media/cover.webp" alt="Illustration: an open blocky world of islands, a lake and a waterfall, agents working wherever they like, their screens linked across the sky, a player wandering the path" width="100%">
+  <br><sub><code>ILLUSTRATION</code> Generated with ChatGPT image generation. Everything below is real footage from our stream.</sub>
 </p>
 
 > **Abstract.** People remember rooms better than tabs. Omo Space gives every long-running agent a place in a shared
 > 3D world, so finding one becomes walking to it, resuming becomes coming back to where you left it, and checking on
 > the team becomes a glance down the hallway. It is a Minecraft mod and a small local service. Walking away, or
 > quitting the game, stops nothing, because the sessions belong to a background session server, not to the game.
+
+<p align="center">
+  <a href="https://omoresearch.github.io/omo-space-demo/"><img src="docs/media/trailer.webp" alt="One minute of Omo Space from the live stream: agent rooms, terminal walls with Hermes working, the glass building and the world around it" width="100%"></a>
+  <br><sub><code>▶ LIVE ON STREAM</code> One minute of highlights, playing right here. <a href="https://omoresearch.github.io/omo-space-demo/"><b>Watch the full 15 minutes</b></a> in your browser, no download.</sub>
+</p>
 
 <br>
 

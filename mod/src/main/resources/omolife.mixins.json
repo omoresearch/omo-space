@@ -28,6 +28,8 @@
     "MonitorMirrorAccessor",
     "ServerComputerMixin",
     "ServerMonitorAccessor",
-    "AgentRegistrySyncMixin"
+    "AgentRegistrySyncMixin",
+    "AgentDisplayNameMixin",
+    "AgentTabListNameMixin"
   ]
 }

@@ -190,6 +190,14 @@ single-player world as a player:
 - The agent bodies (`omo` and `teacher` by default) skip Fabric's registry
   check (they are plain Mineflayer clients), wear the bundled Omo skin and show
   as **ChatGPT - <name>** over their heads, in the tab list and in chat.
+- To show an agent body by a name of your choice instead, give it a label:
+  `-Domo.agents.labels=omo=Omo;builder_bot=Builder` (entries split by `;`,
+  username and label by the first `=`). The label replaces
+  `ChatGPT - <name>` over its head, in the tab list and in chat. Labels apply
+  only to agent bodies (names in `-Domo.agents.names`), are plain text (no `§`
+  formatting codes) of at most 32 characters, and malformed entries are
+  skipped. There are no labels by default. Labels are read when the game
+  starts.
 - JVM flags: `-Domo.agents.lan=false` turns it all off,
   `-Domo.agents.port=<n>` picks the port, `-Domo.agents.names=a,b` sets the
   agent names, `-Domo.agents.allowRemote=true` also lets unauthenticated

@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Launcher: a game window that never shows
+
+- The launcher hid itself as soon as the game logged `Backend library:`, but
+  the game logs that when its window is created, before showing it. On a
+  desktop that never maps the window (seen on GNOME Wayland when the
+  `mutter-x11-frames` helper is gone: every decorated X11 window stays
+  unmapped and Iconic) the game sat in `glfwShowWindow` and the launcher had
+  vanished too, so there was nothing on screen at all. The launcher now waits
+  for `Reloading ResourceManager`, the first line logged after the window is
+  shown. If a created window has not shown after 90 seconds it stops the
+  invisible game and shows "The game window didn't appear" with the reason
+  (naming the missing GNOME helper) and a copyable report.
+- `OMO_WAYLAND=1`, or Minecraft's `-DMC_DEBUG_PREFER_WAYLAND=true` in
+  `runtime/local-jvm.json`, now really gives a native Wayland window: play
+  used to remove `WAYLAND_DISPLAY` from the game's environment in every case,
+  so the flag silently fell back to XWayland.
+
 ### Security: LAN guests can no longer reach your shells
 
 - **Every player who joined a world Omo had opened to LAN counted as an

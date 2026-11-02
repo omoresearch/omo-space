@@ -31,6 +31,13 @@ ASSETS = HERE / "assets"
 PLAY_LOG = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "omo" / "play.log"
 LAUNCHED = "launching: "            # omo_setup.py play prints this right before it starts the game
 PRISM_PATIENCE = 120                # seconds a headless Prism may take before we show its window
+# The game logs core.WINDOW_UP ("Backend library:") once its window is CREATED,
+# still hidden. It shows it with glfwShowWindow after logging "OS: ...", and the
+# next line it logs is this one, so this is the first proof the window is on
+# screen. A desktop that never maps the window leaves the game stuck in
+# glfwShowWindow with the log ending at "OS: ...".
+WINDOW_SHOWN = "Reloading ResourceManager"
+WINDOW_PATIENCE = 90                # seconds from window created to shown (normally ~2) before we call it hidden
 
 
 # --------------------------------------------------------------------------- shared logic (tested without a display)
@@ -132,19 +139,55 @@ def read_from(path, offset):
         return ""
 
 
+def x11_frames_missing(env=None, proc=Path("/proc"), uid=None):
+    """GNOME on Wayland draws X11 title bars in a helper, mutter-x11-frames,
+    started with Xwayland. If it is gone, GNOME never shows a new decorated X11
+    window: it stays unmapped and "minimised" (WM_STATE Iconic), which is how
+    the game ends up running with no window. True when Xwayland runs for this
+    user without that helper."""
+    env = os.environ if env is None else env
+    if not (env.get("WAYLAND_DISPLAY") and "GNOME" in env.get("XDG_CURRENT_DESKTOP", "").upper()):
+        return False
+    uid = os.getuid() if uid is None else uid
+    names = set()
+    try:
+        for d in proc.iterdir():
+            if d.name.isdigit():
+                try:
+                    if d.stat().st_uid == uid:
+                        names.add((d / "comm").read_text().strip())
+                except OSError:
+                    continue
+    except OSError:
+        return False
+    return "Xwayland" in names and not any(n.startswith("mutter-x11-fram") for n in names)   # comm is 15 chars
+
+
+def hidden_reason(frames_missing):
+    why = ("GNOME's X11 window helper (mutter-x11-frames) is not running, so the desktop "
+           "keeps every new X11 window minimised and invisible. Log out and back in to restart it, "
+           "or set OMO_WAYLAND=1 to run the game as a native Wayland window."
+           if frames_missing else
+           "The desktop kept it unmapped (minimised). Logging out and back in usually clears this.")
+    return f"Minecraft started, but its window never appeared on screen. {why}"
+
+
 class PlayWatch:
     """Follows one Play. poll() says where it is: ("preflight",), ("launched",),
-    ("window",) once the game's own log says its window exists, ("over", exit
-    code) when the game has quit, or ("failed", reason) if it never got going.
+    ("window",) once the game's own log says its window is on screen, ("over",
+    exit code) when the game has quit, ("failed", reason) if it never got going,
+    or ("hidden", reason) if its window was made but never shown.
 
     `proc` is `omo_setup.py play` (which becomes Java or the private Prism);
     `running()` says whether the game's Java is up. Once the window has been
     seen, the game ending is what counts: a Prism left behind is the
     caller's to close. One step per call, so no state is ever skipped."""
 
-    def __init__(self, proc, play_log, offset, game_log, running):
+    def __init__(self, proc, play_log, offset, game_log, running, patience=WINDOW_PATIENCE,
+                 frames_missing=x11_frames_missing):
         self.proc, self.play_log, self.offset, self.game_log, self.running = proc, play_log, offset, game_log, running
         self.started, self.state = time.time(), ("preflight",)
+        self.patience, self.frames_missing, self.made = patience, frames_missing, None
 
     def poll(self):
         code, now = self.proc.poll(), self.state[0]
@@ -152,6 +195,8 @@ class PlayWatch:
             self.state = ("launched",)
         elif now == "launched" and self.window_up():
             self.state = ("window",)
+        elif now == "launched" and self.running() and self.window_made_long_ago():
+            self.state = ("hidden", hidden_reason(self.frames_missing()))
         elif now == "window" and not self.running():
             self.state = ("over", code or 0)
         elif now in ("preflight", "launched") and code is not None and not self.running():
@@ -164,12 +209,23 @@ class PlayWatch:
                 self.state = ("failed", tail[-1][:240] if tail else f"Play stopped (exit code {code}).")
         return self.state
 
-    def window_up(self):
+    def this_game_log(self):
+        """The game's log, only if this launch wrote it."""
         try:
-            return (self.game_log.stat().st_mtime >= self.started - 1
-                    and core.WINDOW_UP in self.game_log.read_text(errors="replace"))
+            if self.game_log.stat().st_mtime >= self.started - 1:
+                return self.game_log.read_text(errors="replace")
         except OSError:
-            return False
+            pass
+        return ""
+
+    def window_up(self):
+        return WINDOW_SHOWN in self.this_game_log()
+
+    def window_made_long_ago(self):
+        """The window was created (still hidden) more than `patience` seconds ago."""
+        if self.made is None and core.WINDOW_UP in self.this_game_log():
+            self.made = time.time()
+        return self.made is not None and time.time() - self.made > self.patience
 
 
 def load_css(provider, css):
@@ -2338,7 +2394,7 @@ def gui():
                 if state != seen:
                     seen = state
                     ui_soon(self.on_play, state)
-                if state[0] in ("over", "failed"):
+                if state[0] in ("over", "failed", "hidden"):
                     break
                 if (headless and state[0] == "launched" and time.time() - watch.started > PRISM_PATIENCE
                         and not core.instance_pids()):
@@ -2373,11 +2429,21 @@ def gui():
                 self.hidden_for_game = True
                 self.app.hold()
                 self.set_visible(False)                 # the reel pauses with it: no decoding during the game
-            elif state[0] in ("over", "failed"):
+            elif state[0] in ("over", "failed", "hidden"):
                 if self.proc and self.proc.poll() is None:
                     stop_tree(self.proc)     # a private Prism that outlived its game
+                if state[0] == "hidden":     # nobody can see or close it, and it would block TRY AGAIN
+                    for pid in core.instance_pids():
+                        try:
+                            os.kill(pid, signal.SIGTERM)
+                        except OSError:
+                            pass
                 self.busy, self.proc = None, None
-                if state[0] == "failed":
+                if state[0] == "hidden":
+                    self.show_failure("The game window didn't appear", state[1],
+                                      self.play_report("The game started but its window never showed", state[1]),
+                                      self.play)
+                elif state[0] == "failed":
                     self.show_failure("Minecraft didn't start", state[1],
                                       self.play_report("Play failed before the game window opened", state[1]),
                                       self.play)

@@ -557,6 +557,40 @@ class Units(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- guards, files, config
+class GameDisplay(unittest.TestCase):
+    """The game goes to XWayland unless the player opted in to Minecraft's
+    native Wayland window; then it keeps the Wayland socket it needs."""
+    DESK = {"DISPLAY": ":1", "WAYLAND_DISPLAY": "wayland-0", "XDG_SESSION_TYPE": "wayland"}
+
+    def tearDown(self):
+        S.LOCAL_JVM.unlink(missing_ok=True)
+
+    def env(self, extra=None):
+        with mock.patch.object(S, "OS", "linux"), mock.patch.dict(os.environ, {**self.DESK, **(extra or {})}):
+            if "OMO_WAYLAND" not in (extra or {}):
+                os.environ.pop("OMO_WAYLAND", None)
+            return S.game_env(), S.extra_jvm_args()
+
+    def test_xwayland_by_default(self):
+        env, jvm = self.env()
+        self.assertEqual((env.get("WAYLAND_DISPLAY"), env["XDG_SESSION_TYPE"], env["QT_QPA_PLATFORM"]),
+                         (None, "x11", "xcb"))
+        self.assertFalse(set(S.WAYLAND_FLAGS) & set(jvm))
+
+    def test_wayland_opt_in(self):
+        env, jvm = self.env({"OMO_WAYLAND": "1"})
+        self.assertEqual((env["WAYLAND_DISPLAY"], env["XDG_SESSION_TYPE"]), ("wayland-0", "wayland"))
+        self.assertEqual([a for a in jvm if a in S.WAYLAND_FLAGS], list(S.WAYLAND_FLAGS))
+        S.LOCAL_JVM.parent.mkdir(parents=True, exist_ok=True)
+        S.LOCAL_JVM.write_text(json.dumps({"jvm_args": list(S.WAYLAND_FLAGS)}))   # the durable way
+        env, jvm = self.env()
+        self.assertEqual(env["WAYLAND_DISPLAY"], "wayland-0")
+        self.assertEqual(jvm.count(S.WAYLAND_FLAGS[1]), 1)
+        with mock.patch.object(S, "OS", "linux"), mock.patch.dict(os.environ, {"DISPLAY": ":1"}):
+            os.environ.pop("WAYLAND_DISPLAY", None)                        # X11 desktop: nothing to keep
+            self.assertEqual(S.game_env()["XDG_SESSION_TYPE"], "x11")
+
+
 class Memory(unittest.TestCase):
     """Game heap from the machine's RAM; runtime/local-jvm.json still wins."""
     BASE = {"min": 2048, "max": 6144}
@@ -966,7 +1000,8 @@ class LauncherUI(unittest.TestCase):
                 states.append(st)
             late = marker_after is not None and time.monotonic() - t0 > marker_after
             if late and not game_log.read_text().startswith("new"):
-                game_log.write_text(f"new game\n[Render thread/INFO]: {S.WINDOW_UP} LWJGL\n")
+                game_log.write_text(f"new game\n[Render thread/INFO]: {S.WINDOW_UP} LWJGL\n"
+                                    f"[Render thread/INFO]: {self.UI.WINDOW_SHOWN}: vanilla\n")
             if st[0] in ("over", "failed"):
                 break
             time.sleep(0.05)
@@ -984,7 +1019,7 @@ class LauncherUI(unittest.TestCase):
         log.write_text("launching: Minecraft (headless Prism)\n")
         game_log = ROOT / "outlived/logs/latest.log"
         game_log.parent.mkdir(parents=True)
-        game_log.write_text(f"{S.WINDOW_UP} LWJGL\n")
+        game_log.write_text(f"{S.WINDOW_UP} LWJGL\n{self.UI.WINDOW_SHOWN}: vanilla\n")
         prism = subprocess.Popen(["sleep", "30"])                   # a Prism that stays after its game
         try:
             w = self.UI.PlayWatch(prism, log, 0, game_log, running=lambda: game["up"])
@@ -994,6 +1029,75 @@ class LauncherUI(unittest.TestCase):
         finally:
             prism.kill()
             prism.wait()
+
+    def hidden_game_log(self, name):
+        """A game log that stops where a never-mapped window leaves it: window
+        created ("Backend library:"), then "OS: ..." and nothing more (the game
+        is stuck in glfwShowWindow)."""
+        log = ROOT / f"play-{name}.log"
+        log.write_text("launching: Minecraft (headless Prism)\n")
+        game_log = ROOT / f"{name}/logs/latest.log"
+        game_log.parent.mkdir(parents=True)
+        game_log.write_text(f"[Render thread/INFO]: {S.WINDOW_UP} LWJGL version 3.4.1\n"
+                            "[Render thread/INFO]: OS: Linux (7.0.0-38-generic)\n")
+        return log, game_log
+
+    def test_play_watch_a_created_window_is_not_a_shown_one(self):
+        """"Backend library:" is logged before the window is shown, so it must not
+        hide the launcher: on a desktop that never maps the window, the launcher
+        vanished too and the player saw nothing at all."""
+        log, game_log = self.hidden_game_log("created")
+        prism = subprocess.Popen(["sleep", "30"])
+        try:
+            w = self.UI.PlayWatch(prism, log, 0, game_log, running=lambda: True, patience=60)
+            self.assertEqual([w.poll(), w.poll(), w.poll()], [("launched",), ("launched",), ("launched",)])
+            with open(game_log, "a") as fh:
+                fh.write(f"[Render thread/INFO]: {self.UI.WINDOW_SHOWN}: vanilla, fabric\n")
+            self.assertEqual(w.poll(), ("window",))
+        finally:
+            prism.kill()
+            prism.wait()
+
+    def test_play_watch_reports_a_window_that_never_shows(self):
+        log, game_log = self.hidden_game_log("hidden")
+        prism = subprocess.Popen(["sleep", "30"])
+        try:
+            for missing, words in ((True, "mutter-x11-frames"), (False, "unmapped")):
+                w = self.UI.PlayWatch(prism, log, 0, game_log, running=lambda: True, patience=0.2,
+                                      frames_missing=lambda m=missing: m)
+                self.assertEqual([w.poll(), w.poll()], [("launched",), ("launched",)])
+                time.sleep(0.3)
+                state = w.poll()
+                self.assertEqual(state[0], "hidden")
+                self.assertIn("never appeared", state[1])
+                self.assertIn(words, state[1])
+            # A game that quits by itself is a failed start, as before, not a hidden window.
+            w = self.UI.PlayWatch(prism, log, 0, game_log, running=lambda: False, patience=0.0)
+            self.assertEqual([w.poll(), w.poll()], [("launched",), ("launched",)])
+        finally:
+            prism.kill()
+            prism.wait()
+
+    def test_x11_frames_missing(self):
+        procs = ROOT / "fake-proc"
+        def ps(*names):
+            shutil.rmtree(procs, ignore_errors=True)
+            for i, n in enumerate(names, 100):
+                (procs / str(i)).mkdir(parents=True)
+                (procs / str(i) / "comm").write_text(n + "\n")
+            (procs / "self").mkdir(parents=True, exist_ok=True)
+        gnome = {"WAYLAND_DISPLAY": "wayland-0", "XDG_CURRENT_DESKTOP": "ubuntu:GNOME"}
+        missing = self.UI.x11_frames_missing
+        ps("gnome-shell", "Xwayland", "java")
+        self.assertTrue(missing(gnome, procs, os.getuid()))
+        ps("gnome-shell", "Xwayland", "mutter-x11-fram", "java")             # comm is cut to 15 chars
+        self.assertFalse(missing(gnome, procs, os.getuid()))
+        ps("gnome-shell", "java")                                             # no Xwayland running yet
+        self.assertFalse(missing(gnome, procs, os.getuid()))
+        ps("Xwayland")
+        self.assertFalse(missing(gnome, procs, os.getuid() + 1))              # another user's processes
+        self.assertFalse(missing({"WAYLAND_DISPLAY": "wayland-0", "XDG_CURRENT_DESKTOP": "KDE"}, procs, os.getuid()))
+        self.assertFalse(missing({"XDG_CURRENT_DESKTOP": "GNOME"}, procs, os.getuid()))
 
     def test_play_watch_reports_a_failed_preflight(self):
         states = self.watch("echo 'cannot play: bridge down'; exit 1")

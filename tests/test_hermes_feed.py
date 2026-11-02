@@ -268,7 +268,7 @@ class Board(unittest.TestCase):
         self.assertEqual(got["workspaces"], [{"name": "Desk", "kind": "hermes", "state": "live", "profile": "default",
                                               "tabs": [{"name": "Hermes", "kind": "hermes", "state": "live",
                                                         "busy": True, "command": "hermes", "sleeping": False}]}])
-        self.assertEqual(got["hermes"], {"sessions": [], "events": []})
+        self.assertEqual(got["hermes"], {"sessions": [], "events": [], "messages": False})
         json.dumps(got)
 
     def test_activity_on_the_tab_and_elsewhere_sessions(self):
@@ -276,17 +276,45 @@ class Board(unittest.TestCase):
         write(os.path.join(d, "omo-feed.json"), {"v": 1, "profile": "default", "updated": NOW})
         now = time.time()
         write(os.path.join(d, "sessions", "here.json"),
-              presence("here", state="tool", tool="terminal", tool_since=now - 4, updated=now,
+              presence("here", state="tool", tool="terminal", tool_since=now - 4, updated=now, platform="cli",
                        omo={"workspace": "ws1", "tab": "tb1", "title": "omo:ws1:tb1"}))
         write(os.path.join(d, "sessions", "tg.json"), presence("tg", platform="telegram", updated=now))
-        write(os.path.join(d, "sessions", "gone.json"), presence("gone", updated=now,
+        write(os.path.join(d, "sessions", "gone.json"), presence("gone", updated=now, platform="cron",
                                                                    omo={"workspace": "wsX", "tab": "t"}))
         got = self.board(self.root)
         tab = got["workspaces"][0]["tabs"][0]
         self.assertEqual((tab["activity"]["state"], tab["activity"]["tool"]), ("tool", "terminal"))
-        where = {s["session_id"]: (s["elsewhere"], s["workspace"]) for s in got["hermes"]["sessions"]}
-        self.assertEqual(where, {"here": (False, "Desk"), "tg": (True, None), "gone": (True, None)})
+        where = {s["platform"]: (s["elsewhere"], s["workspace"]) for s in got["hermes"]["sessions"]}
+        self.assertEqual(where, {"cli": (False, "Desk"), "telegram": (True, None), "cron": (True, None)})
         json.dumps(got)
+
+    def test_board_carries_status_only(self):
+        """The Board hangs on walls other players and a stream see: no session
+        ids, pids, titles, models, kanban tasks or tool history, and no notify
+        text unless OMO_BOARD_MESSAGES is on."""
+        root = os.path.join(self.tmp, "private")
+        d = os.path.join(root, "plugin-data", "omo-space", "feed")
+        write(os.path.join(d, "omo-feed.json"), {"v": 1, "profile": "default", "updated": NOW})
+        now = time.time()
+        write(os.path.join(d, "sessions", "secret-sid.json"),
+              presence("secret-sid", updated=now, model="secret-model", pid=os.getpid(),
+                       parent_session_id="secret-parent", last_tools=["secret-tool"],
+                       kanban={"task_id": "secret-task", "board": "b", "state": "doing"},
+                       omo={"workspace": "ws1", "tab": "tb1", "title": "secret title"}))
+        with open(os.path.join(d, "events.jsonl"), "w") as fh:
+            fh.write(json.dumps(event(now - 5, text="secret note", level="success", sid="secret-sid")) + "\n")
+            fh.write(json.dumps(event(now - 4, kind="tool_end", tool="secret-tool2", sid="secret-sid")) + "\n")
+        got = self.board(root)
+        self.assertNotIn("secret", json.dumps(got))
+        self.assertEqual(set(got["hermes"]["sessions"][0]),
+                         {"profile", "platform", "state", "tool", "tool_for", "turns", "age", "workspace", "elsewhere"})
+        self.assertEqual((got["hermes"]["events"], got["hermes"]["messages"]), ([], False))
+        with mock.patch.object(self.b, "BOARD_MESSAGES", True):
+            got = self.board(root)
+        self.assertEqual(got["hermes"]["events"], [{"ts": now - 5, "kind": "notify", "profile": "default",
+                                                    "level": "success", "text": "secret note"}])
+        self.assertTrue(got["hermes"]["messages"])
+        self.assertNotIn("secret-sid", json.dumps(got))
 
     def test_notice_frame(self):
         """The HUD frame for a notify: bare text, profile, level (unknown -> info)."""

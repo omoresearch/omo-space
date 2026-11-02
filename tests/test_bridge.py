@@ -741,8 +741,10 @@ async def hermes_feed(env, ui, herm):
     act = next((t.get("activity") for w in board["workspaces"] if w["name"] == "Test Hermes" for t in w["tabs"]
                 if t["name"] == herm["tabs"][0]["name"]), None)
     check("the board shows what the tab's Hermes is doing", act and act["tool"] == "terminal", str(act))
-    where = {s["session_id"]: s["elsewhere"] for s in board.get("hermes", {}).get("sessions", [])}
-    check("a session outside the world is listed as elsewhere", where == {"in-desk": False, "tg": True}, str(where))
+    where = {s["platform"]: s["elsewhere"] for s in board.get("hermes", {}).get("sessions", [])}
+    check("a session outside the world is listed as elsewhere", where == {"tui": False, "telegram": True}, str(where))
+    check("the board names no session ids or pids", all("session_id" not in s and "pid" not in s
+                                                        for s in board["hermes"]["sessions"]), str(board["hermes"]))
     with open(os.path.join(env.feed, "events.jsonl"), "a") as fh:
         for ts, text in ((now - 3600, "from before the bridge"), (time.time(), "tests are green")):
             fh.write(json.dumps({"v": 1, "ts": ts, "profile": "default", "session_id": "tg", "kind": "notify",
@@ -756,6 +758,10 @@ async def hermes_feed(env, ui, herm):
     again = await ui.expect(lambda m: (m["t"] == "toast" and m["m"].startswith("default: ")) or m["t"] == "notice",
                             2.5)
     check("each notify is forwarded once, none from before the bridge started", again is None, str(again))
+    board = env.http("/board.json")
+    check("notify text stays off the wall Board unless OMO_BOARD_MESSAGES=1",
+          board["hermes"]["events"] == [] and board["hermes"]["messages"] is False
+          and "tests are green" not in json.dumps(board), str(board["hermes"]))
 
 
 async def run(env):

@@ -53,7 +53,7 @@ public final class HermesNotices {
     /** Agent Toast (a separate user mod) draws 250-wide cards at the same corner; sit beside them. */
     private static final int AGENT_TOAST_W = 250;
 
-    /** The Hermes wing (station.lua's WING at HUD size), one GUI pixel per '#'. */
+    /** The Hermes wing at HUD size, one GUI pixel per '#'. */
     private static final String[] WING = {
         "..........##",
         "........####",

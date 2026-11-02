@@ -68,6 +68,9 @@ and `activity` on the tab it runs in), and an agent's `notify` events reach
 every connected ui client once, as a toast (the station panel shows it) and as
   <- notice {m, profile, level: info|success|warn}
 which the mod draws in the HUD during play. Older mods ignore the unknown frame.
+The Board is shown on in-world walls, so /board.json gets status only (profile,
+platform, state, tool, turns, age; no session ids, pids, titles or models) and
+the notify text only with OMO_BOARD_MESSAGES=1.
 """
 import asyncio
 import base64
@@ -141,6 +144,12 @@ STARTED = int(time.time())
 # What Hermes agents are doing, from the omo-space Hermes plugin's feed (read-only).
 FEED = hermesfeed.FeedReader(HERMES_ROOT, started=time.time())
 FEED_EVERY = float(os.environ.get("OMO_FEED_EVERY", "1"))
+# The Board hangs on in-world walls, where other players and a stream see it, so
+# /board.json carries Hermes status only. The text of omo_notify messages is
+# opt-in (OMO_BOARD_MESSAGES=1); the HUD notice and the station toast are always
+# drawn on this player's own screen only.
+BOARD_MESSAGES = os.environ.get("OMO_BOARD_MESSAGES", "") == "1"
+BOARD_SESSION_KEYS = ("profile", "platform", "state", "tool", "tool_for", "turns", "age")
 
 # Pause before a typed Enter so TUIs read it as its own keypress (see type_in).
 ENTER_GAP = 0.04
@@ -2097,6 +2106,25 @@ def feed_snapshot():
         return {"sessions": [], "events": [], "tabs": {}}
 
 
+def board_session(s, names):
+    """A Hermes presence as the Board may show it: status, never ids, pids,
+    titles, models, kanban tasks or the tools it used before."""
+    out = {k: s.get(k) for k in BOARD_SESSION_KEYS}
+    key = (s.get("omo") or {}).get("workspace"), (s.get("omo") or {}).get("tab")
+    out["workspace"] = names.get(key)
+    out["elsewhere"] = key not in names
+    return out
+
+
+def board_messages(events):
+    """The omo_notify messages for the Board's Messages list: only with
+    OMO_BOARD_MESSAGES=1, and only the text, who sent it, its level and time."""
+    if not BOARD_MESSAGES:
+        return []
+    return [{"ts": e["ts"], "kind": "notify", "profile": e.get("profile"), "level": e.get("level", "info"),
+             "text": e.get("text", "")} for e in events if e.get("kind") == "notify" and e.get("text")]
+
+
 def board_tab(w, t, acts):
     tab = {"name": t["name"], "kind": t["kind"], "state": t["state"], "busy": t["busy"],
            "command": t["command"], "sleeping": t.get("sleeping", False)}
@@ -2114,17 +2142,14 @@ async def board():
     feed = await asyncio.to_thread(feed_snapshot)
     acts = feed["tabs"]
     names = {(w["id"], t["id"]): w["name"] for w in items for t in w["tabs"]}
-    for s in feed["sessions"]:
-        key = (s["omo"] or {}).get("workspace"), (s["omo"] or {}).get("tab")
-        s["workspace"] = names.get(key)
-        s["elsewhere"] = key not in names
     return {"version": VERSION, "tmux": await asyncio.to_thread(TM.alive), "uptime": int(time.time()) - STARTED,
             "screens": sum(1 for c in CONNS if c.role == "screen" and c.view),
             "workspaces": [{"name": w["name"], "kind": w["kind"], "state": w["state"],
                             "profile": w["profile"] or "default",
                             "tabs": [board_tab(w, t, acts) for t in w["tabs"]]}
                            for w in sorted(items, key=lambda w: (w["state"] != "live", w["name"].lower()))],
-            "hermes": {"sessions": feed["sessions"], "events": feed["events"]}}
+            "hermes": {"sessions": [board_session(s, names) for s in feed["sessions"]],
+                       "events": board_messages(feed["events"]), "messages": BOARD_MESSAGES}}
 
 
 # --------------------------------------------------------------------------- plain HTTP

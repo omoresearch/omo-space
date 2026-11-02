@@ -33,6 +33,8 @@ jobs:
         run: python3 tests/test_bench.py
       - name: Mod access rules without the game (host access, agent LAN; Java parts skip without a JDK)
         run: python3 tests/test_host_access.py
+      - name: Store install rules without the game (CC:T rule, omolife.properties; Java parts skip without a JDK)
+        run: python3 tests/test_store_install.py
       - name: Pinned tmux (the one the product ships, not Ubuntu's)
         run: |
           python3 - <<'PY'

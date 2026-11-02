@@ -48,6 +48,9 @@ public final class StationSetupScreen extends Screen {
     private boolean dirty;
     private int lockY;                               // below the tab chips, which may wrap
     private int cardH = BASE_H;
+    /** Why stations can't reach the bridge right now, shown above the buttons with a way to the guide. */
+    private BridgeHelp.Problem problem;
+    private static final int PROBLEM_H = 26;
 
     public StationSetupScreen(LinkPackets.OpenSetup open) {
         super(Component.literal("Station Setup"));
@@ -138,6 +141,10 @@ public final class StationSetupScreen extends Screen {
         }
         lockY = ty + ROW_H + 6;
         cardH = Math.max(BASE_H, lockY + ROW_H + 34 - cardY);
+        problem = BridgeHelp.problem();
+        if (problem != null) {
+            cardH += PROBLEM_H;
+        }
 
         button(OmoButton.Style.TAB, locked ? "Locked" : "Unlocked", x, lockY, () -> locked = !locked)
             .selected(locked).tip("Locked: players can use this station, but outside creative mode cannot "
@@ -148,6 +155,10 @@ public final class StationSetupScreen extends Screen {
         save.setX(cardX + CARD_W - 10 - save.getWidth());
         OmoButton cancel = button(OmoButton.Style.GHOST, "Cancel", 0, save.getY(), this::onClose);
         cancel.setX(save.getX() - 4 - cancel.getWidth());
+        if (problem != null) {
+            button(OmoButton.Style.ACTION, "Setup guide", cardX + 10, save.getY(), () -> BridgeHelp.openGuide(this))
+                .tip(problem.detail() + " Opens " + space.omo.life.station.BridgeLink.SETUP_GUIDE + " in your browser.");
+        }
 
         if (picker != null) {
             picker.place(chip.getX(), chip.getBottom() + 2, width, height);
@@ -228,6 +239,12 @@ public final class StationSetupScreen extends Screen {
             lx + LABEL_W + 70, lockY + 4, OmoStyle.FAINT, false);
         String note = !open.note().isEmpty() ? open.note()
             : bound() ? "Tabs: for a fresh workspace (map copies)." : "";
+        if (problem != null) {
+            int py = y1 - ROW_H - 8 - PROBLEM_H + 2;
+            g.text(font, OmoStyle.fit(font, problem.title(), CARD_W - 20), lx, py, OmoStyle.AMBER, false);
+            g.text(font, OmoStyle.fit(font, problem.detail(), CARD_W - 20), lx, py + 11, OmoStyle.MUTED, false);
+            note = "";                                  // the guide button sits where the note would
+        }
         if (!note.isEmpty()) {
             g.text(font, OmoStyle.fit(font, note, CARD_W - 110), lx, y1 - 20, open.note().isEmpty()
                 ? OmoStyle.FAINT : OmoStyle.AMBER, false);
@@ -247,6 +264,10 @@ public final class StationSetupScreen extends Screen {
     /** Rebuilds requested by a button happen here, after the click that asked for them is over. */
     @Override
     public void tick() {
+        BridgeHelp.Problem now = BridgeHelp.problem();
+        if ((now == null) != (problem == null) || now != null && !now.title().equals(problem.title())) {
+            dirty = true;                               // the bridge came up, or the reason changed
+        }
         if (dirty) {
             dirty = false;
             rebuildWidgets();

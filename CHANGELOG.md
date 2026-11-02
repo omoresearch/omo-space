@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Installing from CurseForge or Modrinth; dedicated servers
+
+- `install.sh --bridge-only` installs just the bridge and its session server
+  (no Minecraft, Java or Prism) and links your instances.
+- `omo_setup.py link [--game-dir DIR]` (also the `omo-space-link` command)
+  writes CC: Tweaked's loopback rule and the bridge port into a CurseForge,
+  Modrinth App or Prism instance. Without `--game-dir` it finds every
+  instance that has the Omo Space mod. The bridge token is never copied.
+- When a station can't reach the bridge (not installed, blocked by CC:
+  Tweaked's HTTP rules, or not running), its setup screen says which, and a
+  **Setup guide** button opens the install section of the README (after
+  Minecraft's usual link confirmation). The station panel's status pill reads
+  **Set up** and does the same. The mod never downloads or runs anything.
+- New `config/omolife.properties` (`bridgePort`, `bridgeData`) for launchers
+  where JVM flags are awkward; flags still win.
+- On a dedicated server the mod no longer talks to a bridge on the server
+  machine unless the server starts with `-Domo.bridge.dedicated=true`.
+  Before, every loaded station polled the bridge port about 20 times a
+  second with the server account's token; stations now say "Omo bridge is
+  off on this dedicated server".
+
 ### Hermes agents on the Board and in your HUD
 
 - **See what every Hermes agent is doing.** When the omo-space Hermes plugin

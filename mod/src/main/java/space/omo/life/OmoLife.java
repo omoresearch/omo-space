@@ -4,6 +4,7 @@ import dan200.computercraft.api.ComputerCraftAPI;
 import dan200.computercraft.api.peripheral.PeripheralLookup;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
 import net.fabricmc.fabric.api.creativetab.v1.FabricCreativeModeTab;
 import net.fabricmc.fabric.api.object.builder.v1.block.entity.FabricBlockEntityTypeBuilder;
@@ -121,6 +122,7 @@ public final class OmoLife implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        OmoConfig.init(FabricLoader.getInstance().getConfigDir());
         Registry.register(BuiltInRegistries.BLOCK, id("hermes_computer"), HERMES_COMPUTER);
         Registry.register(BuiltInRegistries.BLOCK, id("terminal"), TERMINAL);
         Registry.register(BuiltInRegistries.BLOCK, id("monitor"), MONITOR);

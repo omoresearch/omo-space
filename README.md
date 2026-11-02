@@ -191,6 +191,14 @@ There is also a version with buttons to pick from on [omo.sh](https://www.omo.sh
 **You need:** a Minecraft Java account, Python 3.11 or newer, and about 2 GB of free space.
 Omo Space brings its own copy of Minecraft, so your normal Minecraft stays untouched.
 
+There are two ways in:
+
+- **Set everything up for me** (below): the Omo Space app installs its own Minecraft, Fabric, the mods,
+  the bridge and its services.
+- **I use CurseForge, the Modrinth App or Prism:** add *Omo Space*, *CC: Tweaked* and (for web walls)
+  *MCEF Modern* to an instance in your launcher, then install only the bridge, see
+  [From CurseForge or Modrinth](#from-curseforge-or-modrinth).
+
 > **Tested on:** Linux, end to end. macOS and Windows are new and only tested offline so far,
 > and a fresh-machine Microsoft sign-in hasn't been tested yet.
 
@@ -236,6 +244,32 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 omo-research-1.2.0-window
 ```
 
 Then open **Omo Space** from the Start menu.
+
+### From CurseForge or Modrinth
+
+The mod from a store is the in-game half. Terminals also need the **Omo Space bridge**, a small program on your
+computer that listens on 127.0.0.1 only. Install it without a second copy of the game (Linux and macOS), with
+`install.sh` and the bundle for your system from the [latest release](https://github.com/omoresearch/omo-space/releases/latest)
+(`--bridge-only` is new after v1.2.0):
+
+```bash
+sha256sum -c --ignore-missing SHA256SUMS
+bash install.sh --bridge-only <bundle>.tar.gz
+```
+
+`--bridge-only` installs the bridge and its session server, skips Minecraft, Java and Prism, and then
+**links** every CurseForge, Modrinth App or Prism instance that has the Omo Space mod. Linking writes two
+files into the instance's `config/` folder: CC: Tweaked's rule that lets computers reach 127.0.0.1 on the
+bridge port (CC: Tweaked blocks local addresses by default, so without it terminals stay on "connecting"),
+and `omolife.properties` with the bridge port. The bridge token never leaves your data folder.
+For an instance you add later, or one in an unusual place:
+
+```bash
+omo-space-link --game-dir "<instance folder>"
+```
+
+Then restart the game. If a station can't reach the bridge, its setup screen says why and has a
+**Setup guide** button that brings you back here. Windows: use the full install for now.
 
 <details>
 <summary><b>Requirements, downloads and troubleshooting</b></summary>

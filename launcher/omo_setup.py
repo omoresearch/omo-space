@@ -13,6 +13,11 @@ This is the engine behind the Omo Space window (and usable on its own):
   omo_setup.py signout    forget the stored sign-in
   omo_setup.py play       check the bridge, then start Minecraft
   omo_setup.py services   (re)install and start omo-tmux + omo-bridge
+  omo_setup.py link [--game-dir DIR]
+                          let a CurseForge / Modrinth App / Prism instance
+                          reach the bridge: CC:T's loopback rule and the port
+                          in its config/ (default: every instance found that
+                          has the Omo Space mod)
 
 Every command exits non-zero, with the reason on its last line, unless the
 result is actually ready to play.
@@ -832,6 +837,115 @@ def ensure_cct_rule(path, port=None, source=REPO / "config/computercraft-server.
                          f"allow host 127.0.0.1 port {port} there by hand")
     write_if_changed(path, new.encode())
     return state
+
+
+OMOLIFE_PROPS = "omolife.properties"   # the mod's config (OmoConfig.java): bridgePort, bridgeData, showAllBlocks
+
+
+def store_instance_roots():
+    """(folder, pattern) pairs where CurseForge, the Modrinth App and Prism keep
+    instance game directories on this OS. Read only; nothing is created."""
+    if OS == "windows":
+        user = Path(os.environ.get("USERPROFILE") or HOME)
+        roaming = Path(os.environ.get("APPDATA") or HOME / "AppData/Roaming")
+        cf, modrinth, prisms = user / "curseforge/minecraft/Instances", roaming / "ModrinthApp/profiles", \
+            [roaming / "PrismLauncher"]
+    elif OS == "macos":
+        cf = HOME / "Documents/curseforge/minecraft/Instances"
+        modrinth = HOME / "Library/Application Support/ModrinthApp/profiles"
+        prisms = [HOME / "Library/Application Support/PrismLauncher"]
+    else:
+        cf, modrinth = HOME / "curseforge/minecraft/Instances", HOME / ".local/share/ModrinthApp/profiles"
+        prisms = [HOME / ".local/share/PrismLauncher",
+                  HOME / ".var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher"]
+    roots = [(cf, "*"), (modrinth, "*")]
+    for prism in dict.fromkeys([*prisms, USER_PRISM]):
+        roots += [(prism / "instances", "*/minecraft"), (prism / "instances", "*/.minecraft")]
+    return roots
+
+
+def store_instances():
+    """Game directories of store/launcher instances that hold an omolife jar
+    (Omo's own runtime is set up by `setup`, not here)."""
+    found = []
+    for root, pattern in store_instance_roots():
+        if not root.is_dir():
+            continue
+        for d in sorted(root.glob(pattern)):
+            if d.is_dir() and any((d / "mods").glob("omolife-*.jar")) and d.resolve() != GAME.resolve():
+                found.append(d)
+    return list(dict.fromkeys(found))
+
+
+def game_dir_of(path):
+    """The folder with mods/ and config/ for a path the player gives: the game
+    directory itself, or a Prism instance folder holding minecraft/ or .minecraft/."""
+    path = Path(path).expanduser()
+    if (path / "mods").is_dir():
+        return path
+    for sub in ("minecraft", ".minecraft"):
+        if (path / sub / "mods").is_dir():
+            return path / sub
+    return path
+
+
+def set_properties(path, values):
+    """Set `key=value` lines in a .properties file, keeping every other line."""
+    path = Path(path)
+    try:
+        lines = path.read_text().splitlines()
+    except FileNotFoundError:
+        lines = ["# Omo Space (omolife). Written by omo_setup.py link; JVM flags win over this file."]
+    todo = {k: str(v).replace("\\", "\\\\") for k, v in values.items()}   # Java reads \ as an escape
+    for i, line in enumerate(lines):
+        key = line.split("=", 1)[0].strip()
+        if "=" in line and not line.lstrip().startswith(("#", "!")) and key in todo:
+            lines[i] = f"{key}={todo.pop(key)}"
+    lines += [f"{k}={v}" for k, v in todo.items()]
+    return write_if_changed(path, ("\n".join(lines) + "\n").encode())
+
+
+def link_game_dir(game_dir):
+    """Point one game directory (a CurseForge, Modrinth App or Prism instance)
+    at this computer's bridge: CC:T's loopback rule for the bridge port, and
+    the port (plus the data folder when it is not the default) in
+    config/omolife.properties. The token itself never goes there."""
+    game = game_dir_of(game_dir)
+    if not game.is_dir():
+        raise SystemExit(f"link: no such folder: {game}")
+    state = ensure_cct_rule(game / "config/computercraft-server.toml", PORT)
+    props = {"bridgePort": str(PORT)}
+    if OMO.resolve() != default_data_dir().resolve():
+        props["bridgeData"] = str(OMO)
+    set_properties(game / "config" / OMOLIFE_PROPS, props)
+    say(f"link: {game}: CC: Tweaked rule for 127.0.0.1:{PORT} "
+        f"{'already there' if state == 'ok' else 'added'}; bridge port written")
+    if not any((game / "mods").glob("omolife-*.jar")):
+        say("link: note: no omolife-*.jar in its mods folder yet; add Omo Space there from your launcher")
+    return game
+
+
+def link_instances(argv=()):
+    """omo_setup.py link [--game-dir DIR ...]: without --game-dir, every
+    CurseForge / Modrinth App / Prism instance that has the Omo Space mod."""
+    dirs, args = [], list(argv)
+    while args:
+        a = args.pop(0)
+        if a == "--game-dir" and args:
+            dirs.append(args.pop(0))
+        elif a.startswith("--game-dir="):
+            dirs.append(a.split("=", 1)[1])
+        else:
+            raise SystemExit(f"link: unknown argument {a!r}; usage: omo_setup.py link [--game-dir DIR ...]")
+    if not (OMO / "token").exists():
+        say(f"link: note: no bridge token in {OMO} yet; install the bridge first (install.sh --bridge-only)")
+    targets = dirs or store_instances()
+    if not targets:
+        raise SystemExit("link: found no CurseForge, Modrinth App or Prism instance with the Omo Space mod; "
+                         "pass its folder: omo_setup.py link --game-dir <instance folder>")
+    for d in targets:
+        link_game_dir(d)
+    say("link: done. Restart the game so CC: Tweaked reads its new rule.")
 
 
 def old_worlds():
@@ -1762,10 +1876,13 @@ def play(show_prism=False):
 
 
 COMMANDS = {"status": status, "setup": setup, "repair": repair, "play": play, "services": services,
-            "signin": signin, "signout": signout, "fix-inotify": fix_inotify}
+            "signin": signin, "signout": signout, "fix-inotify": fix_inotify, "link": link_instances}
 
 if __name__ == "__main__":
     op = sys.argv[1] if len(sys.argv) > 1 else "status"
     if op not in COMMANDS:
-        sys.exit(f"usage: {Path(sys.argv[0]).name} {{{'|'.join(COMMANDS)}}} [--show]")
-    COMMANDS[op](*([True] if op == "play" and "--show" in sys.argv else []))
+        sys.exit(f"usage: {Path(sys.argv[0]).name} {{{'|'.join(COMMANDS)}}} [--show] [--game-dir DIR]")
+    if op == "link":
+        link_instances(sys.argv[2:])
+    else:
+        COMMANDS[op](*([True] if op == "play" and "--show" in sys.argv else []))

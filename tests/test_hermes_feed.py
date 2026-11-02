@@ -253,23 +253,26 @@ class Board(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp, True)
 
-    def board(self, root):
+    def board(self, root, full=False):
         items = [{"id": "ws1", "name": "Desk", "kind": "hermes", "state": "live", "profile": "",
                   "tabs": [{"id": "tb1", "name": "Hermes", "kind": "hermes", "state": "live", "busy": True,
                             "command": "hermes", "sleeping": False}]}]
         with mock.patch.object(self.b, "FEED", hf.FeedReader(root, rescan=0)), \
                 mock.patch.object(self.b.WS, "list", return_value=items), \
                 mock.patch.object(self.b.TM, "alive", return_value=True):
-            return asyncio.run(self.b.board())
+            return asyncio.run(self.b.board(full=full))
 
     def test_existing_keys_unchanged_without_a_feed(self):
         got = self.board(os.path.join(self.tmp, "no-hermes"))
         self.assertEqual(set(got), {"version", "tmux", "uptime", "screens", "workspaces", "hermes"})
         self.assertEqual(got["workspaces"], [{"name": "Desk", "kind": "hermes", "state": "live", "profile": "default",
                                               "tabs": [{"name": "Hermes", "kind": "hermes", "state": "live",
-                                                        "busy": True, "command": "hermes", "sleeping": False}]}])
+                                                        "busy": True, "sleeping": False}]}])
         self.assertEqual(got["hermes"], {"sessions": [], "events": [], "messages": False})
         json.dumps(got)
+        # The foreground command (a process name) only goes to a token holder.
+        tab = self.board(os.path.join(self.tmp, "no-hermes"), full=True)["workspaces"][0]["tabs"][0]
+        self.assertEqual(tab["command"], "hermes")
 
     def test_activity_on_the_tab_and_elsewhere_sessions(self):
         d = os.path.join(self.root, "plugin-data", "omo-space", "feed")

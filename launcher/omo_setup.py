@@ -132,7 +132,8 @@ ARGFILE_GRACE = float(os.environ.get("OMO_ARGFILE_GRACE", "10"))   # Windows: se
 MOD_JARS = (HERE, REPO / "mod/build")    # where our own mod ships: beside this script, or the build output
 APP_ID = "space.omo.research.launcher"
 MIGRATE = ("saves", "options.txt", "config", "resourcepacks", "shaderpacks", "screenshots", "servers.dat")
-WINDOW_UP = "Backend library:"          # the game log line printed once its window exists
+WINDOW_UP = "Backend library:"          # the game log line printed once its window is created (not yet shown)
+WAYLAND_FLAGS = ("-DMC_DEBUG_ENABLED=true", "-DMC_DEBUG_PREFER_WAYLAND=true")   # Minecraft's native-Wayland switch
 
 
 def say(msg):
@@ -497,7 +498,8 @@ def extra_jvm_args():
     """OMO_JVM_ARGS: extra game JVM options, e.g. -Domo.port=... to point the
     mod at an isolated test bridge. Local overrides come first, env wins after."""
     out = []
-    for a in [*(local_jvm().get("jvm_args") or []), *os.environ.get("OMO_JVM_ARGS", "").split()]:
+    for a in [*(local_jvm().get("jvm_args") or []), *os.environ.get("OMO_JVM_ARGS", "").split(),
+              *(WAYLAND_FLAGS if os.environ.get("OMO_WAYLAND") == "1" else ())]:
         if a not in out:
             out.append(a)
     # A bridge moved with OMO_BRIDGE_PORT is only reachable if the mod is told too.
@@ -1656,9 +1658,15 @@ def signout():
 def game_env():
     """GLFW is happier on XWayland than native Wayland for this stack. Without
     WAYLAND_DISPLAY, Qt and GLFW would still find the default Wayland socket
-    through XDG_SESSION_TYPE, so point both at DISPLAY explicitly. (Linux only.)"""
+    through XDG_SESSION_TYPE, so point both at DISPLAY explicitly. (Linux only.)
+    Opting in to Minecraft's native Wayland window (OMO_WAYLAND=1, or its
+    -DMC_DEBUG_PREFER_WAYLAND=true flag in local-jvm.json) keeps the Wayland
+    socket: taking it away would leave the game on XWayland anyway, which is
+    the very thing the flag is there to avoid (e.g. a desktop that stopped
+    showing X11 windows)."""
     env = dict(os.environ)
-    if OS == "linux" and env.get("DISPLAY"):
+    wayland = env.get("WAYLAND_DISPLAY") and WAYLAND_FLAGS[1] in extra_jvm_args()
+    if OS == "linux" and env.get("DISPLAY") and not wayland:
         env.pop("WAYLAND_DISPLAY", None)
         env.update(XDG_SESSION_TYPE="x11", QT_QPA_PLATFORM="xcb")
     return env

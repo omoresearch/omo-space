@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Station splash: an Omo Space title card
+
+- The screen a station shows before and between sessions (connecting,
+  setting up, bridge offline, refused, interrupted, ended) is now a centred
+  Omo Space title card: the omo.sh mark (the double frame breaking free on
+  the right, drawn in CC teletext characters from
+  `launcher/assets/omo-mark.svg`), the station kind and workspace name, a
+  thin rule, the state in a coloured pill, the message, and the copy, paste
+  and find keys along the bottom.
+- Messages wrap to the screen instead of running off the edge, so a 51x19
+  computer and a small one-monitor wall show every line; computer-sized
+  screens drop two spacer rows and very small ones get a two-line version.
+
 ### Terminals: copying from a TUI leaves out its scrollbar
 
 - A TUI that draws a scrollbar or frame edge down the last column (Hermes

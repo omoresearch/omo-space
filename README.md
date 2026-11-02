@@ -76,9 +76,17 @@ Everything is an ordinary-looking game block. These are the whole kit:
 
 | Block | What it does |
 | --- | --- |
-| **Hermes Computer** | One named workspace with a Hermes conversation in the profile you choose. Different agents, different desks. |
-| **Terminal** | A persistent shell. Its "+" menu opens Shell, Hermes, Claude Code or Codex tabs. |
-| **Omo Monitor / Slim Screen** | A bigger view of a terminal, or a real Chromium page: up to 6 tabs, its own sound, WASD for web games. |
+| **Omo Computer** | One named workspace: a Hermes conversation in the profile you choose, or a plain persistent shell (set it in its setup, Shift+right-click). Its "+" menu opens Shell, Hermes, Claude Code or Codex tabs. Different agents, different desks. |
+| **Omo Monitor** | A bigger view of a terminal, or a real Chromium page: up to 6 tabs, its own sound, WASD for web games. |
+
+These two are all the creative menu shows. CC: Tweaked's own blocks are hidden and their recipes are off,
+and so are the builder extras below. Blocks already in your worlds keep working. `-Domo.showAllBlocks=true` (or
+`showAllBlocks=true` in `config/omolife.properties`) brings them all back:
+
+| Extra | What it does |
+| --- | --- |
+| **Terminal** | The Omo Computer preset to a plain shell. |
+| **Slim Screen** | The monitor as a flat wall-mounted screen, in six frame finishes. |
 | **Omo Linker** | Mirrors a station onto walls across the room, with no wiring. |
 | **Omo Pocket** | A Hermes or Terminal workspace you carry as an item. |
 | **Name Plate / Status Lamp** | A name, and a live working / idle / interrupted light that also drives redstone. |
@@ -225,7 +233,7 @@ bash install.sh omo-research-1.2.0-linux-x64.tar.gz
 ```
 
 **4. Play.** Open **Omo Space** from your app menu, click **Sign in with Microsoft**, then **Play**.
-In the game, find the Omo Space tab in the creative inventory and place a **Hermes Computer** or a **Terminal**.
+In the game, find the Omo Space tab in the creative inventory and place an **Omo Computer**.
 
 ### macOS
 

@@ -115,6 +115,10 @@ echo "compiling$([ "$TEST" = "1" ] && echo ' (with test driver)')..."
     @"$SOURCES"
 
 cp -r src/main/resources/. build/classes/
+# The built-in simple_blocks data pack: switch off every CC: Tweaked recipe
+# (listed from the CC:T jar compiled against) and the hidden Omo ones.
+"$JAVA_HOME/bin/java" tools/SimpleBlocksPack.java "$CCT" src/main/resources/data build/classes/resourcepacks/simple_blocks \
+  || die "could not generate the simple_blocks data pack"
 
 OUT="build/omolife-1.0.0+mc26.2.jar"
 rm -f "$OUT"

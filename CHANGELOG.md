@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Two blocks: the Omo Computer and the Omo Monitor
+
+- The creative menu shows just the **Omo Computer** (the block formerly
+  called Hermes Computer; same id, `omolife:hermes_computer`) and the **Omo
+  Monitor**. CC: Tweaked is still required, but its own blocks and items
+  (computers, turtles, pocket computers, monitors, disk drives, printers,
+  modems, cables, speakers) and Omo's extra blocks (Terminal, Slim Screen,
+  Name Plate, Status Lamp, Linker, pockets) leave the creative menu, and
+  their recipes are switched off by a built-in data pack
+  (`omolife:simple_blocks`). Set an Omo Computer to Terminal or Hermes in its
+  setup (Shift+right-click).
+- Nothing is unregistered: blocks already placed in your worlds keep working,
+  `/give` still works, and room kits still place every block.
+- The Omo Computer has its own recipe now, without CC: Tweaked parts: gold
+  ingots around a feather, redstone and a glass pane.
+- Want everything back? Start the game with `-Domo.showAllBlocks=true`, or put
+  `showAllBlocks=true` in `config/omolife.properties`.
+
 ### Installing from CurseForge or Modrinth; dedicated servers
 
 - `install.sh --bridge-only` installs just the bridge and its session server

@@ -1,0 +1,10 @@
+{
+  "pack": {
+    "description": "Omo Space: just the Omo Computer and Omo Monitor (hides CC: Tweaked's own blocks and recipes; -Domo.showAllBlocks=true or showAllBlocks=true in config/omolife.properties brings them back)",
+    "min_format": [
+      107,
+      1
+    ],
+    "max_format": 107
+  }
+}

@@ -35,6 +35,8 @@ jobs:
         run: python3 tests/test_host_access.py
       - name: Store install rules without the game (CC:T rule, omolife.properties; Java parts skip without a JDK)
         run: python3 tests/test_store_install.py
+      - name: Two-block rules without the game (hidden blocks, simple_blocks pack; Java parts skip without a JDK)
+        run: python3 tests/test_simple_blocks.py
       - name: Pinned tmux (the one the product ships, not Ubuntu's)
         run: |
           python3 - <<'PY'

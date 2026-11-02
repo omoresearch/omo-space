@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Terminals: copying from a TUI leaves out its scrollbar
+
+- A TUI that draws a scrollbar or frame edge down the last column (Hermes
+  draws `│` on every row) made every selected row run to the last column, so
+  a multi-line copy came out as one long line with the bar glyphs inside it.
+  A multi-row copy now drops a last column that holds only such edge glyphs
+  and keeps the line breaks. A single-row selection still copies exactly what
+  was highlighted, and real wrapped lines still copy as one line.
+
 ### Security review fixes (01a, 01b)
 
 - **Agent LAN is off unless asked for.** v1.2.0 opened every single-player

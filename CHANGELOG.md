@@ -2,6 +2,93 @@
 
 ## Unreleased
 
+### Security review fixes (01a, 01b)
+
+- **Agent LAN is off unless asked for.** v1.2.0 opened every single-player
+  world to LAN (port 25566, offline logins). It now only does so with
+  `-Domo.agents.lan=true`, which the Omo Space launcher sets for its own
+  installs (opt out with `OMO_AGENT_LAN=0`). A mod installed from a store
+  never opens a world by itself.
+- The agent listener binds to **127.0.0.1** instead of every network
+  interface and is no longer announced on the LAN
+  (`-Domo.agents.allowRemote=true` restores both).
+- **The world owner is matched by account UUID**, not by name: with offline
+  logins anyone could claim the owner's name. The rule from the LAN-guests fix
+  below still holds (an `ops.json` entry only counts from this computer when
+  the world doesn't authenticate players).
+- Agent bodies show as **Agent - <name>** (was a third-party product name).
+- **A downloaded map can no longer reach your computer.** (Security review
+  01a, C1.) Before, a shared world could make a station run its own code
+  (a `.settings` opt-out plus `startup.lua`, a floppy, a data pack that
+  replaces the computer ROM, or a `/cc` folder that CraftOS loads at boot)
+  and get a ticket for a host shell the moment the world loaded. Now:
+  - station computers always run the station program from the mod jar: their
+    own `/startup`, disk startups and the `omo.enabled` setting are ignored
+    (the `craftos`/`stationon` helpers are gone; Ctrl+Shift+Q still leaves
+    to CraftOS, `station` comes back), and an empty read-only `/cc` is
+    mounted while they boot;
+  - if a data pack changes any CraftOS file (`bios.lua`, `/rom/**`) from
+    what the installed mods ship, stations refuse to connect and the log
+    names the files;
+  - a station only gets a ticket after **you** use it (open it, its panel,
+    its wall, or type in it). The game remembers, in
+    `config/omolife-trusted-stations.txt` (never in the world), which
+    station + workspace pairs you used, so your own stations reconnect by
+    themselves while you are in the game. **After updating, right-click each
+    station (or its wall) once**; until then it shows "Waiting for the world
+    owner";
+  - a map's station presets no longer create workspaces on their own: the
+    station waits until you open it. Preset names lose `#` and control
+    characters, profiles are limited to letters, digits, `.`, `_`, `-`;
+  - holding a CC: Tweaked pocket computer no longer makes it a station; your
+    right-click does.
+- **CC: Tweaked's own paths follow the station rule** (H1). `/computercraft
+  view`, `tp`, `shutdown` and `turn-on` on a station, its computer screen and
+  every key, mouse, paste and upload packet now need the world owner or an
+  operator. Agent LAN publishes with commands **off**; Omo agent bodies (and
+  only they) get gamemaster commands in a cheats-on world, without being
+  added to the operator list.
+- **Monitor pages are checked everywhere** (H2). Only `http(s)` pages and
+  `about:blank` load, whether the address comes from the screen, an item,
+  block data in a map or a server's block update; `file:`, `chrome:`,
+  `javascript:`, `data:`, `view-source:` and other `about:` addresses are
+  dropped on the server and again in the client. On servers you don't host,
+  a web wall stays dark until you right-click it. Pages can open at most 3
+  new tabs per 10 seconds.
+- Touching a monitor that a station is attached to (CC: Tweaked monitors and
+  modem networks included) needs the owner or an operator, and stations only
+  use monitors that touch them, never ones over a modem (M1). A player who is
+  deopped loses a wall they were controlling at their next key.
+- `/omo` only runs for the owner or an operator typing it, or the server
+  console; never command blocks, data pack functions or command computers
+  (M3).
+- Requires CC: Tweaked **1.120.2 up to (not including) 1.121** (M5): the mod
+  hooks CC: Tweaked internals that a newer version may change.
+- The Omo Computer recipe in the mod's own data is the CC-free one, so
+  survival crafting no longer depends on data pack order (M6). Setup and
+  monitor packets reach 32 blocks (was 64); profile names and workspace ids
+  from the client are length- and character-checked.
+- **Web walls keep Chromium's same-origin policy.** MCEF Modern starts
+  Chromium with `--disable-web-security`, so a map's page on a wall could
+  read other sites with your cookies. Omo now strips that flag.
+- **The bridge escapes everything it hands to tmux** (review 01b). tmux
+  expands `#{...}` and `#(command)` in window names and start directories, so
+  a map's preset tab name could run a command on the host. Tab names and
+  working directories are now passed literally, an empty or malformed token
+  is refused, browser requests need an allowed `Origin`, `board.json` hides
+  tab commands without the token, and the bridge data directory is private
+  (0700/0600).
+- CI never runs pull requests from forks on the self-hosted runner.
+
+### Removed: Firefox cookie importer
+
+- **The Firefox cookie importer is gone from the mod.** It ran a Python
+  subprocess to copy Firefox's `cookies.sqlite` into the in-game browser
+  (opt-in with `-Domo.firefoxCookies=true`). Store reviews and malware
+  scanners flag that pattern, so it is not shipped any more; the flag now
+  does nothing. Sign in on the wall itself: Chromium keeps its own cookies in
+  `config/mcef-modern`.
+
 ### Launcher: a game window that never shows
 
 - The launcher hid itself as soon as the game logged `Backend library:`, but

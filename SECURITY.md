@@ -35,8 +35,20 @@ Minecraft world. Treat it with the same care as a terminal.
 - Station computers never boot from a floppy in an adjacent disk drive.
 - A block, a room or a pocket dimension is a presentation boundary, not a
   sandbox. Processes run as your user.
-- Downloaded maps are untrusted: a map cannot carry your token, but it can
-  contain stations that open shells on your machine once you use them.
+- Downloaded maps are untrusted. A map cannot carry your token, and since
+  1.3.0 it cannot make a station run its own code or connect by itself:
+  station computers ignore their own startup files and settings, refuse to
+  connect while a data pack changes the CraftOS ROM, and only get a ticket
+  after you use them in person (remembered per station and workspace in
+  `config/omolife-trusted-stations.txt`, outside the world). Map presets
+  never create workspaces until you open the station. Once you do use a
+  map's station, it is a real shell like any other.
+- CC: Tweaked's `/computercraft view|tp|shutdown|turn-on` and its computer
+  screen follow the same owner/operator rule on stations. Monitor walls only
+  load `http(s)` pages, keep Chromium's same-origin policy, and on servers
+  you don't host only load after you click them.
+- Monitor walls are visible to everyone near them: what a shell shows on a
+  wall can be read by any player who can see it.
 
 ## Reporting
 

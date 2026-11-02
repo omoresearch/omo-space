@@ -214,24 +214,25 @@ local function setToast(s, msg, secs)
   drawStatus(s)
 end
 
--- The Omo mark (omo.sh): a double-framed box whose right side breaks apart,
--- its pieces drifting free. 2x3 teletext sub-pixels (CC characters 128-159).
+-- The Omo mark (omo.sh, launcher/assets/omo-mark.svg): a double frame,
+-- pristine on the left, fracturing on the right, with the mark's arc inside.
+-- Snapped to 2x3 teletext sub-pixels (CC characters 128-159): 8x5 characters.
 local MARK = {
-  "#########.##..............",
-  "#............##....##....#",
-  "#.#######........#........",
-  "#.#..............#....#...",
-  "#.#.......................",
-  "#.#.............#..#......",
-  "#.#....##.....#.#..#....#.",
-  "#.#....##.....#.#.........",
-  "#.#.......................",
-  "#.#...........#.#....##...",
-  "#.#...........#.#.........",
-  "#.#...........#.#.........",
-  "#.#############.#.........",
-  "#...............#.........",
-  "#################.........",
+  "###########.##.#",
+  "#..............#",
+  "#.#######.#....#",
+  "#.#............#",
+  "#.#...##......#.",
+  "#.#..#..##...#.#",
+  "#.#.#.##..#..#.#",
+  "#.#........#.#.#",
+  "#.#........#...#",
+  "#.#.........##..",
+  "#.#..........#.#",
+  "#.#............#",
+  "#.############..",
+  "#..............#",
+  "################",
 }
 
 local function drawMark(s, x, y, fg, bg)
@@ -351,7 +352,7 @@ local function splash(s)
   local block = 5 + gap + 1 + 1 + 1 + gap + 1 + 2 + 1 + #lines   -- mark, title, kind, name, rule, pill, messages
   local y = math.max(3, math.floor((s.h - block - (keys and 3 or 0)) / 2) + 2)
 
-  drawMark(s, math.floor((s.w - 13) / 2) + 1, y, accent, C.bg)
+  drawMark(s, math.floor((s.w - #MARK[1] / 2) / 2) + 1, y, accent, C.bg)
   y = y + 5 + gap
   centre(s, y, "O M O   S P A C E", C.gold)
   centre(s, y + 1, hermes and "Hermes Computer" or "Terminal", C.dim)

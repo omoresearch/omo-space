@@ -9,8 +9,10 @@
   Surfaces. The computer's own screen always shows the terminal. An attached
   monitor wall is a second surface: its own socket and view of the same tab,
   at its own size (a wall too small to use shows a status card). The surface
-  that last got input drives the PTY size: the computer's GUI, or the wall
-  while a player controls it remotely (omo_focus / omo_mouse / omo_release).
+  in use drives the PTY size: the computer's own screen while a player has
+  its GUI open (omo_gui), the wall while a player controls it remotely
+  (omo_focus / omo_mouse), and otherwise the wall, since that is the only
+  surface anyone can see (omo_release hands it back there).
 
   Security: the computer never sees the bridge token. omo.ticket() mints a
   single-use ticket for THIS station and its workspace, and the bridge only
@@ -77,6 +79,7 @@ local hermes, wsName = info.hermes, info.name
 local wsId, tabId, tabName = "", "", ""
 local ctrl, shift, alt = false, false, false
 local focus = "computer"                      -- the surface keys go to and that sizes the PTY
+local guiOpen = false                         -- a player has this computer's own screen open (omo_gui)
 local connSeq = 0
 local tickets = {}                            -- surfaces waiting for the ticket worker
 
@@ -106,6 +109,14 @@ end
 
 local function focused()
   return (focus == "monitor" and wall) or computer
+end
+
+-- The surface a player sees when nobody is using one: the computer's own
+-- screen is only visible while its GUI is open, so otherwise an adjacent
+-- wall sizes the PTY (a TUI fills the wall instead of sitting at the
+-- computer's size until the wall is clicked).
+local function idleFocus()
+  return (wall and not guiOpen) and "monitor" or "computer"
 end
 
 local function resize(s)
@@ -523,6 +534,7 @@ local function refitWall()
   if not wall then
     wall = newSurface("monitor", mon)
     surfaces[#surfaces + 1] = wall
+    if not guiOpen then focus = "monitor" end -- it claims the size once its view is live
     applyPalette(mon, palette)
     resize(wall)
     splash(wall)
@@ -951,6 +963,10 @@ local function onMessage(s, msg)
       s.dev.clear()
       send(s, { t = "size", cols = s.w, rows = s.h })
       s.yield = s ~= focused()
+      -- The surface in use claims the size as soon as its view is live, not
+      -- only on the player's next click or key (the bridge may still hold
+      -- another view of this tab as the size owner).
+      if wall and s == focused() then claimSize() end
       drawStatus(s)
     elseif msg.state == "unbound" then
       showState(s, "unbound")
@@ -1052,7 +1068,13 @@ local function handle(ev)
   elseif e == "omo_focus" then
     setFocus(ev[2] == "monitor" and wall and "monitor" or "computer")
   elseif e == "omo_release" then
-    setFocus("computer")
+    setFocus(idleFocus())                      -- the wall stays sized for the player looking at it
+  elseif e == "omo_gui" then
+    local open = ev[2] and true or false
+    if open ~= guiOpen then                    -- resent every few seconds: act on changes only
+      guiOpen = open
+      setFocus(idleFocus())
+    end
   elseif e == "key" then
     onKey(focused(), ev[2])
   elseif e == "key_up" then

@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Station walls: a TUI fills the wall without a click
+
+- With a monitor wall next to a station, the computer's own screen (80x29)
+  sized the tab even when nobody had its GUI open, and walls yielded the size
+  back to it on every attach and resume. A TUI such as Hermes then sat at
+  80x29 in a corner of the wall, or was cropped, until the wall was
+  right-clicked. The mod now tells the station whether a player has the
+  computer's screen open (`omo_gui true|false`, sent with `omo_near`), and
+  station.lua lets the wall own the size whenever it is not: at boot, when the
+  GUI closes, and after a remote session on the wall ends (`omo_release`).
+  The surface in use also claims the size as soon as its view is live, not
+  only on the next key or click. A station without a wall is unchanged.
+- New `tests/test_station_sizing.py` runs the real station.lua (Lua 5.4 via
+  `lupa`, with ComputerCraft stubs) against a throwaway bridge and tmux
+  server and checks the tab's window size; it is skipped when `lupa` is not
+  installed.
+
 ### Launcher: a game window that never shows
 
 - The launcher hid itself as soon as the game logged `Backend library:`, but

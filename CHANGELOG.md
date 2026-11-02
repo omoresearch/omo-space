@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Agent bodies: optional name labels
+
+- Local agent bodies can now show a name you choose instead of
+  `ChatGPT - <name>`: `-Domo.agents.labels=omo=Omo;builder_bot=Builder` puts
+  the label over the body's head, in the tab list and in chat. Labels only
+  apply to agent bodies (`-Domo.agents.names`), are plain text up to 32
+  characters (formatting codes and control characters are dropped), and a
+  malformed value is skipped rather than stopping the game. Without the flag
+  nothing changes.
+
 ### Web walls: the wall in front of you gets a page first
 
 - With 12 pages open on walls that were all in view, a wall the player walked

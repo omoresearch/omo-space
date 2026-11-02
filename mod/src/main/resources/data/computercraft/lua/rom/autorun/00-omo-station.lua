@@ -15,6 +15,10 @@
 ]]
 if not omo or not omo.station() then return end
 
+-- A station never boots from a floppy: a disk drive placed next to it must
+-- not run its own startup with this computer's omo API (and its ticket).
+settings.set("shell.allow_disk_startup", false)
+
 shell.setAlias("station", "/rom/programs/omo/station.lua")
 
 -- Opt out per computer: `craftos` drops to plain CraftOS on this station

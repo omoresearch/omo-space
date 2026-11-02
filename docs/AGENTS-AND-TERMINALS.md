@@ -25,7 +25,14 @@ Behind them:
 - **`omo-bridge`** on `127.0.0.1:8780` paints those sessions onto the screens
   in the game and sends your keys back. It listens on your PC only.
 - **The Hermes Board** at `http://127.0.0.1:8780/board` lists every
-  workspace and what it is doing.
+  workspace and what it is doing. With the omo-space Hermes plugin it also
+  shows what each Hermes agent is doing (running a tool, thinking, idle) and
+  lists agents outside the world (Telegram, cron, a plain terminal) under
+  *Elsewhere*. The Board hangs on walls that other players and your stream
+  can see, so it shows status only: never conversation text, session titles,
+  models or ids. Messages an agent sends you with `notify` pop up in your own
+  HUD (`/omonotices off` hides them); to also list them on the Board, set
+  `OMO_BOARD_MESSAGES=1` on the bridge service.
 
 ## 2. Make an agent desk
 

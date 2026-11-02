@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Hermes agents on the Board and in your HUD
+
+- **See what every Hermes agent is doing.** When the omo-space Hermes plugin
+  writes its activity feed, the Hermes Board shows on each tab what its agent
+  is doing (`running terminal 12s`, `thinking`, `idle · 3 turns`) and lists
+  agents outside the world (Telegram, cron, plain terminals) under
+  *Elsewhere*. With more than 24 live workspaces the Board switches to compact
+  cards so one wall still shows them all.
+- **Agent messages reach you while you play.** An agent's `notify` shows as an
+  Omo card in the top-left of the HUD (up to three, about 5 seconds each) and
+  as a toast in an open station panel. Turn the HUD cards off with
+  `/omonotices off` or `hermesNotices=false` in
+  `config/omolife-client.properties`; `/omonotices test` shows a sample.
+- **Status only on walls.** The Board is visible to other players and on
+  stream, so `/board.json` carries profile, platform, state, tool name, turn
+  count and age: no session ids, pids, titles, models, kanban tasks or
+  conversation text. Listing the `notify` messages on the Board is opt-in with
+  `OMO_BOARD_MESSAGES=1` on the bridge service. The bridge reads the feed
+  read-only, at most the last 64 KiB of each event log, and never follows a
+  link out of the Hermes folder.
+
 ### Agent bodies: optional name labels
 
 - Local agent bodies can now show a name you choose instead of

@@ -73,6 +73,7 @@ public final class OmoLifeClient implements ClientModInitializer {
             if (tickCounter % 4 == 0) {
                 WebPages.audioTick();
             }
+            HermesNotices.tick(client);
         });
         // On a server this player does not host, a web wall loads only after a
         // right-click on it (see WebPages.allowWall). PASS: the click goes on as usual.
@@ -83,6 +84,7 @@ public final class OmoLifeClient implements ClientModInitializer {
             }
             return InteractionResult.PASS;
         });
+        HermesNotices.init();  // Hermes notify events as HUD cards during play
         RemoteWall.init();
         LinkerClient.init();
         startTestDriver();

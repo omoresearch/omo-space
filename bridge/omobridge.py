@@ -61,6 +61,16 @@ the in-use view a focus-in so it takes the size back.
 
 Plain HTTP on the same port: /health, /board (+ /board.json, a read-only live
 status page for web monitors), and token-guarded /ticket and /api/<op>.
+
+Hermes feed (bridge/hermesfeed.py): when the omo-space Hermes plugin is
+installed, /board.json also says what every Hermes agent is doing (`hermes`,
+and `activity` on the tab it runs in), and an agent's `notify` events reach
+every connected ui client once, as a toast (the station panel shows it) and as
+  <- notice {m, profile, level: info|success|warn}
+which the mod draws in the HUD during play. Older mods ignore the unknown frame.
+The Board is shown on in-world walls, so /board.json gets status only (profile,
+platform, state, tool, turns, age; no session ids, pids, titles or models) and
+the notify text only with OMO_BOARD_MESSAGES=1.
 """
 import asyncio
 import base64
@@ -89,6 +99,7 @@ from websockets.asyncio.server import serve
 from websockets.datastructures import Headers
 from websockets.http11 import Response
 
+import hermesfeed
 import termcore
 
 VERSION = "1.3.0"
@@ -130,6 +141,15 @@ IS_WSL = bool(os.environ.get("WSL_DISTRO_NAME")) or "microsoft" in os.uname().re
 URL_OPENER = os.environ.get("OMO_OPEN") or (
     "open" if IS_MAC else (shutil.which("wslview") or "explorer.exe") if IS_WSL else "xdg-open")
 STARTED = int(time.time())
+# What Hermes agents are doing, from the omo-space Hermes plugin's feed (read-only).
+FEED = hermesfeed.FeedReader(HERMES_ROOT, started=time.time())
+FEED_EVERY = float(os.environ.get("OMO_FEED_EVERY", "1"))
+# The Board hangs on in-world walls, where other players and a stream see it, so
+# /board.json carries Hermes status only. The text of omo_notify messages is
+# opt-in (OMO_BOARD_MESSAGES=1); the HUD notice and the station toast are always
+# drawn on this player's own screen only.
+BOARD_MESSAGES = os.environ.get("OMO_BOARD_MESSAGES", "") == "1"
+BOARD_SESSION_KEYS = ("profile", "platform", "state", "tool", "tool_for", "turns", "age")
 
 # Pause before a typed Enter so TUIs read it as its own keypress (see type_in).
 ENTER_GAP = 0.04
@@ -1378,6 +1398,31 @@ async def remember_loop():
             log(f"remember error: {exc!r}")
 
 
+def notice_frame(ev):
+    """The HUD frame for one notify event: the bare text, who sent it and how it went."""
+    level = ev.get("level") if ev.get("level") in ("info", "success", "warn") else "info"
+    return {"t": "notice", "m": ev.get("text") or "", "profile": ev.get("profile") or "hermes", "level": level}
+
+
+async def feed_loop():
+    """Forward each new Hermes `notify` event once to every ui client: a toast
+    for the station panel (old mods too) and a notice for the HUD."""
+    while True:
+        await asyncio.sleep(FEED_EVERY)
+        try:
+            events = await asyncio.to_thread(FEED.new_notifies)
+        except Exception as exc:        # a bad feed must never take the bridge down
+            log(f"hermes feed error: {exc!r}")
+            continue
+        for ev in events:
+            ui = [c for c in CONNS if c.role == "ui" and not c.closed]
+            log(f"hermes notify from {ev['profile']} to {len(ui)} ui client(s)")
+            notice = notice_frame(ev)
+            for c in ui:
+                await c.toast(hermesfeed.toast_text(ev))
+                await c.send(notice)
+
+
 async def sleep_loop():
     if SLEEP_AFTER <= 0:
         log("auto-sleep off (OMO_SLEEP_AFTER=0)")
@@ -2152,21 +2197,66 @@ async def handler(ws):
 
 
 # --------------------------------------------------------------------------- board
+def feed_snapshot():
+    try:
+        return FEED.snapshot()
+    except Exception as exc:
+        log(f"hermes feed error: {exc!r}")
+        return {"sessions": [], "events": [], "tabs": {}}
+
+
+def board_session(s, names):
+    """A Hermes presence as the Board may show it: status, never ids, pids,
+    titles, models, kanban tasks or the tools it used before."""
+    out = {k: s.get(k) for k in BOARD_SESSION_KEYS}
+    key = (s.get("omo") or {}).get("workspace"), (s.get("omo") or {}).get("tab")
+    out["workspace"] = names.get(key)
+    out["elsewhere"] = key not in names
+    return out
+
+
+def board_messages(events):
+    """The omo_notify messages for the Board's Messages list: only with
+    OMO_BOARD_MESSAGES=1, and only the text, who sent it, its level and time."""
+    if not BOARD_MESSAGES:
+        return []
+    return [{"ts": e["ts"], "kind": "notify", "profile": e.get("profile"), "level": e.get("level", "info"),
+             "text": e.get("text", "")} for e in events if e.get("kind") == "notify" and e.get("text")]
+
+
+def board_tab(w, t, acts, full=False):
+    """A tab as the Board shows it. The foreground command (a process name)
+    only goes to a token holder (`full`)."""
+    tab = {"name": t["name"], "kind": t["kind"], "state": t["state"], "busy": t["busy"],
+           "sleeping": t.get("sleeping", False)}
+    if full:
+        tab["command"] = t["command"]
+    if (w["id"], t["id"]) in acts:
+        tab["activity"] = acts[(w["id"], t["id"])]
+    return tab
+
+
 async def board(full=False):
     """Read-only status for the /board page. Names and states only: no ids,
     no tokens, nothing that grants control. Anyone who can reach the port can
     read it (every local account, every CC:T computer in any world, a web
     wall that was simply pointed at /board), so the foreground command of
-    each tab (process names) is only included for a token holder (`full`)."""
+    each tab (process names) is only included for a token holder (`full`).
+    A Hermes presence names the workspace its agent runs in; one with no
+    workspace here is `elsewhere` (a gateway, cron, a plain terminal, a
+    subagent)."""
     items = await asyncio.to_thread(WS.list)
+    feed = await asyncio.to_thread(feed_snapshot)
+    acts = feed["tabs"]
+    names = {(w["id"], t["id"]): w["name"] for w in items for t in w["tabs"]}
     return {"version": VERSION, "tmux": await asyncio.to_thread(TM.alive), "uptime": int(time.time()) - STARTED,
             "screens": sum(1 for c in CONNS if c.role == "screen" and c.view),
             "workspaces": [{"name": w["name"], "kind": w["kind"], "state": w["state"],
                             "profile": w["profile"] or "default",
-                            "tabs": [{"name": t["name"], "kind": t["kind"], "state": t["state"],
-                                      "busy": t["busy"], "sleeping": t.get("sleeping", False),
-                                      **({"command": t["command"]} if full else {})} for t in w["tabs"]]}
-                           for w in sorted(items, key=lambda w: (w["state"] != "live", w["name"].lower()))]}
+                            "tabs": [board_tab(w, t, acts, full) for t in w["tabs"]]}
+                           for w in sorted(items, key=lambda w: (w["state"] != "live", w["name"].lower()))],
+            "hermes": {"sessions": [board_session(s, names) for s in feed["sessions"]],
+                       "events": board_messages(feed["events"]), "messages": BOARD_MESSAGES}}
 
 
 # --------------------------------------------------------------------------- plain HTTP
@@ -2303,11 +2393,13 @@ async def main():
                      process_request=process_request):
         sleeper = asyncio.create_task(sleep_loop())
         rememberer = asyncio.create_task(remember_loop())
+        feeder = asyncio.create_task(feed_loop())
         try:
             await asyncio.Future()
         finally:
             sleeper.cancel()
             rememberer.cancel()
+            feeder.cancel()
 
 
 if __name__ == "__main__":

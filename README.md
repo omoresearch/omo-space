@@ -1,5 +1,5 @@
 <p align="center">
-  <sub><code>System</code> &nbsp; <code>v1.3.0</code> &nbsp; <code>MIT</code> &nbsp; <code>Minecraft Java 26.2</code></sub>
+  <sub><code>System</code> &nbsp; <code>v1.2.0</code> &nbsp; <code>MIT</code> &nbsp; <code>Minecraft Java 26.2</code></sub>
 </p>
 
 <h1 align="center"><i>Omo Space</i></h1>
@@ -16,7 +16,7 @@
 
 <table align="center">
 <tr>
-<td align="center"><sub>RELEASE</sub><br><a href="https://github.com/omoresearch/omo-space/releases/tag/v1.3.0">v1.3.0</a></td>
+<td align="center"><sub>RELEASE</sub><br><a href="https://github.com/omoresearch/omo-space/releases/tag/v1.2.0">v1.2.0</a>, 28 Oct 2026</td>
 <td align="center"><sub>RUNS ON</sub><br>Linux · macOS · Windows (WSL2)</td>
 <td align="center"><sub>LICENCE</sub><br><a href="LICENSE">MIT</a></td>
 <td align="center"><sub>LIVE</sub><br><a href="https://www.twitch.tv/yiifannn">twitch.tv/yiifannn</a></td>
@@ -207,9 +207,9 @@ There are two ways in:
 **1. Download** the installer, the app and the checksum list:
 
 ```bash
-curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.3.0/install.sh
-curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.3.0/omo-space-1.3.0-linux-x64.tar.gz
-curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.3.0/SHA256SUMS
+curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/install.sh
+curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/omo-research-1.2.0-linux-x64.tar.gz
+curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.2.0/SHA256SUMS
 ```
 
 **2. Check** the downloads. Both lines should end in `OK`:
@@ -221,26 +221,26 @@ sha256sum -c --ignore-missing SHA256SUMS
 **3. Install.** This downloads Minecraft, Fabric, the mods and Java (about 650 MB, around 5 minutes):
 
 ```bash
-bash install.sh omo-space-1.3.0-linux-x64.tar.gz
+bash install.sh omo-research-1.2.0-linux-x64.tar.gz
 ```
 
 **4. Play.** Open **Omo Space** from your app menu, click **Sign in with Microsoft**, then **Play**.
-In the game, find the Omo Space tab in the creative inventory and place an **Omo Computer**.
+In the game, find the Omo Space tab in the creative inventory and place a **Hermes Computer** or a **Terminal**.
 
 ### macOS
 
 Run `brew install tmux python` first, then follow the Linux steps with two changes:
-download `omo-space-1.3.0-macos.tar.gz` instead of the Linux file, and check it with
-`shasum -a 256 -c --ignore-missing SHA256SUMS`. Start the app with `omo-space`.
+download `omo-research-1.2.0-macos.tar.gz` instead of the Linux file, and check it with
+`shasum -a 256 -c --ignore-missing SHA256SUMS`. Start the app with `omo-research`.
 
 ### Windows 10/11
 
 Your shells and agents run in WSL2. Set it up once with the [Windows steps](docs/PLATFORMS.md#windows-wsl2),
-then download `install.ps1` and `omo-space-1.3.0-windows.zip` from the
-[v1.3.0 release](https://github.com/omoresearch/omo-space/releases/tag/v1.3.0) into one folder, and in PowerShell run:
+then download `install.ps1` and `omo-research-1.2.0-windows.zip` from the
+[v1.2.0 release](https://github.com/omoresearch/omo-space/releases/tag/v1.2.0) into one folder, and in PowerShell run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1 omo-space-1.3.0-windows.zip
+powershell -ExecutionPolicy Bypass -File .\install.ps1 omo-research-1.2.0-windows.zip
 ```
 
 Then open **Omo Space** from the Start menu.
@@ -248,14 +248,13 @@ Then open **Omo Space** from the Start menu.
 ### From CurseForge or Modrinth
 
 The mod from a store is the in-game half. Terminals also need the **Omo Space bridge**, a small program on your
-computer that listens on 127.0.0.1 only. Install it without a second copy of the game (Linux and macOS):
+computer that listens on 127.0.0.1 only. Install it without a second copy of the game (Linux and macOS), with
+`install.sh` and the bundle for your system from the [latest release](https://github.com/omoresearch/omo-space/releases/latest)
+(`--bridge-only` is new after v1.2.0):
 
 ```bash
-curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.3.0/install.sh
-curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.3.0/omo-space-1.3.0-linux-x64.tar.gz
-curl -LO https://github.com/omoresearch/omo-space/releases/download/v1.3.0/SHA256SUMS
 sha256sum -c --ignore-missing SHA256SUMS
-bash install.sh --bridge-only omo-space-1.3.0-linux-x64.tar.gz
+bash install.sh --bridge-only <bundle>.tar.gz
 ```
 
 `--bridge-only` installs the bridge and its session server, skips Minecraft, Java and Prism, and then

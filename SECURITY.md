@@ -30,6 +30,8 @@ Minecraft world. Treat it with the same care as a terminal.
   only on a network you control (for example a Tailscale share limited to that
   port), never with a router port forward.
 - Station computers never boot from a floppy in an adjacent disk drive.
+- On a dedicated server the mod does not talk to a bridge at all unless the
+  server starts with `-Domo.bridge.dedicated=true`.
 - A block, a room or a pocket dimension is a presentation boundary, not a
   sandbox. Processes run as your user.
 - Downloaded maps are untrusted: a map cannot carry your token, but it can

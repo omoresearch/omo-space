@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Security: LAN guests can no longer reach your shells
+
+- **Every player who joined a world Omo had opened to LAN counted as an
+  operator.** Omo publishes worlds with the world's cheats so agent bodies can
+  join, and in a singleplayer world that makes Minecraft's `isOp()` true for
+  everyone. Stations and monitors trusted `isOp()`, so with
+  `-Domo.agents.allowRemote=true` a guest could open a desk and type into the
+  host's terminals. They now need to be the world owner or listed in
+  `ops.json`, and without authentication only from this computer.
+- Station computers never boot from a floppy placed next to them.
+- SECURITY.md explains the LAN mode and `allowRemote`.
+
 ### Building skills for agents
 
 - New `skills/` folder: `omo-world-building` (reversible datapacks, with a

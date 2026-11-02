@@ -1,5 +1,7 @@
 package space.omo.life.station;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -28,13 +30,36 @@ public final class Stations {
 
     /**
      * The one access rule for everything that reaches the host: the
-     * singleplayer world owner, or an operator. Opening a station, changing a
-     * monitor, the station packets and {@code /omo} all ask this.
+     * singleplayer world owner, or an operator listed in ops.json. Opening a
+     * station, changing a monitor, the station packets and {@code /omo} all
+     * ask this.
+     *
+     * <p>Not {@code PlayerList.isOp()}: in a singleplayer world opened to LAN
+     * with cheats (which Omo does so agent bodies can join), that is true for
+     * EVERY player who joins, and a guest could then type into the host's
+     * shells. And when the world doesn't authenticate players (offline LAN,
+     * for agent bodies), anyone can log in under an op's name, so an ops.json
+     * entry is only trusted from this computer.
      */
     public static boolean allowed(ServerPlayer player) {
         MinecraftServer server = player.level().getServer();
-        return server != null && (server.isSingleplayerOwner(player.nameAndId())
-            || server.getPlayerList().isOp(player.nameAndId()));
+        if (server == null) {
+            return false;
+        }
+        if (server.isSingleplayerOwner(player.nameAndId())) {
+            return true;
+        }
+        if (server.getPlayerList().getOps().get(player.nameAndId()) == null) {
+            return false;
+        }
+        return server.usesAuthentication() || isLocal(player);
+    }
+
+    /** True when the player is connected from this computer (loopback or in-memory). */
+    static boolean isLocal(ServerPlayer player) {
+        SocketAddress address = player.connection.getRemoteAddress();
+        return !(address instanceof InetSocketAddress inet) || inet.getAddress() == null
+            || inet.getAddress().isLoopbackAddress();
     }
 
     /** Tell a player, on the action bar, why nothing happened. */

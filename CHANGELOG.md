@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Web walls: the wall in front of you gets a page first
+
+- With 12 pages open on walls that were all in view, a wall the player walked
+  up to said "Page limit reached (12)" for good: only pages nobody could see
+  were closed to make room. Now a wall within 20 blocks takes the page of the
+  farthest wall in view that is at least 4 blocks farther away and has been
+  open for 5 seconds or more. That wall keeps its address and gets a page
+  back when the player returns. The margin and the minimum age stop two walls
+  at about the same distance from trading a page back and forth. The log
+  says `page cap: nearer wall ... takes the page of ...`.
+
 ### Launcher: a game window that never shows
 
 - The launcher hid itself as soon as the game logged `Backend library:`, but

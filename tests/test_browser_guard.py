@@ -48,6 +48,7 @@ public final class GuardHarness {
             case "near" -> near();
             case "crash" -> crash();
             case "watchdog" -> watchdog();
+            case "near-first" -> nearFirst();
             case "closing" -> closing();
             default -> throw new AssertionError("unknown case " + a[0]);
         }
@@ -233,8 +234,25 @@ public final class GuardHarness {
         final AtomicLong clock = new AtomicLong(0);
         final BrowserGuard guard;
         final Map<Integer, long[]> pages = new HashMap<>();   // wall -> {createdAt, lastWanted, lastPainted}
+        /** Blocks from the player to each wall (default far); with nearFirst, near walls displace far ones. */
+        final Map<Integer, Double> blocks = new HashMap<>();
+        boolean nearFirst;
         int created;
         int evicted;
+
+        double at(int w) { return blocks.getOrDefault(w, 30.0); }
+
+        boolean displaceOne(long now, int wall) {
+            Integer far = null;
+            for (var e : pages.entrySet()) {
+                if (BrowserGuard.displaceable(now, at(wall), at(e.getKey()), e.getValue()[0], false)
+                    && (far == null || at(e.getKey()) > at(far))) far = e.getKey();
+            }
+            if (far == null) return false;
+            pages.remove(far);
+            evicted++;
+            return true;
+        }
 
         Model(boolean oldRule, boolean guarded) {
             this.oldRule = oldRule;
@@ -252,7 +270,7 @@ public final class GuardHarness {
                     continue;
                 }
                 if (guarded && !guard.deny(w, pages.size()).isEmpty()) continue;
-                if (pages.size() >= MAX_PAGES && !evictOne(now)) continue;
+                if (pages.size() >= MAX_PAGES && !evictOne(now) && !(nearFirst && displaceOne(now, w))) continue;
                 pages.put(w, new long[]{now, now, 0});
                 if (guarded) guard.created(w);
                 created++;
@@ -318,6 +336,62 @@ public final class GuardHarness {
         both.run(20_000, 40_000, 12, 2);
         check(both.created == 14 && both.evicted == 2, "eviction still frees room for walls in view: "
             + both.created + " created, " + both.evicted + " evicted");
+    }
+
+    /**
+     * 30 Oct: 12 walls in view about 30 blocks away hold every page; the
+     * player walks up to wall 12, also in view, 3 blocks away. Before the
+     * fix nothing was "unseen", so the wall in front of them said "Page
+     * limit reached (12)" forever.
+     */
+    static void nearFirst() {
+        Model old = new Model(false, true);
+        old.blocks.put(12, 3.0);
+        old.run(0, 20_000, 0, 12);
+        old.run(20_000, 80_000, 0, 13);
+        check(!old.pages.containsKey(12) && old.evicted == 0, "the model must reproduce the dark near wall");
+
+        Model m = new Model(false, true);
+        m.nearFirst = true;
+        for (int w = 0; w < 12; w++) m.blocks.put(w, 30.0 + w);
+        m.blocks.put(12, 3.0);
+        m.run(0, 20_000, 0, 12);
+        m.run(20_000, 80_000, 0, 13);
+        System.out.println("near first: " + m.created + " browsers, " + m.evicted + " evictions");
+        check(m.pages.containsKey(12), "the near wall gets a page");
+        check(!m.pages.containsKey(11), "from the farthest wall");
+        check(m.created == 13 && m.evicted == 1, "once, no churn: " + m.created + " created");
+
+        // Two near walls at about the same distance never trade a page.
+        Model tie = new Model(false, true);
+        tie.nearFirst = true;
+        for (int w = 0; w < 12; w++) tie.blocks.put(w, 5.0);
+        tie.blocks.put(12, 3.0);
+        tie.run(0, 20_000, 0, 12);
+        tie.run(20_000, 80_000, 0, 13);
+        check(tie.evicted == 0 && tie.created == 12, "within the margin the first wall keeps its page");
+
+        // Not near enough: a wall 25 blocks away does not take a page from one at 40.
+        Model far = new Model(false, true);
+        far.nearFirst = true;
+        for (int w = 0; w < 12; w++) far.blocks.put(w, 40.0);
+        far.blocks.put(12, 25.0);
+        far.run(0, 20_000, 0, 12);
+        far.run(20_000, 80_000, 0, 13);
+        check(far.evicted == 0, "only walls near the player get priority");
+
+        // Pacing back and forth between two spots every second: each swap waits out the page's minimum age.
+        Model pace = new Model(false, true);
+        pace.nearFirst = true;
+        pace.run(0, 20_000, 0, 12);
+        for (long ms = 20_000; ms < 80_000; ms += 1000) {
+            boolean atA = (ms / 1000) % 2 == 0;
+            pace.blocks.put(12, atA ? 3.0 : 30.0);
+            pace.blocks.put(0, atA ? 30.0 : 3.0);
+            pace.run(ms, ms + 1000, 0, 13);
+        }
+        System.out.println("pacing: " + pace.created + " browsers in 60 s");
+        check(pace.created <= 12 + 60_000 / BrowserGuard.EVICT_UNSEEN_MS + 1, "bounded by the minimum age: " + pace.created);
     }
 
     /** 28 Oct 09:11: draining the queue read a removed IdentityHashMap entry and crashed the game. */
@@ -463,6 +537,9 @@ class BrowserGuardTest(unittest.TestCase):
 
     def test_crash_replay_old_rule_thrashes_new_rule_does_not(self):
         self.run_case("crash")
+
+    def test_near_wall_takes_a_far_page_at_the_cap(self):
+        self.run_case("near-first")
 
     def test_closing_queue(self):
         self.run_case("closing")

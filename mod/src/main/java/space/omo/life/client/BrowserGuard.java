@@ -147,6 +147,21 @@ final class BrowserGuard {
     }
 
     /**
+     * Near walls come first: at the cap, a wall within {@link #PRIORITY_BLOCKS}
+     * of the player may take the page of a wall in view that is at least
+     * {@link #PRIORITY_MARGIN} blocks farther away. The margin and the
+     * minimum age stop two walls at about the same distance from trading a
+     * page back and forth as the player moves.
+     */
+    static final double PRIORITY_BLOCKS = 20;
+    static final double PRIORITY_MARGIN = 4;
+
+    static boolean displaceable(long now, double wallBlocks, double pageBlocks, long createdAt, boolean interactive) {
+        return !interactive && now - createdAt >= EVICT_UNSEEN_MS
+            && wallBlocks <= PRIORITY_BLOCKS && pageBlocks - wallBlocks >= PRIORITY_MARGIN;
+    }
+
+    /**
      * Why a new browser may not be created now, or "" when it may.
      * {@code wall} is the wall it is for (null for a tab: no churn check);
      * {@code live} counts browsers alive plus those still closing. Spends

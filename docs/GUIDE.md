@@ -138,9 +138,13 @@ The preset can also be written by command:
 (Profile and Tabs optional; an Omo Pocket takes the same `OmoPreset` in its
 custom data and uses it once).
 
-In survival every block is crafted (the recipe book shows them once you pick
-up an advanced computer, an advanced pocket computer or an Omo station):
-Hermes Computer = CC:T advanced computer, 2 gold, a feather; Terminal =
+In survival, by default, two blocks are crafted: the Omo Computer = 6 gold
+ingots around a feather, redstone and a glass pane, and 4 Omo Monitors = 7
+gold, bone meal, a glass pane. CC: Tweaked's own recipes and the extras'
+recipes are off. With `-Domo.showAllBlocks=true` (or `showAllBlocks=true` in
+`config/omolife.properties`) every block is back in the creative menu and
+crafted as before (the recipe book shows them once you pick up an advanced
+computer, an advanced pocket computer or an Omo station): Terminal =
 advanced computer, 3 copper; 4 Omo Monitors = 7 gold, bone meal, a glass pane;
 3 Slim Screens = 4 gold, bone meal, a glass pane; Omo Pockets = an advanced
 pocket computer with the feather and gold, or the copper; 2 Name Plates = 3

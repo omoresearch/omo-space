@@ -280,6 +280,18 @@ def units():
           f"{out!r} {got}")
 
 
+def copy_edges():
+    """A TUI's scrollbar down the last column (Hermes draws │ on every row)
+    is not text: a multi-line copy leaves it out and keeps its line breaks."""
+    rows = ["    hello there".ljust(79) + "│", "    second line".ljust(79) + "┃", " " * 80]
+    got = termcore.selection_text(rows, (0, 0, 79, 1), 80)
+    check("a multi-line copy leaves out a TUI scrollbar edge", got == "    hello there\n    second line", repr(got))
+    got = termcore.selection_text(["a" * 80, "bbb".ljust(80)], (0, 0, 79, 1), 80)
+    check("a wrapped line still copies as one line", got == "a" * 80 + "bbb", repr(got))
+    got = termcore.selection_text(["x │", "y │"], (0, 0, 2, 0), 3)
+    check("a single-row copy keeps a box glyph the player selected", got == "x │", repr(got))
+
+
 async def clipboard(env, ui, y):
     """Copy, paste and OSC 52 against the private display's clipboard."""
     async def copied(want):
@@ -724,6 +736,7 @@ async def stalled_tmux(env, ui):
 
 async def run(env):
     units()
+    copy_edges()
     env.start_display()
     env.start_server()
     env.start_bridge()

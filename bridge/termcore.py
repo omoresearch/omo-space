@@ -267,15 +267,28 @@ def sel_marks(sel, cols):
     return {y: [(x1 if y == y1 else 0, x2 if y == y2 else cols - 1, "sel")] for y in range(y1, y2 + 1)}
 
 
+# Glyphs a TUI draws down its last column as a scrollbar or frame edge
+# (Hermes draws │ there on every row). Not text: a copy leaves them out, and
+# they never make a row count as wrapped.
+EDGE_GLYPHS = set("│┃║▏▕▌▐█▉▊▋▍▎░▒▓╎╏┆┇┊┋╵╷╹╻╽╿┤┥┨┫╡╢╣┐┘┓┛╮╯╗╝")
+
+
 def selection_text(lines, sel, cols):
     """The selected text. A row that runs to the last column continues on the
-    next (a wrapped line copies as one line, as in any terminal)."""
+    next (a wrapped line copies as one line, as in any terminal). A scrollbar
+    or frame edge down the last column of the selected rows is left out."""
     if not sel:
         return ""
     x1, y1, x2, y2 = sel
+    rows = range(y1, min(y2, len(lines) - 1) + 1)
+    last = [lines[y].ljust(cols)[cols - 1] for y in rows]
+    if y2 > y1 and cols > 1 and any(c in EDGE_GLYPHS for c in last) \
+            and all(c in EDGE_GLYPHS or c == " " for c in last):
+        cols -= 1
+        x1, x2 = min(x1, cols - 1), min(x2, cols - 1)
     out = []
-    for y in range(y1, min(y2, len(lines) - 1) + 1):
-        line = lines[y].ljust(cols)
+    for y in rows:
+        line = lines[y].ljust(cols)[:cols]
         part = line[x1 if y == y1 else 0:(x2 if y == y2 else cols - 1) + 1]
         wrapped = y < y2 and line[cols - 1] not in (" ", WIDE)
         out.append(part.replace(WIDE, "") + ("" if wrapped else "\n"))

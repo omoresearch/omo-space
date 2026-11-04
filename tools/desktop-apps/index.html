@@ -1,0 +1,44 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Kino</title>
+<style>
+html,body{margin:0;height:100%;background:#0b0b0c;overflow:hidden;cursor:none}
+#v{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none}
+#s{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#bbb;font:600 22px system-ui,sans-serif}
+</style></head>
+<body tabindex="0">
+<img id="v" alt="">
+<div id="s">connecting to Kino…</div>
+<script>
+const v = document.getElementById('v'), s = document.getElementById('s');
+let ws, q = [], lastMove = 0, url = null;
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.binaryType = 'blob';
+  ws.onopen = () => { s.textContent = 'waiting for frames…'; };
+  ws.onmessage = e => {
+    const u = URL.createObjectURL(e.data);
+    v.onload = () => { if (url) URL.revokeObjectURL(url); url = u; s.style.display = 'none'; };
+    v.src = u;
+  };
+  ws.onclose = () => { s.style.display = ''; s.textContent = 'Kino stream offline, retrying…'; setTimeout(connect, 1500); };
+}
+connect();
+function send(ev) { q.push(ev); }
+setInterval(() => { if (q.length && ws.readyState === 1) { ws.send(JSON.stringify(q)); q = []; } }, 16);
+// map page pixels -> 0..1 of the displayed image (object-fit: contain)
+function pos(e) {
+  const r = v.getBoundingClientRect(), iw = v.naturalWidth || 1600, ih = v.naturalHeight || 960;
+  const sc = Math.min(r.width / iw, r.height / ih), w = iw * sc, h = ih * sc;
+  const ox = r.left + (r.width - w) / 2, oy = r.top + (r.height - h) / 2;
+  return { x: (e.clientX - ox) / w, y: (e.clientY - oy) / h };
+}
+addEventListener('mousemove', e => { const t = performance.now(); if (t - lastMove < 16) return; lastMove = t; send({ t: 'move', ...pos(e) }); });
+addEventListener('mousedown', e => { e.preventDefault(); document.body.focus(); send({ t: 'down', b: e.button, ...pos(e) }); });
+addEventListener('mouseup', e => { e.preventDefault(); send({ t: 'up', b: e.button, ...pos(e) }); });
+addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('wheel', e => { e.preventDefault(); send({ t: 'wheel', dx: e.deltaX, dy: e.deltaY, ...pos(e) }); }, { passive: false });
+addEventListener('keydown', e => { e.preventDefault(); send({ t: 'kd', key: e.key, code: e.code }); });
+addEventListener('keyup', e => { e.preventDefault(); send({ t: 'ku', key: e.key, code: e.code }); });
+addEventListener('blur', () => send({ t: 'release_all' }));
+</script>
+</body></html>

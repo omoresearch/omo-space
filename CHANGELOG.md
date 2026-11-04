@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Desktop apps on walls (opt-in)
+
+- Walls can run desktop apps natively. For Electron apps the wall loads the
+  app's website and a local bridge (`tools/desktop-apps`) relays the desktop
+  app's native API (local files, embedded agents) to the real app running
+  hidden on the same machine; other apps can be streamed. Worked example:
+  the Kino video editor. See [docs/DESKTOP-APPS.md](docs/DESKTOP-APPS.md).
+- Opt-in only: `config/omolife-cef-debug-port.txt` with a port gives the wall
+  Chromium a 127.0.0.1 DevTools port and lets wall pages reach 127.0.0.1.
+  Without the file nothing changes.
+- Found on the way: handing a wall page a real directory handle (folder drop
+  or folder picker) crashes the game's Chromium and the game with it. The
+  bridge emulates file handles instead.
+
 ### Two blocks: the Omo Computer and the Omo Monitor
 
 - The creative menu shows just the **Omo Computer** (the block formerly

@@ -1,0 +1,2 @@
+websockets>=15
+python-xlib>=0.33

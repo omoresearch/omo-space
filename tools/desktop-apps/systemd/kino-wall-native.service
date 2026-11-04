@@ -1,0 +1,13 @@
+[Unit]
+Description=Kino wall: native bridge (wall Chromium CDP 9338 <-> Kino desktop app CDP 9347, file API 8865)
+After=kino-wall-app.service
+[Service]
+WorkingDirectory=%h/omo-space/tools/desktop-apps
+ExecStart=%h/omo-space/tools/desktop-apps/.venv/bin/python -u kino_native.py
+Environment=WALL_CDP=9338
+Environment=KINO_CDP=9347
+Nice=19
+Restart=on-failure
+RestartSec=5
+[Install]
+WantedBy=default.target

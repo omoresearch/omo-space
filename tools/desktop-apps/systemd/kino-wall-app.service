@@ -1,0 +1,14 @@
+[Unit]
+Description=Kino wall: the real Kino desktop app on :95 (DevTools 127.0.0.1:9347)
+Requires=kino-wall-xvfb.service
+After=kino-wall-xvfb.service
+[Service]
+ExecStartPre=/bin/sleep 2
+ExecStart=/usr/bin/env -u WAYLAND_DISPLAY DISPLAY=:95 /opt/Kino/kino-electron --ozone-platform=x11 --remote-debugging-port=9347
+Nice=10
+MemoryMax=6G
+MemorySwapMax=0
+Restart=on-failure
+RestartSec=5
+[Install]
+WantedBy=default.target

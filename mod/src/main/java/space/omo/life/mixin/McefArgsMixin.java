@@ -31,6 +31,14 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
  * ({@code CefAppBuilder.addJcefArgs(...)}) and has no config, so we append ours
  * to that call. Lives in the optional {@code omolife.mcef.mixins.json} so the
  * game still loads without MCEF installed.
+ *
+ * <p>Desktop apps on walls (opt-in, off by default; see docs/DESKTOP-APPS.md): when
+ * {@code config/omolife-cef-debug-port.txt} holds a port, Chromium also gets
+ * {@code --remote-debugging-port=<port>} (DevTools, bound to 127.0.0.1) so a local
+ * bridge can attach to wall pages, and {@code --disable-features=LocalNetworkAccessChecks}
+ * so those pages may call the bridge's 127.0.0.1 file API (CEF ignores the permission
+ * prompt Chromium would show for that and denies the request). Both switches widen what
+ * local programs and wall pages can do, so they only exist while the file does.
  */
 @Mixin(targets = "net.dimaskama.mcef.impl.MCEFApiImpl", remap = false)
 public abstract class McefArgsMixin {
@@ -67,10 +75,31 @@ public abstract class McefArgsMixin {
         // any page on a wall (e.g. from a downloaded map) could then read localhost services
         // and other sites with the player's cookies. Walls never need it, so drop it.
         String[] kept = Arrays.stream(args).filter(a -> !omolife$unsafe(a)).toArray(String[]::new);
-        String[] out = Arrays.copyOf(kept, kept.length + OMOLIFE_EXTRA_ARGS.length + 1);
+        String[] bridge = omolife$desktopBridgeArgs();
+        String[] out = Arrays.copyOf(kept, kept.length + OMOLIFE_EXTRA_ARGS.length + 1 + bridge.length);
         System.arraycopy(OMOLIFE_EXTRA_ARGS, 0, out, kept.length, OMOLIFE_EXTRA_ARGS.length);
-        out[out.length - 1] = ua;
+        out[kept.length + OMOLIFE_EXTRA_ARGS.length] = ua;
+        System.arraycopy(bridge, 0, out, kept.length + OMOLIFE_EXTRA_ARGS.length + 1, bridge.length);
         return out;
+    }
+
+    /** The desktop-app bridge switches, from config/omolife-cef-debug-port.txt; none without the file. */
+    private static String[] omolife$desktopBridgeArgs() {
+        try {
+            Path f = FabricLoader.getInstance().getGameDir().resolve("config/omolife-cef-debug-port.txt");
+            if (Files.isRegularFile(f)) {
+                int port = Integer.parseInt(Files.readString(f).trim());
+                if (port >= 1024 && port <= 65535) {
+                    return new String[] {
+                        "--remote-debugging-port=" + port,
+                        "--disable-features=LocalNetworkAccessChecks",
+                    };
+                }
+            }
+        } catch (Exception ignored) {
+            // unreadable or not a number: no bridge
+        }
+        return new String[0];
     }
 
     private static boolean omolife$unsafe(String arg) {

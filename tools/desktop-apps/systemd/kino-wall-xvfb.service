@@ -1,0 +1,8 @@
+[Unit]
+Description=Kino wall: hidden X display :95 for the Kino desktop app
+[Service]
+ExecStart=/usr/bin/Xvfb :95 -screen 0 1600x960x24 -nolisten tcp
+Nice=19
+Restart=on-failure
+[Install]
+WantedBy=default.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Kino wall: video stream of the Kino app at http://127.0.0.1:8864/ (fallback view)
+After=kino-wall-app.service
+[Service]
+WorkingDirectory=%h/omo-space/tools/desktop-apps
+ExecStart=%h/omo-space/tools/desktop-apps/.venv/bin/python -u kino_wall.py
+Nice=19
+Restart=on-failure
+RestartSec=5
+[Install]
+WantedBy=default.target

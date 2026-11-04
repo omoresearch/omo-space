@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Bridge: new computers attach fast in a big world
+
+- Name Plates and Status Lamps ask the bridge about every watched workspace
+  every 2 s. Each answer used to run 3-4 tmux calls while holding the one
+  workspace lock, so with ~100 workspaces a new computer's attach waited
+  seconds for that lock. Status reads now share one `tmux list-windows -a`
+  snapshot (0.5 s, dropped by any change the bridge makes) and read Hermes
+  status bars after the lock is released. `tests/test_status_load.py`
+  counts the tmux calls (red on the old bridge). Needs a bridge restart.
+
 ### Two blocks: the Omo Computer and the Omo Monitor
 
 - The creative menu shows just the **Omo Computer** (the block formerly

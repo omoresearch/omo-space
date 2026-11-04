@@ -394,6 +394,21 @@ class WebWallTest(unittest.TestCase):
         self.assertIn("omolife$unsafe", mixin)
         self.assertRegex(mixin, r"filter\(a -> !omolife\$unsafe\(a\)\)")
 
+    def test_desktop_bridge_switches_are_opt_in(self):
+        """The DevTools port and the Local Network Access opt-out only come from the opt-in file."""
+        mixin = src("mixin/McefArgsMixin.java")
+        self.assertIn('"config/omolife-cef-debug-port.txt"', mixin)
+        self.assertIn("Files.isRegularFile(f)", mixin)
+        self.assertIn("return new String[0];", mixin)
+        for switch in ('"--remote-debugging-port="', '"--disable-features=LocalNetworkAccessChecks"',
+                       '"--enable-unsafe-swiftshader"', '"--enable-features=SharedArrayBuffer"'):
+            self.assertEqual(mixin.count(switch), 1, switch)
+            # only inside omolife$desktopBridgeArgs, never in the always-on OMOLIFE_EXTRA_ARGS
+            extra = mixin[mixin.index("OMOLIFE_EXTRA_ARGS = {"):mixin.index("};", mixin.index("OMOLIFE_EXTRA_ARGS = {"))]
+            self.assertNotIn(switch, extra)
+        # bridge switches are appended after the unsafe-switch filter, so they can't re-enable it
+        self.assertLess(mixin.index("filter(a -> !omolife$unsafe(a))"), mixin.index("omolife$desktopBridgeArgs();"))
+
 
 class PackagingTest(unittest.TestCase):
     """M5, M6, and the built jar."""

@@ -24,3 +24,6 @@ build/shader_backups/
 
 # Release bundles
 dist/
+
+# Desktop-app bridge: prompts logged before relaying (user data)
+tools/desktop-apps/prompts.jsonl

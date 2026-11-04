@@ -502,7 +502,7 @@ public final class WebPages {
         long now = System.currentTimeMillis();
         Page oldest = null;
         for (Page p : PAGES.values()) {
-            if (BrowserGuard.evictable(now, p.lastWanted, p.createdAt, p.interactive)
+            if (BrowserGuard.evictable(now, p.lastWanted, p.createdAt, p.interactive || kept(p))
                 && (oldest == null || p.lastWanted < oldest.lastWanted)) {
                 oldest = p;
             }
@@ -553,7 +553,7 @@ public final class WebPages {
         double farthestBlocks = -1;
         for (Page p : PAGES.values()) {
             double d = blocksTo(p.pos);
-            if (BrowserGuard.displaceable(now, near, d, p.createdAt, p.interactive) && d > farthestBlocks) {
+            if (BrowserGuard.displaceable(now, near, d, p.createdAt, p.interactive || kept(p)) && d > farthestBlocks) {
                 farthest = p;
                 farthestBlocks = d;
             }
@@ -565,6 +565,51 @@ public final class WebPages {
             origin.toShortString(), Math.round(near), farthest.pos.toShortString(), Math.round(farthestBlocks), farthest.url);
         close(farthest.pos);
         return true;
+    }
+
+    /**
+     * Pages kept open when unseen or far away (still closed on low memory and when the
+     * world unloads): {@code config/omolife-keep-pages.txt}, one host per line (e.g.
+     * {@code kino.ai}), '#' comments. Lets an app wall (an editor running an agent)
+     * keep its state while the player walks off. Re-read when the file changes.
+     */
+    private static java.util.Set<String> keepHosts = java.util.Set.of();
+    private static long keepStamp = Long.MIN_VALUE;
+    private static long keepChecked;
+
+    static boolean kept(Page p) {
+        long now = System.currentTimeMillis();
+        if (now - keepChecked > 5000) {
+            keepChecked = now;
+            try {
+                java.nio.file.Path f = FabricLoader.getInstance().getGameDir().resolve("config/omolife-keep-pages.txt");
+                long stamp = java.nio.file.Files.isRegularFile(f) ? java.nio.file.Files.getLastModifiedTime(f).toMillis() : -1;
+                if (stamp != keepStamp) {
+                    keepStamp = stamp;
+                    java.util.Set<String> hosts = new java.util.HashSet<>();
+                    if (stamp >= 0) {
+                        for (String line : java.nio.file.Files.readAllLines(f)) {
+                            String h = line.replaceAll("#.*", "").trim().toLowerCase(java.util.Locale.ROOT);
+                            if (!h.isEmpty()) {
+                                hosts.add(h);
+                            }
+                        }
+                    }
+                    keepHosts = java.util.Set.copyOf(hosts);
+                }
+            } catch (Exception e) {
+                keepHosts = java.util.Set.of();
+            }
+        }
+        if (keepHosts.isEmpty() || p.url == null) {
+            return false;
+        }
+        try {
+            String host = java.net.URI.create(p.url.trim()).getHost();
+            return host != null && keepHosts.contains(host.toLowerCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     /** Why a wall without a page is dark. */
@@ -842,7 +887,7 @@ public final class WebPages {
         List<BlockPos> stale = new ArrayList<>();
         var player = Minecraft.getInstance().player;
         for (Page p : PAGES.values()) {
-            if (player != null && !p.interactive
+            if (player != null && !p.interactive && !kept(p)
                 && player.position().distanceToSqr(Vec3.atCenterOf(p.pos)) > FAR_BLOCKS * FAR_BLOCKS) {
                 stale.add(p.pos);
             } else if (standing(level, p)) {

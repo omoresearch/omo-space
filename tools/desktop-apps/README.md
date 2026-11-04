@@ -61,6 +61,19 @@ pack/revive marker, `FileSystemObserver.observe` is a no-op for them) whose oper
    the fallback). The hidden app reuses `~/.config/Kino`, so sign in to the desktop app once first.
 4. Point a wall at `https://kino.ai/` (or `http://127.0.0.1:8864/` for the stream).
 
+## Video codecs
+
+The game's Chromium has no proprietary codecs: it can neither decode nor encode H.264, HEVC or AAC
+(`<video>`, MSE and WebCodecs all say no; VP9, AV1 and Opus work). Kino reads MP4s itself (mediabunny) and
+builds 720p H.264/AAC editing proxies in OPFS (`proxy-<mediaId>.mp4` / `.m4a`), so on a wall every import
+failed with *MP4 video codec not supported on this device: avc1*. `kino_fs.py` therefore:
+
+- serves media files as a cached VP9/Opus copy with the same name, size and duration (ffmpeg, niced, cpus
+  10-15, `~/.cache/omo-kino-proxy`; `?raw=1` gets the original bytes);
+- makes Kino-style 720p VP9/Opus editing proxies (`?edit=1`), which `shim.js` writes into the wall's OPFS
+  before Kino looks for them (Kino's reuse check demuxes the file and compares durations, and accepts them),
+  so the wall never has to encode.
+
 ## Pitfalls found the hard way
 
 - Child processes of Electron inherit its DevTools listening socket: after the app restarts, an agent it

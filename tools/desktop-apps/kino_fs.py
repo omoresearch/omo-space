@@ -74,6 +74,7 @@ def grant(path):
         raise FsError('NotFoundError', f'File or directory not found: {a}', 404)
     with LOCK:
         GRANTS.add(a)
+        warm(a)
     kind = 'directory' if os.path.isdir(a) else 'file'
     return {'abs': a, 'name': os.path.basename(a.rstrip('/')) or a, 'kind': kind}
 
@@ -84,6 +85,98 @@ def stat(a):
     except FileNotFoundError:
         raise FsError('NotFoundError', f'not found: {a}', 404)
     return {'kind': 'directory' if os.path.isdir(a) else 'file', 'size': st.st_size, 'mtime': int(st.st_mtime * 1000)}
+
+
+# -- codec proxies -----------------------------------------------------------------------------------------
+# The wall Chromium is built without proprietary codecs: no H.264/HEVC video and no AAC audio (MSE, <video>
+# and WebCodecs all say no; VP9 and Opus work). Kino demuxes MP4 itself and asks WebCodecs for the track's
+# codec, so the wall is served the SAME container with VP9 + Opus tracks (same size, fps, duration, name).
+# Transcoded once (niced, cpus 10-15), cached by path+size+mtime; the original file is never touched.
+PROXY_DIR = os.path.expanduser(os.environ.get('KINO_PROXY_DIR', '~/.cache/omo-kino-proxy'))
+PROXY_EXT = ('.mp4', '.mov', '.m4v', '.mkv', '.m4a', '.aac', '.mp3', '.wav', '.flac', '.ogg', '.webm')
+BAD_CODECS = {'h264', 'hevc', 'mpeg4', 'aac', 'mjpeg', 'prores'}
+PROBES, PROXY_LOCKS = {}, {}
+PROXY_SEM = threading.Semaphore(int(os.environ.get('KINO_PROXY_JOBS', '2')))
+
+
+def probe(a, st):
+    key = (a, st.st_size, st.st_mtime)
+    if key not in PROBES:
+        import subprocess
+        try:
+            out = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'stream=codec_type,codec_name',
+                                  '-of', 'json', a], capture_output=True, text=True, timeout=30).stdout
+            PROBES[key] = [(s.get('codec_type'), s.get('codec_name')) for s in json.loads(out or '{}').get('streams', [])]
+        except Exception:
+            PROBES[key] = []
+    return PROBES[key]
+
+
+def proxied(a, edit=False, nowait=False):
+    """Path to serve for a: a VP9/Opus copy when a holds codecs the wall can't decode, else a itself.
+    edit=True: Kino's own editing proxy instead (<=720p, what Kino keeps in OPFS as proxy-<id>.mp4/.m4a);
+    always made for audio/video so the wall never has to encode (it has no H.264/AAC encoder either)."""
+    if not a.lower().endswith(PROXY_EXT):
+        return a
+    st = os.stat(a)
+    import hashlib, subprocess
+    h = hashlib.sha1(f'{a}|{st.st_size}|{st.st_mtime}|{"edit" if edit else "src"}'.encode()).hexdigest()[:20]
+    out = os.path.join(PROXY_DIR, h + '.mp4')
+    if os.path.exists(out):
+        return out
+    if nowait:
+        warm(a)
+        raise FsError('NotReadableError', 'proxy not ready yet', 503)
+    streams = probe(a, st)
+    if not edit and not any(c in BAD_CODECS for _, c in streams):
+        return a
+    with LOCK:
+        lk = PROXY_LOCKS.setdefault(out, threading.Lock())
+    with lk:
+        if os.path.exists(out):
+            return out
+        os.makedirs(PROXY_DIR, exist_ok=True)
+        tmp = f'{out}.{os.getpid()}.{threading.get_ident()}.part.mp4'
+        has_v = any(t == 'video' for t, _ in streams)
+        has_a = any(t == 'audio' for t, _ in streams)
+        cmd = ['taskset', '-c', '10-15', 'nice', '-n', '19', 'ffmpeg', '-v', 'error', '-y', '-i', a, '-map', '0:v?',
+               '-map', '0:a?', '-map_metadata', '0']
+        if has_v and edit:
+            cmd += ['-vf', "scale=-2:'min(720,ih)'", '-r', '30']
+        if has_v:
+            cmd += ['-c:v', 'libvpx-vp9', '-g', '60', '-b:v', '0', '-crf', '31', '-deadline', 'realtime', '-cpu-used', '8',
+                    '-row-mt', '1', '-threads', '4', '-pix_fmt', 'yuv420p']
+        if has_a:
+            cmd += ['-c:a', 'libopus', '-b:a', '160k']
+        cmd += ['-movflags', '+faststart']
+        cmd += [tmp]
+        t0 = time.time()
+        with PROXY_SEM:
+            r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0 or not os.path.exists(tmp):
+            log('proxy FAILED', a, r.stderr[-300:])
+            try:
+                os.remove(tmp)
+            except FileNotFoundError:
+                pass
+            return a
+        os.replace(tmp, out)
+        log(f'proxy{" (edit)" if edit else ""} {os.path.basename(a)} -> VP9/Opus in {time.time() - t0:.1f}s ({os.path.getsize(out) >> 20} MB)')
+        return out
+
+
+def warm(a):
+    """Start proxies for a granted file (or the media files in a granted folder's top level) in the background."""
+    def run(paths):
+        for p in paths:
+            try:
+                proxied(p)
+                proxied(p, edit=True)
+            except Exception as e:
+                log('proxy warm failed', p, repr(e))
+    paths = ([a] if os.path.isfile(a) else []) if isinstance(a, str) else [p for p in a if os.path.isfile(p)]
+    if paths:
+        threading.Thread(target=run, args=(paths,), daemon=True).start()
 
 
 class H(BaseHTTPRequestHandler):
@@ -164,6 +257,14 @@ class H(BaseHTTPRequestHandler):
         log('grant', g['kind'], g['abs'])
         self.reply(200, g)
 
+    def op_warm(self, q):
+        paths = [absolute(p) for p in json.loads(self.body() or b'[]') if p]
+        ok = [p for p in paths if os.path.isfile(p)]
+        with LOCK:
+            GRANTS.update(ok)
+        warm(ok)
+        self.reply(200, {'queued': len(ok)})
+
     def op_stat(self, q):
         self.reply(200, stat(checked(q.get('p'))))
 
@@ -204,8 +305,12 @@ class H(BaseHTTPRequestHandler):
         a = checked(q.get('p'))
         if os.path.isdir(a):
             raise FsError('TypeMismatchError', 'is a directory')
-        size = os.path.getsize(a)
         st = stat(a)
+        if q.get('edit') == '1':
+            a = proxied(a, edit=True, nowait=q.get('nowait') == '1')
+        elif q.get('raw') != '1':
+            a = proxied(a)  # wall can't decode H.264/AAC: serve the VP9/Opus copy (made once, cached)
+        size = os.path.getsize(a)
         rng = self.headers.get('Range')
         start, end = 0, size - 1
         code = 200

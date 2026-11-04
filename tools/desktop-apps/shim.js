@@ -202,6 +202,58 @@
   }
   window.__omoKinoFs = { OmoDir, OmoFile, fileDrop };
 
+  // ---------------------------------------------------------------- editing proxies (no H.264/AAC here)
+  // The wall Chromium can't decode OR encode H.264/AAC, so Kino can't build its own editing proxies
+  // (OPFS proxy-<mediaId>.mp4 / .m4a, normally H.264+AAC). Before Kino looks for them we drop in VP9+Opus
+  // proxies made by kino_fs (ffmpeg, cached); Kino's reuse check (demux + duration) accepts those.
+  const AUD = new Set(['m4a', 'aac', 'mp3', 'wav', 'flac', 'ogg']);
+  const VID = new Set(['mp4', 'mov', 'm4v', 'mkv', 'webm']);
+  const realGetDir = navigator.storage && navigator.storage.getDirectory && navigator.storage.getDirectory.bind(navigator.storage);
+  const idbRows = () => new Promise(res => {
+    const q = indexedDB.open('kino-local-file-paths', 1);
+    q.onupgradeneeded = () => q.result.createObjectStore('paths');
+    q.onerror = () => res([]);
+    q.onsuccess = () => {
+      const db = q.result, s = db.transaction('paths').objectStore('paths');
+      const k = s.getAllKeys(), v = s.getAll();
+      v.onsuccess = () => { db.close(); res(k.result.map((id, i) => [id, v.result[i]]).filter(r => typeof r[1] === 'string')); };
+      v.onerror = () => res([]);
+    };
+  });
+  const prefill = (async () => {
+    if (!realGetDir) return;
+    const t0 = performance.now();
+    let added = 0, pending = 0;
+    try {
+      const root = await realGetDir();
+      const todo = [];
+      for (const [id, p] of await idbRows()) {
+        const ext = (p.split('.').pop() || '').toLowerCase();
+        const kind = AUD.has(ext) ? 'm4a' : VID.has(ext) ? 'mp4' : null;
+        if (!kind) continue;
+        const name = `proxy-${id}.${kind}`;
+        try { if ((await (await root.getFileHandle(name)).getFile()).size > 0) continue; } catch (e) {}
+        todo.push([name, p]);
+      }
+      // grants these media paths (the ones the desktop app already knows) and queues their conversion
+      if (todo.length) await fsx('warm', {}, { method: 'POST', body: JSON.stringify(todo.map(t => t[1])) });
+      for (const [name, p] of todo) {
+        const r = await fetch(`${FS}/fs/read?${qs({ p, t: TOKEN, edit: 1, nowait: 1 })}`).catch(() => null);
+        if (!r || !r.ok) { if (r && r.status === 503) pending++; continue; }
+        const blob = await r.blob();
+        const w = await (await root.getFileHandle(name, { create: true })).createWritable();
+        await w.write(blob); await w.close(); added++;
+      }
+    } catch (e) { console.warn('[omo-kino] proxy prefill failed', e); }
+    console.info(`[omo-kino] editing proxies: ${added} added, ${pending} still converting (${Math.round(performance.now() - t0)} ms)`);
+  })();
+  if (realGetDir) {
+    // Kino's proxy lookup starts with getDirectory(): let it wait until the prefill is in
+    // one shared gate: open once the prefill is done or 15 s after page start, whichever comes first
+    const gate = Promise.race([prefill, new Promise(r => setTimeout(r, 15000))]);
+    navigator.storage.getDirectory = () => gate.then(realGetDir);
+  }
+
   // ---------------------------------------------------------------- window.electron relay
   const clean = a => {
     if (a instanceof File || a instanceof Blob) return null;

@@ -1,68 +1,98 @@
 [
   {
-    "file": "01-glass-tower-reveal.webm",
+    "file": "01-roof-at-dusk.webm",
+    "title": "The Roof at Dusk",
+    "place": "The crown of the Glass Tower \u00b7 Omo World",
+    "seconds": 9.7
+  },
+  {
+    "file": "02-world-flyover.webm",
+    "title": "Golden Hour",
+    "place": "Flying in to the Glass Tower \u00b7 Omo World",
+    "seconds": 7.7
+  },
+  {
+    "file": "03-sunset-rise.webm",
+    "title": "Sunset Rise",
+    "place": "Lifting up to the Glass Tower \u00b7 Omo World",
+    "seconds": 6.3
+  },
+  {
+    "file": "04-lake-at-dusk.webm",
+    "title": "Lake at Dusk",
+    "place": "The tower on the hill \u00b7 Omo World",
+    "seconds": 7.7
+  },
+  {
+    "file": "05-tower-orbit.webm",
     "title": "The Glass Tower",
-    "place": "The skyscraper on the summit · Omo World",
+    "place": "The skyscraper on the summit \u00b7 Omo World",
     "seconds": 9.7
   },
   {
-    "file": "02-summit-vista.webm",
-    "title": "Above the Forest",
-    "place": "The forest, cliffs and skyline · Omo World",
+    "file": "06-cabin-to-tower.webm",
+    "title": "From the Cabin to the Tower",
+    "place": "A drone line across the valley \u00b7 Omo World",
     "seconds": 9.7
   },
   {
-    "file": "03-cliff-cabin.webm",
-    "title": "The Cabin on the Cliff",
-    "place": "The YT Cabin · Omo World",
+    "file": "07-close-orbit.webm",
+    "title": "Glass and Gold",
+    "place": "Circling the tower \u00b7 Omo World",
+    "seconds": 7.7
+  },
+  {
+    "file": "08-reading-room.webm",
+    "title": "The Reading Room",
+    "place": "A lantern window at dusk \u00b7 Omo World",
+    "seconds": 7.7
+  },
+  {
+    "file": "09-bio-lab.webm",
+    "title": "The Bio Lab",
+    "place": "Where the fruit fly brain lives \u00b7 Omo World",
     "seconds": 9.7
   },
   {
-    "file": "04-batcave.webm",
+    "file": "10-batcave.webm",
     "title": "The Batcave",
-    "place": "The Batcave · Omo World",
-    "seconds": 9.5
+    "place": "From the balcony \u00b7 Omo World",
+    "seconds": 8.7
   },
   {
-    "file": "06-omo-falls-library.webm",
-    "title": "The Library Terminals",
-    "place": "Omo Falls · Launch Video library · Omo World",
-    "seconds": 9.5
+    "file": "11-glow-grove.webm",
+    "title": "The Glow Grove",
+    "place": "Omo Falls, behind the waterfall \u00b7 Omo World",
+    "seconds": 9.7
   },
   {
-    "file": "07-omo-falls-grove.webm",
-    "title": "The Lantern Grove",
-    "place": "Omo Falls · the grove · Omo World",
-    "seconds": 8.8
+    "file": "12-hal-shaft.webm",
+    "title": "Down the Shaft",
+    "place": "The way down to the pod bay \u00b7 Omo World",
+    "seconds": 7.7
   },
   {
-    "file": "08-analytics-room.webm",
-    "title": "The Analytics Wall",
-    "place": "Analytics room under the Batcave · Omo World",
-    "seconds": 9.5
+    "file": "13-stargate.webm",
+    "title": "The Stargate",
+    "place": "The robotics lab \u00b7 Omo World",
+    "seconds": 7.7
   },
   {
-    "file": "09-mountain-studio.webm",
-    "title": "Mountain Studio",
-    "place": "The studio cavern inside the mountain · Omo World",
-    "seconds": 9.5
+    "file": "14-microduck.webm",
+    "title": "Microduck",
+    "place": "The duck lab \u00b7 Omo World",
+    "seconds": 7.3
   },
   {
-    "file": "10-duck-lab.webm",
-    "title": "The Duck Lab",
-    "place": "The Microduck robot lab · Omo World",
-    "seconds": 9.5
+    "file": "15-sunrise-mist.webm",
+    "title": "First Light",
+    "place": "Mist over the lake \u00b7 Omo World",
+    "seconds": 9.7
   },
   {
-    "file": "11-glass-tower-floor.webm",
-    "title": "Inside the Tower",
-    "place": "The Glass Tower · an office floor · Omo World",
-    "seconds": 9.5
-  },
-  {
-    "file": "12-glass-tower-orbit.webm",
-    "title": "Golden Hour Orbit",
-    "place": "The Glass Tower · Omo World",
+    "file": "16-last-light.webm",
+    "title": "Last Light",
+    "place": "The sky over Omo World",
     "seconds": 9.7
   }
 ]

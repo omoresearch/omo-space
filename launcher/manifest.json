@@ -2,6 +2,7 @@
   "name": "Omo Space",
   "version": "1.2.0",
   "download_mb": 650,
+  "discord": "https://discord.gg/kSQadHSmFb",
   "microsoft": {
     "client_id": null,
     "note": "Omo's own Azure app ID, set once Mojang approves it for Minecraft sign-in (OMO_MSA_CLIENT_ID overrides). Until then Omo signs in and starts the game through its private, headless Prism Launcher."

@@ -505,6 +505,10 @@ def newest_crash(since, game=None):
 DISCORD_URL = os.environ.get("OMO_DISCORD") or core.MANIFEST.get("discord", "")
 CATALOGUE = Path(os.environ.get("OMO_PLUGINS") or ASSETS / "plugins.json")
 CATALOGUE_SLOTS = 15                # how many places the coming-soon catalogue shows
+INFO_TEXT_W = 600                   # the text column on a plugin's own page (px)
+GALLERY_COLS = 5                    # covers per row in the plugin gallery
+COVER_H = 168                       # gallery cover height (px)
+INFO_COVER = 320                    # the cover on a plugin's own page (px)
 
 
 def load_catalogue(path=CATALOGUE):
@@ -712,96 +716,109 @@ window.look-paper button.o-pill label { color: #1a1008; }
 window.look-paper button.o-pill.accent { background: #1a1008; border-color: #1a1008; }
 window.look-paper button.o-pill.accent label { color: #f5f0e8; }
 
-/* the plugin catalogue (the veil, glows and motes behind it are drawn by Aura) */
-.o-plugins { background: none; padding: 86px 60px 40px 64px; }
-.o-title.cat { font-size: 66px; }
-window.omo label.o-soon { font-family: "IBM Plex Mono", monospace; font-size: 9.5px; font-weight: 500; letter-spacing: 2.6px;
-          color: #f3d7a8; background-color: rgba(232,196,143,0.10); border: 1px solid rgba(232,196,143,0.45);
-          border-radius: 999px; padding: 3px 12px; margin-top: 10px;
-          box-shadow: 0 0 18px rgba(232,196,143,0.18); }
+/* the plugin gallery: a slim header, then covers. The veil, glows and motes behind it are
+   drawn by Aura. Type scale: serif 44 / 20 on the grid (54 / 20 / 18 on the info page),
+   everything small in Plex Mono 10-10.5 px with modest tracking. Crimson never below 18 px. */
+.o-plugins { background: none; padding: 84px 64px 40px 64px; }
+window.omo label.o-soon { font-family: "IBM Plex Mono", monospace; font-size: 10px; font-weight: 500;
+          letter-spacing: 1.6px; color: #f3d7a8; background-color: rgba(232,196,143,0.10);
+          border: 1px solid rgba(232,196,143,0.40); border-radius: 999px; padding: 3px 10px; }
 window.look-paper label.o-soon { color: #8a5a22; background-color: rgba(201,154,94,0.10);
-                                 border-color: rgba(201,154,94,0.55); box-shadow: none; }
+                                 border-color: rgba(201,154,94,0.55); }
 .o-cat-scroll, .o-cat-scroll > viewport { background: transparent; }
 .o-cat-scroll > scrollbar { opacity: 0; transition: opacity 200ms ease; }
 .o-cat-scroll:hover > scrollbar { opacity: 1; }
 flowboxchild { padding: 0; background: none; outline: none; }
 button.o-pill.chip { padding: 3px 11px; }
-button.o-pill.chip label { font-size: 9.5px; letter-spacing: 1.8px; color: rgba(245,240,232,0.7); }
+button.o-pill.chip label { font-size: 10px; letter-spacing: 1.4px; color: rgba(245,240,232,0.7); }
 button.o-pill.chip.on { background: #f5f0e8; border-color: #f5f0e8; }
 button.o-pill.chip.on label { color: #1a1008; }
 window.look-paper button.o-pill.chip.on { background: #1a1008; border-color: #1a1008; }
 window.look-paper button.o-pill.chip.on label { color: #f5f0e8; }
 window.look-paper button.o-pill.chip label { color: #4a3b2f; }
+button.o-play.compact { padding: 8px 16px; font-size: 10.5px; letter-spacing: 1.6px; border-radius: 9px;
+                        box-shadow: none; }
+button.o-link.nav { padding: 4px 0; font-size: 10.5px; letter-spacing: 1.4px; }
+window.look-paper button.o-play.compact { box-shadow: none; }
 
-/* cards: quiet glass that wakes up (gold edge, glowing tile, a lift) under the pointer */
-.o-plugin { border: 1px solid rgba(245,240,232,0.08); border-radius: 18px; padding: 15px 20px 15px 16px;
-            background-image: linear-gradient(165deg, rgba(245,240,232,0.06), rgba(245,240,232,0.015) 70%);
-            box-shadow: inset 0 1px rgba(255,255,255,0.05), 0 10px 30px rgba(0,0,0,0.22);
-            transition: border-color 260ms ease, box-shadow 320ms ease, transform 320ms cubic-bezier(.2,.7,.2,1); }
-.o-plugin:hover { border-color: rgba(232,196,143,0.42); transform: translateY(-3px);
-                  box-shadow: inset 0 1px rgba(255,255,255,0.07), 0 0 0 1px rgba(232,196,143,0.10),
-                              0 0 34px rgba(232,196,143,0.14), 0 18px 38px rgba(0,0,0,0.34); }
-window.omo label.o-tile { color: #2a1c10; }
-.o-tile { font-family: "Crimson Text", serif; font-size: 20px; font-weight: 600;
-          border-radius: 11px; background-image: linear-gradient(145deg, #f3dcb3, #c99a5e);
-          box-shadow: inset 0 1px rgba(255,255,255,0.45), 0 0 0 rgba(232,196,143,0);
-          transition: box-shadow 320ms ease; }
-.o-plugin:hover .o-tile { box-shadow: inset 0 1px rgba(255,255,255,0.5), 0 0 22px rgba(232,196,143,0.45); }
-.o-tile.c-robots     { background-image: linear-gradient(145deg, #e4ebf1, #93a8bb); }
-.o-tile.c-agents     { background-image: linear-gradient(145deg, #f6e2bd, #c99a5e); }
-.o-tile.c-world      { background-image: linear-gradient(145deg, #e0ecd5, #8fab78); }
-.o-tile.c-characters { background-image: linear-gradient(145deg, #f4d5c2, #c47f5d); }
-.o-tile.c-science    { background-image: linear-gradient(145deg, #d8eee9, #7fb0a6); }
-.o-tile.c-streaming  { background-image: linear-gradient(145deg, #e8dcf2, #a08bbd); }
-.o-tile.c-tools      { background-image: linear-gradient(145deg, #eee9df, #aaa08d); }
-/* readable first: bigger serif, steady contrast, no tiny tracking */
-.o-card-name { font-family: "Crimson Text", serif; font-size: 22px; font-weight: 600; color: #fbf7f0; }
-window.omo label.o-card-cat { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; font-weight: 500; letter-spacing: 1.2px;
-              color: rgba(232,196,143,0.88); margin-top: 1px; }
-.o-card-text { font-family: "Crimson Text", serif; font-size: 17px; line-height: 1.12;
-               color: rgba(245,240,232,0.84); }
-.o-cat-side .o-body { font-size: 19px; color: #f5f0e8; text-shadow: none; }
-.o-cat-side .o-note { font-style: normal; font-size: 16.5px; line-height: 1.3; color: rgba(245,240,232,0.74); }
-.o-state { font-family: "IBM Plex Mono", monospace; font-size: 9px; letter-spacing: 1.8px; border-radius: 999px;
-           padding: 2px 8px; color: rgba(245,240,232,0.55); border: 1px solid rgba(245,240,232,0.16); }
-.o-state.ready { color: #1a1008; background-color: #e8c48f; border-color: #e8c48f; }
-.enter { animation: rise 640ms cubic-bezier(.2,.7,.2,1) both; }
-@keyframes rise { from { opacity: 0; transform: translateY(16px) scale(0.985); } to { opacity: 1; transform: none; } }
-.enter.i1 { animation-delay: 45ms; }  .enter.i2 { animation-delay: 90ms; }  .enter.i3 { animation-delay: 135ms; }
-.enter.i4 { animation-delay: 180ms; } .enter.i5 { animation-delay: 225ms; } .enter.i6 { animation-delay: 270ms; }
-.enter.i7 { animation-delay: 315ms; } .enter.i8 { animation-delay: 360ms; } .enter.i9 { animation-delay: 405ms; }
-.enter.i10 { animation-delay: 450ms; } .enter.i11 { animation-delay: 495ms; }
-.o-cat-side.enter { animation-duration: 560ms; }
-window.look-paper .o-plugin { border-color: #e2dacd; background-image: none; background-color: rgba(255,253,249,0.85);
-                              box-shadow: 0 8px 22px rgba(26,16,8,0.06); }
-window.look-paper .o-plugin:hover { border-color: #c99a5e;
-                                    box-shadow: 0 0 30px rgba(201,154,94,0.18), 0 14px 30px rgba(26,16,8,0.10); }
-window.look-paper .o-card-text { color: #3a2c20; }
-window.look-paper .o-card-name { color: #1a1008; }
-window.look-paper .o-card-cat { color: #8a5a22; }
-window.look-paper .o-cat-side .o-body { color: #1a1008; }
-window.look-paper .o-cat-side .o-note { color: #4a3b2f; }
-window.look-paper .o-state { color: #6b5a4a; border-color: #d4cdc0; }
+/* gallery cards: a cover, a name, a category. Buttons with the theme stripped off. */
+button.o-gcard { background: none; border: none; box-shadow: none; padding: 0; margin: 0; min-height: 0;
+                 min-width: 0; border-radius: 20px; outline: none; }
+button.o-gcard:hover, button.o-gcard:active, button.o-gcard:checked { background: none; box-shadow: none; }
+.o-cover { border-radius: 20px;
+           background-image: linear-gradient(150deg, #f4e1bf, #c99a5e);
+           box-shadow: inset 0 1px rgba(255,255,255,0.35), 0 10px 26px rgba(0,0,0,0.28);
+           transition: transform 320ms cubic-bezier(.2,.7,.2,1), box-shadow 320ms ease; }
+button.o-gcard:hover .o-cover { transform: translateY(-4px);
+           box-shadow: inset 0 1px rgba(255,255,255,0.45), 0 0 0 1px rgba(232,196,143,0.55),
+                       0 16px 34px rgba(0,0,0,0.38), 0 0 26px rgba(232,196,143,0.16); }
+button.o-gcard:focus-visible .o-cover { outline: 2px solid #e8c48f; outline-offset: 3px; }
+.o-cover.big { border-radius: 30px; box-shadow: inset 0 1px rgba(255,255,255,0.4), 0 18px 44px rgba(0,0,0,0.32); }
+.o-cover.c-robots     { background-image: linear-gradient(150deg, #edf2f6, #9db1c3); }
+.o-cover.c-agents     { background-image: linear-gradient(150deg, #f8e8c8, #cfa267); }
+.o-cover.c-world      { background-image: linear-gradient(150deg, #e9f1df, #9bb585); }
+.o-cover.c-characters { background-image: linear-gradient(150deg, #f7e0d1, #c98a69); }
+.o-cover.c-science    { background-image: linear-gradient(150deg, #e2f2ee, #8bb8ae); }
+.o-cover.c-streaming  { background-image: linear-gradient(150deg, #efe6f6, #ab98c6); }
+.o-cover.c-tools      { background-image: linear-gradient(150deg, #f1ede5, #b3aa98); }
+window.omo label.o-cover-letter { font-family: "Crimson Text", serif; font-size: 96px; font-weight: 600;
+          color: rgba(26,16,8,0.70); text-shadow: 0 1px rgba(255,255,255,0.35); }
+window.omo label.o-cover-letter.big { font-size: 176px; }
+window.omo .c-robots label.o-cover-letter     { color: rgba(44,62,80,0.74); }
+window.omo .c-agents label.o-cover-letter     { color: rgba(92,56,18,0.72); }
+window.omo .c-world label.o-cover-letter      { color: rgba(46,70,32,0.72); }
+window.omo .c-characters label.o-cover-letter { color: rgba(96,40,18,0.70); }
+window.omo .c-science label.o-cover-letter    { color: rgba(26,72,64,0.72); }
+window.omo .c-streaming label.o-cover-letter  { color: rgba(64,42,98,0.70); }
+window.omo .c-tools label.o-cover-letter      { color: rgba(66,58,44,0.72); }
+window.omo button.o-gcard label.o-gname { font-family: "Crimson Text", serif; font-size: 21px; font-weight: 600;
+          letter-spacing: 0; color: #fbf7f0; }
+window.omo button.o-gcard label.o-gcat { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; font-weight: 500;
+          letter-spacing: 1.4px; color: rgba(232,196,143,0.92); }
+window.look-paper .o-cover { box-shadow: inset 0 1px rgba(255,255,255,0.5), 0 4px 12px rgba(26,16,8,0.08); }
+window.look-paper button.o-gcard:hover .o-cover { box-shadow: inset 0 1px rgba(255,255,255,0.5),
+          0 0 0 1px rgba(201,154,94,0.75), 0 10px 20px rgba(26,16,8,0.12); }
+window.look-paper .o-cover.big { box-shadow: inset 0 1px rgba(255,255,255,0.5), 0 8px 20px rgba(26,16,8,0.10); }
+window.look-paper button.o-gcard label.o-gname { color: #1a1008; }
+window.look-paper button.o-gcard label.o-gcat { color: #8a5a22; }
 
-/* open places */
-.o-slot { border: 1px dashed rgba(245,240,232,0.11); border-radius: 18px; padding: 16px 18px;
-          background-color: transparent; }
-box.o-slot { animation: breathe 3.2s ease-in-out infinite alternate; }
+/* open places: dashed covers */
+.o-slot { border: 1.5px dashed rgba(245,240,232,0.16); border-radius: 20px; background-color: transparent; }
+button.o-gcard:hover .o-slot { border-color: rgba(232,196,143,0.6); background-color: rgba(232,196,143,0.05); }
+box.o-slot.breathe { animation: breathe 3.2s ease-in-out infinite alternate; }
 .o-slot.d1 { animation-delay: 0.4s; } .o-slot.d2 { animation-delay: 0.8s; } .o-slot.d3 { animation-delay: 1.2s; }
 .o-slot.d4 { animation-delay: 1.6s; }
 @keyframes breathe { from { opacity: 0.45; } to { opacity: 1.0; } }
-button.o-slot.invite { min-height: 0; box-shadow: none; background-image: none;
-                       transition: border-color 220ms ease, background-color 220ms ease; }
-button.o-slot.invite:hover { border-color: rgba(232,196,143,0.55); background-color: rgba(232,196,143,0.06); }
-button.o-slot.invite label.o-slot-plus { font-family: "Crimson Text", serif; font-size: 30px; font-weight: 400;
-                                         color: rgba(245,240,232,0.40); }
-button.o-slot.invite:hover label.o-slot-plus { color: #e8c48f; }
-.o-slot-num { font-family: "Crimson Text", serif; font-size: 30px; font-weight: 600; color: rgba(245,240,232,0.28); }
-.o-skel { min-height: 6px; border-radius: 3px; background-color: rgba(245,240,232,0.10); }
-.o-skel.long { margin-right: 20px; } .o-skel.short { margin-right: 90px; }
-window.look-paper .o-slot { border-color: rgba(26,16,8,0.18); background-color: rgba(26,16,8,0.02); }
-window.look-paper .o-slot-num, window.look-paper button.o-slot.invite label.o-slot-plus { color: rgba(26,16,8,0.3); }
-window.look-paper .o-skel { background-color: rgba(26,16,8,0.08); }
+window.omo label.o-slot-plus { font-family: "Crimson Text", serif; font-size: 44px; font-weight: 400;
+          color: rgba(245,240,232,0.38); }
+window.omo button.o-gcard:hover label.o-slot-plus { color: #e8c48f; }
+window.omo button.o-gcard label.o-gname.dim { color: rgba(245,240,232,0.55); }
+window.look-paper .o-slot { border-color: rgba(26,16,8,0.20); }
+window.look-paper label.o-slot-plus { color: rgba(26,16,8,0.32); }
+window.look-paper button.o-gcard label.o-gname.dim { color: rgba(26,16,8,0.5); }
+
+/* one plugin's page */
+window.omo label.o-info-meta { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; font-weight: 500;
+          letter-spacing: 1.5px; color: rgba(232,196,143,0.88); }
+window.omo label.o-info-name { font-family: "Crimson Text", serif; font-size: 54px; font-weight: 600;
+          letter-spacing: -1px; color: #fbf7f0; }
+window.omo label.o-info-about { font-family: "Crimson Text", serif; font-size: 20px; color: rgba(245,240,232,0.86); }
+window.omo label.o-info-feat { font-family: "Crimson Text", serif; font-size: 18px; color: rgba(245,240,232,0.80); }
+.o-feat-dot { min-width: 5px; min-height: 5px; border-radius: 999px; background-color: #e8c48f; }
+.o-rule { min-height: 1px; background-color: rgba(245,240,232,0.10); }
+window.look-paper label.o-info-meta { color: #8a5a22; }
+window.look-paper label.o-info-name { color: #1a1008; }
+window.look-paper label.o-info-about { color: #3a2c20; }
+window.look-paper label.o-info-feat { color: #4a3b2f; }
+window.look-paper .o-feat-dot { background-color: #c99a5e; }
+window.look-paper .o-rule { background-color: rgba(26,16,8,0.10); }
+
+.enter { animation: rise 600ms cubic-bezier(.2,.7,.2,1) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.enter.i1 { animation-delay: 40ms; }  .enter.i2 { animation-delay: 80ms; }  .enter.i3 { animation-delay: 120ms; }
+.enter.i4 { animation-delay: 160ms; } .enter.i5 { animation-delay: 200ms; } .enter.i6 { animation-delay: 240ms; }
+.enter.i7 { animation-delay: 280ms; } .enter.i8 { animation-delay: 320ms; } .enter.i9 { animation-delay: 360ms; }
+.enter.i10 { animation-delay: 400ms; } .enter.i11 { animation-delay: 440ms; }
 window.look-paper .o-kicker.bad { color: #a8432e; }
 .mono { font-family: "IBM Plex Mono", monospace; }
 
@@ -1315,7 +1332,7 @@ def gui():
             root = self.get_root()
             paper = bool(root and root.has_css_class("look-paper"))
             ease = min(t / 0.9, 1.0)                       # glows and motes fade in as it opens
-            s.append_color(rgba("#f5f0e8", 0.97) if paper else rgba("#0a0705", 0.90), rect(0, 0, w, h))
+            s.append_color(rgba("#f5f0e8", 1.0) if paper else rgba("#0a0705", 0.90), rect(0, 0, w, h))
             gold = "#c99a5e" if paper else "#e8c48f"
             for cx, cy, rad, col, a in ((0.66 + 0.04 * math.sin(t * 0.11), 0.34 + 0.03 * math.cos(t * 0.09),
                                          0.46, gold, 0.13 if paper else 0.11),
@@ -1340,8 +1357,10 @@ def gui():
 
         FONT = "Crimson Text Semi-Bold 66"
 
-        def __init__(self, word):
+        def __init__(self, word, font=None):
             super().__init__(halign=Gtk.Align.START)
+            if font:
+                self.FONT = font
             self.word, self.t0, self.t, self.tick_id = word, None, 0.0, 0
             lay = self.layout(word)
             tw, th = lay.get_pixel_size()
@@ -1474,7 +1493,7 @@ def gui():
                                    button("SIGN OUT", "o-link", self.sign_out), valign=Gtk.Align.CENTER)
             version = label(core.MANIFEST["version"], "o-chip", "dim", wrap=False)
             self.mark = Mark(22)
-            self.plugins_btn = button("PLUGINS", "o-pill", self.show_plugins)
+            self.plugins_btn = button("PLUGINS", "o-pill", self.toggle_plugins)
             self.discord_btn = button("JOIN DISCORD", "o-pill", self.open_discord)
             self.discord_btn.add_css_class("accent")
             top = self.top = box(False, 12,
@@ -2043,7 +2062,10 @@ def gui():
                     return True
             if keyval == Gdk.KEY_Escape:
                 if self.plugins_view.get_reveal_child():
-                    self.hide_plugins()
+                    if self.cat_pages.get_visible_child_name() == "info":
+                        self.hide_plugin_info()
+                    else:
+                        self.hide_plugins()
                     return True
                 self.show_details(False)
                 if self.stack.get_visible_child_name() == "failed" and not self.busy:
@@ -2057,39 +2079,40 @@ def gui():
 
         # -- plugins and community -------------------------------------------------------------
         def build_plugins(self):
-            """The plugin catalogue, over the film: a side column (what this is, Discord) and a
-            grid of cards with category filters. Cards rise in, one after another, when it opens."""
+            """The plugin gallery, over the film: a slim header (title, COMING SOON, Discord) and a
+            grid of covers. Clicking a cover opens that plugin's own page in the same view."""
             self.catalogue = load_catalogue()
+            self.cat_items = []
             self.cat_filter = None
-            self.cat_grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=3,
-                                        min_children_per_line=3, column_spacing=12, row_spacing=10,
+            self.cat_grid = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=GALLERY_COLS,
+                                        min_children_per_line=GALLERY_COLS, column_spacing=22, row_spacing=26,
                                         homogeneous=True, valign=Gtk.Align.START)
             self.cat_grid.set_filter_func(self.cat_visible)
             scroller = Gtk.ScrolledWindow(child=self.cat_grid, hscrollbar_policy=Gtk.PolicyType.NEVER,
                                           vexpand=True, hexpand=True)
             scroller.add_css_class("o-cat-scroll")
-            self.cat_chips = box(False, 6, margin_bottom=16)
-            self.cat_count = label("", "o-chip", "dim", wrap=False)
-            self.cat_status = label("COMING SOON", "o-soon", wrap=False, halign=Gtk.Align.START)
-            self.cat_body = label("", "o-body", chars=30)
-            discord = button("BUILD THEM WITH US", "o-play", self.open_discord)
-            discord.set_halign(Gtk.Align.START)
+            self.cat_chips = box(False, 6, margin_bottom=18)
+            self.cat_status = label("COMING SOON", "o-soon", wrap=False, valign=Gtk.Align.CENTER, margin_start=16,
+                                    margin_top=6)
             back = button("←  BACK", "o-link", self.hide_plugins)
-            back.set_halign(Gtk.Align.START)
-            self.cat_title = MagicTitle("Plugins")
-            self.cat_side = box(True, 0,
-                                box(True, 0, back, margin_bottom=22),
-                                self.cat_title,
-                                self.cat_status,
-                                box(True, 0, self.cat_body, margin_top=22),
-                                label("New rooms, agents and worlds for Omo Space, one click to install.",
-                                      "o-note", chars=26, margin_top=8),
-                                box(True, 0, discord, margin_top=28),
-                                box(True, 0, vexpand=True),
-                                hexpand=False, css=["o-cat-side"])
-            self.cat_side.set_size_request(262, -1)
-            panel = box(False, 44, self.cat_side, box(True, 0, self.cat_chips, scroller, hexpand=True),
-                        css=["o-plugins"])
+            back.add_css_class("nav")
+            back.set_valign(Gtk.Align.CENTER)
+            discord = button("BUILD THEM WITH US", "o-play", self.open_discord)
+            discord.add_css_class("compact")
+            discord.set_valign(Gtk.Align.CENTER)
+            discord.set_tooltip_text("Help build the plugins with us")
+            self.cat_title = MagicTitle("Plugins", "Crimson Text Semi-Bold 44")
+            self.cat_title.set_valign(Gtk.Align.CENTER)
+            self.cat_head = box(False, 0, back, box(False, margin_start=22), self.cat_title, self.cat_status,
+                                box(False, hexpand=True), discord, margin_bottom=26)
+            grid_page = box(True, 0, self.cat_head, self.cat_chips, scroller)
+
+            self.info_body = box(True, 0, vexpand=True)
+            self.cat_pages = Gtk.Stack(transition_type=Gtk.StackTransitionType.CROSSFADE, transition_duration=260,
+                                       hhomogeneous=True, vhomogeneous=True)
+            self.cat_pages.add_named(grid_page, "grid")
+            self.cat_pages.add_named(self.info_body, "info")
+            panel = box(True, 0, self.cat_pages, css=["o-plugins"])
             self.aura = Aura()
             layered = Gtk.Overlay(child=self.aura)
             layered.add_overlay(panel)
@@ -2102,23 +2125,15 @@ def gui():
         def fill_catalogue(self, items):
             clear(self.cat_grid)
             clear(self.cat_chips)
+            self.cat_items = list(items)
             self.cat_filter = None
-            self.cat_cards = []
             n = len(items)
             for it in items:
                 self.cat_grid.append(self.plugin_card(it))
             # an empty catalogue shows every place; a filled one only rounds out its last row
-            for i in range(n, CATALOGUE_SLOTS if not n else n + (-n) % 3):
+            for i in range(n, CATALOGUE_SLOTS if not n else n + (-n) % GALLERY_COLS):
                 self.cat_grid.append(self.plugin_slot(i, invite=bool(n)))
-            soon = all(it.get("status", "soon") == "soon" for it in items)
-            self.cat_status.set_visible(soon)
-            if n:
-                self.cat_body.set_label(f"{n} plugin{'s' * (n != 1)} on the way." if soon else
-                                        f"{n} plugin{'s' * (n != 1)} ready to install.")
-                self.cat_count.set_label(f"{n} PLUGINS  ·  MORE ON THE WAY")
-            else:
-                self.cat_body.set_label("The catalogue is being built. The first plugins land here soon.")
-                self.cat_count.set_label(f"0 OF {CATALOGUE_SLOTS} PLACES FILLED")
+            self.cat_status.set_visible(all(it.get("status", "soon") == "soon" for it in items))
             cats = {}
             for it in items:
                 c = (it.get("category") or "Plugin").strip()
@@ -2150,18 +2165,13 @@ def gui():
             for chip in getattr(self, "cat_chip_btns", []):
                 (chip.add_css_class if chip.cat == self.cat_filter else chip.remove_css_class)("on")
 
-        def animate_cards(self):
-            """Let the cards rise in again, staggered (CSS animation restarts when the class returns)."""
-            kids, child = [], self.cat_grid.get_first_child()
-            while child:
-                kids.append(child.get_child())
-                child = child.get_next_sibling()
-            for k in kids:
+        def stagger(self, widgets):
+            """Let widgets rise in, one after another (the CSS animation restarts when the class returns)."""
+            for k in widgets:
                 k.remove_css_class("enter")
-            shown = [k for k in kids if self.cat_filter is None or getattr(k, "cat", None) == self.cat_filter]
 
             def go():
-                for i, k in enumerate(shown):
+                for i, k in enumerate(widgets):
                     for j in range(12):
                         k.remove_css_class(f"i{j}")
                     k.add_css_class(f"i{min(i, 11)}")
@@ -2169,54 +2179,126 @@ def gui():
                 return False
             GLib.timeout_add(30, go)
 
+        def animate_cards(self):
+            kids, child = [], self.cat_grid.get_first_child()
+            while child:
+                kids.append(child.get_child())
+                child = child.get_next_sibling()
+            self.stagger([k for k in kids if self.cat_filter is None or getattr(k, "cat", None) == self.cat_filter])
+
+        @staticmethod
+        def cover(letter, cat, big=False, height=COVER_H):
+            """A soft category-tinted square with one big serif initial, like an album cover."""
+            glyph = label(letter, "o-cover-letter", wrap=False, xalign=0.5, halign=Gtk.Align.CENTER,
+                          valign=Gtk.Align.CENTER, vexpand=True)
+            tile = box(True, 0, glyph, css=["o-cover", "c-" + re.sub(r"[^a-z]", "", cat.lower())[:12]])
+            if big:
+                glyph.add_css_class("big")
+                tile.add_css_class("big")
+                tile.set_size_request(INFO_COVER, INFO_COVER)
+                tile.set_valign(Gtk.Align.START)
+            else:
+                tile.set_size_request(-1, height)
+            return tile
+
+        def gallery_card(self, cover, name, sub, callback, tip, dim=False):
+            name_l = label(name, "o-gname", wrap=False, ellipsize=Pango.EllipsizeMode.END)
+            if dim:
+                name_l.add_css_class("dim")
+            inner = box(True, 0, cover, box(True, 3, name_l, label(sub, "o-gcat", wrap=False), margin_top=14,
+                                             margin_start=2))
+            card = Gtk.Button(child=inner, css_classes=["o-gcard"])
+            card.connect("clicked", lambda *_: callback())
+            card.set_tooltip_text(tip)
+            card.set_cursor_from_name("pointer")
+            return card
+
         def plugin_slot(self, i, invite=False):
             """An open place. In a filled catalogue: an invitation to build one (opens Discord).
             In an empty one: a numbered placeholder, softly breathing."""
             if invite:
-                inner = box(True, 4, label("+", "o-slot-plus", wrap=False, xalign=0.5),
-                            label("YOUR PLUGIN HERE", "o-chip", "dim", wrap=False, xalign=0.5),
-                            valign=Gtk.Align.CENTER, halign=Gtk.Align.CENTER)
-                card = Gtk.Button(child=inner, css_classes=["o-slot", "invite"])
-                card.connect("clicked", lambda *_: self.open_discord())
-                card.set_tooltip_text("Build one with us on Discord")
-            else:
-                bars = box(True, 8, box(False, css=["o-skel", "long"]), box(False, css=["o-skel", "short"]))
-                card = box(True, 12, label(f"{i + 1:02d}", "o-slot-num", wrap=False), bars,
-                           css=["o-slot", f"d{i % 5}"])
-            card.set_size_request(-1, 118)
-            return card
+                cover = box(True, 0, label("+", "o-slot-plus", wrap=False, xalign=0.5, halign=Gtk.Align.CENTER,
+                                           valign=Gtk.Align.CENTER, vexpand=True), css=["o-slot"])
+                cover.set_size_request(-1, COVER_H)
+                return self.gallery_card(cover, "Your plugin", "BUILD IT WITH US", self.open_discord,
+                                         "Build one with us on Discord", dim=True)
+            cover = box(True, 0, label(f"{i + 1:02d}", "o-slot-plus", wrap=False, xalign=0.5,
+                                       halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER, vexpand=True),
+                        css=["o-slot", "breathe", f"d{i % 5}"])
+            cover.set_size_request(-1, 96)
+            cover.set_can_target(False)
+            return cover
 
         def plugin_card(self, it):
             cat = (it.get("category") or "Plugin").strip()
-            ready = it.get("status") == "ready"
-            tile = label(it["name"][:1].upper(), "o-tile", wrap=False, xalign=0.5, valign=Gtk.Align.CENTER)
-            tile.add_css_class("c-" + re.sub(r"[^a-z]", "", cat.lower())[:12])
-            tile.set_size_request(36, 36)
-            head = box(True, 0, label(it["name"], "o-card-name", wrap=False, ellipsize=Pango.EllipsizeMode.END),
-                       label(cat.upper(), "o-card-cat", wrap=False),
-                       valign=Gtk.Align.CENTER, hexpand=True)
-            row = box(False, 12, tile, head)
-            if ready:                                   # while everything is "soon", the side says it once
-                row.append(label("INSTALL", "o-state", "ready", wrap=False, valign=Gtk.Align.START))
-            text = label(it.get("tagline", ""), "o-card-text", chars=30, lines=2,
-                         ellipsize=Pango.EllipsizeMode.END)
-            card = box(True, 9, row, text, css=["o-plugin"])
-            card.set_tooltip_text(f"{it['name']} by {it.get('author', '?')}")
+            card = self.gallery_card(self.cover(it["name"][:1].upper(), cat), it["name"], cat.upper(),
+                                     lambda pid=it["id"]: self.show_plugin_info(pid),
+                                     it.get("tagline") or it["name"])
             card.cat = cat
-            card.set_size_request(-1, 118)
             return card
+
+        def show_plugin_info(self, plugin_id):
+            """One plugin's own page, in the gallery's place: cover, name, what it is, what it
+            does, and how to get it (or help build it)."""
+            it = next((p for p in self.cat_items + self.catalogue if p.get("id") == plugin_id), None)
+            if it is None:
+                return False
+            if not self.plugins_view.get_reveal_child():
+                self.show_plugins()
+            cat = (it.get("category") or "Plugin").strip()
+            soon = it.get("status", "soon") != "ready"
+            clear(self.info_body)
+            back = button("←  ALL PLUGINS", "o-link", self.hide_plugin_info)
+            back.add_css_class("nav")
+            back.set_halign(Gtk.Align.START)
+            meta = " · ".join(x for x in (cat.upper(), f"BY {it['author'].upper()}" if it.get("author") else "") if x)
+            head = box(False, 14, label(meta, "o-info-meta", wrap=False, valign=Gtk.Align.CENTER))
+            if soon:
+                head.append(label("COMING SOON", "o-soon", wrap=False, valign=Gtk.Align.CENTER))
+            name = label(it["name"], "o-info-name", wrap=False, ellipsize=Pango.EllipsizeMode.END, margin_top=6)
+            about = label(it.get("about") or it.get("tagline", ""), "o-info-about", chars=76, margin_top=10)
+            feats = box(True, 9, margin_top=24)
+            for f in it.get("features", [])[:5]:
+                feats.append(box(False, 14, box(False, css=["o-feat-dot"], valign=Gtk.Align.CENTER),
+                                 label(f, "o-info-feat", wrap=False, ellipsize=Pango.EllipsizeMode.END)))
+            help_btn = button("HELP BUILD IT ON DISCORD", "o-play", self.open_discord)
+            install = button("INSTALL · SOON" if soon else "INSTALL", "o-ghost",
+                             lambda: self.toasts.add_toast(Adw.Toast(timeout=4, title="One-click install is on its way.")))
+            install.set_sensitive(not soon)
+            actions = box(False, 12, help_btn, install, margin_top=34, halign=Gtk.Align.START)
+            about.set_halign(Gtk.Align.FILL)
+            text = box(True, 0, head, name, box(False, css=["o-rule"], margin_top=16, margin_bottom=6), about,
+                       feats, actions, valign=Gtk.Align.CENTER)
+            text.set_size_request(INFO_TEXT_W, -1)
+            cover = self.cover(it["name"][:1].upper(), cat, big=True)
+            cover.set_valign(Gtk.Align.CENTER)
+            body = box(False, 64, cover, Adw.Clamp(child=text, maximum_size=INFO_TEXT_W, tightening_threshold=INFO_TEXT_W,
+                                                    hexpand=True, halign=Gtk.Align.START),
+                       vexpand=True, valign=Gtk.Align.CENTER, margin_bottom=40)
+            self.info_body.append(back)
+            self.info_body.append(body)
+            self.cat_pages.set_visible_child_name("info")
+            self.stagger([cover, head, name, about, feats, actions])
+            return False
+
+        def hide_plugin_info(self):
+            self.cat_pages.set_visible_child_name("grid")
+            self.animate_cards()
 
         def show_plugins(self):
             self.plugins_view.set_visible(True)
             self.plugins_view.set_can_target(True)
             self.plugins_view.set_reveal_child(True)
+            self.cat_pages.set_visible_child_full("grid", Gtk.StackTransitionType.NONE)
             self.left_clamp.set_visible(False)
             self.reel_box.set_visible(False)
             self.plugins_btn.add_css_class("on")
             self.cat_title.play()
-            self.cat_side.remove_css_class("enter")
-            GLib.timeout_add(30, lambda: (self.cat_side.add_css_class("enter"), False)[1])
+            self.stagger([self.cat_head])
             self.animate_cards()
+
+        def toggle_plugins(self):
+            (self.hide_plugins if self.plugins_view.get_reveal_child() else self.show_plugins)()
 
         def hide_plugins(self):
             self.plugins_view.set_reveal_child(False)

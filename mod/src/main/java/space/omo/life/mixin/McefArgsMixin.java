@@ -37,7 +37,10 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
  * {@code --remote-debugging-port=<port>} (DevTools, bound to 127.0.0.1) so a local
  * bridge can attach to wall pages, and {@code --disable-features=LocalNetworkAccessChecks}
  * so those pages may call the bridge's 127.0.0.1 file API (CEF ignores the permission
- * prompt Chromium would show for that and denies the request). Both switches widen what
+ * prompt Chromium would show for that and denies the request), and
+ * {@code --enable-unsafe-swiftshader}: with {@code --disable-gpu} walls have no WebGL at all since
+ * Chromium dropped the automatic SwiftShader fallback, and app UIs (Kino's timeline) need it.
+ * These switches widen what
  * local programs and wall pages can do, so they only exist while the file does.
  */
 @Mixin(targets = "net.dimaskama.mcef.impl.MCEFApiImpl", remap = false)
@@ -93,6 +96,7 @@ public abstract class McefArgsMixin {
                     return new String[] {
                         "--remote-debugging-port=" + port,
                         "--disable-features=LocalNetworkAccessChecks",
+                        "--enable-unsafe-swiftshader",
                     };
                 }
             }

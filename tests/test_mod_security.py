@@ -400,7 +400,8 @@ class WebWallTest(unittest.TestCase):
         self.assertIn('"config/omolife-cef-debug-port.txt"', mixin)
         self.assertIn("Files.isRegularFile(f)", mixin)
         self.assertIn("return new String[0];", mixin)
-        for switch in ('"--remote-debugging-port="', '"--disable-features=LocalNetworkAccessChecks"'):
+        for switch in ('"--remote-debugging-port="', '"--disable-features=LocalNetworkAccessChecks"',
+                       '"--enable-unsafe-swiftshader"'):
             self.assertEqual(mixin.count(switch), 1, switch)
             # only inside omolife$desktopBridgeArgs, never in the always-on OMOLIFE_EXTRA_ARGS
             extra = mixin[mixin.index("OMOLIFE_EXTRA_ARGS = {"):mixin.index("};", mixin.index("OMOLIFE_EXTRA_ARGS = {"))]

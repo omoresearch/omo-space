@@ -52,7 +52,8 @@ pack/revive marker, `FileSystemObserver.observe` is a no-op for them) whose oper
 
 1. Mod: put a port in `<game dir>/config/omolife-cef-debug-port.txt` (e.g. `9338`) and restart the game.
    Only then does the wall Chromium open DevTools on 127.0.0.1 and allow pages to reach 127.0.0.1
-   (`--disable-features=LocalNetworkAccessChecks`). Delete the file to turn both off. While it's on, local
+   (`--disable-features=LocalNetworkAccessChecks`), with software WebGL (`--enable-unsafe-swiftshader`, needed
+   for Kino's timeline). Delete the file to turn both off. While it's on, local
    programs can drive the wall browser and its logins: keep it to machines you trust.
 2. `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt` here.
 3. Copy `systemd/*.service` to `~/.config/systemd/user/`, then

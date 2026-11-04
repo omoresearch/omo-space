@@ -13,3 +13,6 @@ can be streamed instead (video of a hidden X display, mouse and keys sent back).
 - Bridge, file API, stream fallback, setup and the Kino worked example: [tools/desktop-apps](../tools/desktop-apps/README.md).
 - Never hand a wall page a real directory handle (folder drop or folder picker): on the game's Chromium that
   kills the game. The bridge emulates file handles for that reason.
+- Keep an app wall open while you walk away: list its host in `<game dir>/config/omolife-keep-pages.txt`
+  (one per line, e.g. `kino.ai`). Those pages aren't closed for being unseen, far (96+ blocks) or displaced by
+  nearer walls; they still close on low memory and when the world unloads, and still count toward the 12-page cap.

@@ -50,6 +50,7 @@ public final class GuardHarness {
             case "watchdog" -> watchdog();
             case "near-first" -> nearFirst();
             case "closing" -> closing();
+            case "late-release" -> lateRelease();
             default -> throw new AssertionError("unknown case " + a[0]);
         }
         System.out.println("PASS " + a[0]);
@@ -394,6 +395,68 @@ public final class GuardHarness {
         check(pace.created <= 12 + 60_000 / BrowserGuard.EVICT_UNSEEN_MS + 1, "bounded by the minimum age: " + pace.created);
     }
 
+    /**
+     * 4 Nov: the renderer opened a page for a near wall, which took the page of
+     * a farther wall whose quad the frame had already submitted. Unregistering
+     * that texture id at once made the draw load omolife:web/x_y_z from the
+     * resource packs ("Missing resource" in the log) and left that entry behind.
+     */
+    static void lateRelease() {
+        java.util.Set<String> registered = new java.util.HashSet<>();
+        int[] loaded = {0};
+        // TextureManager.getTexture: an unknown id is loaded from the resource packs and stays registered.
+        java.util.function.Consumer<String> draw = id -> {
+            if (registered.add(id)) loaded[0]++;
+        };
+        java.util.List<String> frame = java.util.List.of("web/far", "web/near");
+
+        // The old release: straight out of the texture manager, mid-frame.
+        registered.addAll(frame);
+        registered.remove("web/far");
+        frame.forEach(draw);
+        check(loaded[0] == 1 && registered.contains("web/far"),
+            "the model must show the old failure: a resource load and a stray entry");
+
+        // LateRelease: registered until the next tick, then gone.
+        registered.clear();
+        loaded[0] = 0;
+        registered.addAll(frame);
+        LateRelease<String> late = new LateRelease<>();
+        late.retire("web/far");
+        frame.forEach(draw);
+        check(loaded[0] == 0, "the frame draws a still-registered id");
+        check(late.contains("web/far") && late.size() == 1, "waiting for the tick");
+        late.flush(registered::remove);
+        check(!registered.contains("web/far") && late.size() == 0, "unregistered at the next tick");
+        late.flush(id -> check(false, "a flush hands each id over once"));
+
+        // The wall gets a page again before the tick: its id stays.
+        late.retire("web/near");
+        late.revive("web/near");
+        late.flush(registered::remove);
+        check(registered.contains("web/near"), "a re-bound id is kept");
+
+        // Retired twice: released once. A release that throws loses no other id.
+        int[] n = {0};
+        late.retire("a");
+        late.retire("a");
+        late.flush(id -> n[0]++);
+        check(n[0] == 1, "released once");
+        java.util.List<String> got = new java.util.ArrayList<>();
+        late.retire("x");
+        late.retire("y");
+        try {
+            late.flush(id -> {
+                got.add(id);
+                if (id.equals("x")) throw new IllegalStateException("boom");
+            });
+            check(false, "the first error is passed on");
+        } catch (IllegalStateException expected) {
+            // housekeeping logs it
+        }
+        check(got.equals(java.util.List.of("x", "y")) && late.size() == 0, "every id handed over: " + got);
+    }
+
     /** 28 Oct 09:11: draining the queue read a removed IdentityHashMap entry and crashed the game. */
     static void closing() {
         // The old drain: remove through the iterator, then read the entry. On IdentityHashMap that throws.
@@ -498,7 +561,7 @@ class BrowserGuardTest(unittest.TestCase):
         harness.write_text(textwrap.dedent(HARNESS))
         subprocess.run([str(javac), "--release", "21", "-Xlint:all", "-Werror", "-d", str(cls.classes),
                         str(SRC / "BrowserGuard.java"), str(SRC / "HelperWatchdog.java"),
-                        str(SRC / "ClosingQueue.java"), str(harness)],
+                        str(SRC / "ClosingQueue.java"), str(SRC / "LateRelease.java"), str(harness)],
                        check=True)
         # A stand-in helper: a script named jcef_helper (what /proc/<pid>/comm shows).
         # Not a renamed `sleep`: multicall coreutils builds dispatch on argv[0].
@@ -544,6 +607,9 @@ class BrowserGuardTest(unittest.TestCase):
     def test_closing_queue(self):
         self.run_case("closing")
 
+    def test_web_textures_leave_after_the_frame(self):
+        self.run_case("late-release")
+
     @unittest.skipUnless(Path("/proc/self").is_dir(), "Linux only")
     def test_watchdog_counts_and_reaps_real_processes(self):
         self.run_case("watchdog")
@@ -576,6 +642,22 @@ class SingleDoor(unittest.TestCase):
         for f in ("MonitorScreen.java", "WebMonitorRenderer.java", "OmoLifeClient.java"):
             text = (SRC / f).read_text()
             self.assertIsNone(re.search(r"\b(view\(\)|tab\(\w*\))\.close\(\)", text), f)
+
+
+class WebTextures(unittest.TestCase):
+    """A wall's texture id leaves the texture manager only in Textures.flush (a
+    client tick), never in the middle of a frame (see LateRelease)."""
+
+    def test_released_only_on_a_tick(self):
+        text = (SRC / "WebPages.java").read_text()
+        hits = [ln.strip() for ln in text.splitlines() if "getTextureManager().release(" in ln]
+        self.assertEqual(hits, ["Minecraft.getInstance().getTextureManager().release(id);"], hits)
+        flush = text[text.index("static void flush()"):]
+        self.assertIn("getTextureManager().release(id)", flush[:flush.index("\n        }\n")])
+        self.assertIn("RETIRED.retire(id);", text)
+        self.assertIn("RETIRED.revive(id);", text)
+        tick = text[text.index("private static void tickOnce()"):]
+        self.assertIn("Textures.flush();", tick[:300])
 
 
 if __name__ == "__main__":

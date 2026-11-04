@@ -14,6 +14,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.texture.AbstractTexture;
+import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -824,6 +825,7 @@ public final class WebPages {
 
     private static void tickOnce() {
         long now = System.currentTimeMillis();
+        Textures.flush();
         drainClosing(now);
         GUARD.prune();
         if (MCEF && McefRuntime.ready()) {
@@ -885,10 +887,12 @@ public final class WebPages {
     private static final class Textures {
         private static final Map<BlockPos, Identifier> ACTIVE = new HashMap<>();
         private static final Map<Identifier, Aliased> BY_ID = new HashMap<>();
+        private static final LateRelease<Identifier> RETIRED = new LateRelease<>();
 
         static Identifier bind(Page page) {
             Identifier id = ACTIVE.computeIfAbsent(page.pos, p ->
                 OmoLife.id("web/" + p.getX() + "_" + p.getY() + "_" + p.getZ()));
+            RETIRED.revive(id);
             Aliased tex = BY_ID.get(id);
             if (tex == null) {
                 tex = new Aliased();
@@ -899,17 +903,36 @@ public final class WebPages {
             return id;
         }
 
+        /**
+         * The page is gone. Its id stays registered until the next client tick
+         * ({@link LateRelease}): the page may close mid-frame, after its wall's
+         * quad was submitted. Until then the id shows the missing texture, never
+         * the closed browser's.
+         */
         static void release(BlockPos pos) {
             Identifier id = ACTIVE.remove(pos);
-            if (id != null && BY_ID.remove(id) != null) {
-                Minecraft.getInstance().getTextureManager().release(id);
+            Aliased tex = id == null ? null : BY_ID.remove(id);
+            if (tex != null) {
+                tex.point(Minecraft.getInstance().getTextureManager()
+                    .getTexture(MissingTextureAtlasSprite.getLocation()).getTextureView());
+                RETIRED.retire(id);
             }
+        }
+
+        /** Unregister the ids released since the last tick (none is in a frame now). */
+        static void flush() {
+            RETIRED.flush(id -> {
+                if (!BY_ID.containsKey(id)) {
+                    Minecraft.getInstance().getTextureManager().release(id);
+                }
+            });
         }
 
         static void releaseAll() {
             for (BlockPos pos : new ArrayList<>(ACTIVE.keySet())) {
                 release(pos);
             }
+            flush();
         }
     }
 

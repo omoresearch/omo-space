@@ -92,6 +92,12 @@
   back when the player returns. The margin and the minimum age stop two walls
   at about the same distance from trading a page back and forth. The log
   says `page cap: nearer wall ... takes the page of ...`.
+- No more `Missing resource omolife:web/<x>_<y>_<z>` warnings when that
+  happens. The page was closed while the frame was still being drawn, so the
+  farther wall's quad looked up a texture id that had just been unregistered,
+  loaded it from the resource packs and left a stray entry behind. A closed
+  page's texture id now shows the missing texture for the rest of that frame
+  and leaves the texture manager on the next client tick.
 
 ### Station walls: a TUI fills the wall without a click
 

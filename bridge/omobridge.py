@@ -181,6 +181,7 @@ POLL_ACTIVE, POLL_QUIET = 0.5, 2.0   # tmux state checks per open screen: in use
 # or swap the session server can stall for seconds, and the screen's text comes
 # from its own PTY meanwhile. (A 10 s timeout used to end every open screen.)
 POLL_TIMEOUT = 2.0
+SNAP_TTL = float(os.environ.get("OMO_SNAP_TTL", "0.5"))  # seconds one tmux window listing serves status reads
 
 LIMITS = {"workspaces": 128, "tabs_per_workspace": 12, "views": 192}   # sized for a built world: one desk per room, two views where a wall is attached
 SHELLS = {"bash", "sh", "zsh", "fish", "dash"}
@@ -394,15 +395,53 @@ def check_ticket(ticket, station, ws_id):
 class Tmux:
     """Thin, synchronous tmux client. Every call is one short subprocess."""
 
+    # Commands that only read. Anything else may change sessions or windows,
+    # so it drops the shared snapshot below.
+    READS = frozenset(("display", "display-message", "list-sessions", "ls", "list-windows", "lsw",
+                       "list-clients", "has-session", "capture-pane", "show-options", "show"))
+
     def __init__(self, binary, socket_name):
         self.bin = binary
         self.sock = socket_name
+        self._snap, self._snap_at, self._snap_gen, self._gen = None, 0.0, -1, 0
+        self._snap_lock = threading.Lock()
 
     def argv(self, *args):
         return [self.bin, "-L", self.sock, *args]
 
     def run(self, *args, timeout=10.0):
+        if args and args[0] not in self.READS:
+            self._gen += 1                  # a change: the next snapshot is read fresh
         return subprocess.run(self.argv(*args), capture_output=True, text=True, timeout=timeout)
+
+    def snapshot(self):
+        """{"server", "sessions", "windows": {session: [window rows]}} from ONE
+        tmux call, shared for SNAP_TTL seconds and dropped by any change made
+        through run(). Status queries (station plates and lamps ask for every
+        workspace every 2 s) used to cost 3-4 tmux calls each while holding
+        the workspace lock, which starved attaches of new computers."""
+        with self._snap_lock:
+            now = time.monotonic()
+            if self._snap is not None and self._snap_gen == self._gen and now - self._snap_at < SNAP_TTL:
+                return self._snap
+            gen = self._gen
+            raw = self.out("list-windows", "-a", "-F",
+                           "#{session_name}\t#{window_id}\t#{@omo_tab}\t#{pane_current_command}\t"
+                           "#{pane_pid}\t#{pane_current_path}\t#{pid}:#{start_time}")
+            server, sessions, windows = "", set(), {}
+            for line in raw.splitlines():
+                parts = line.split("\t")
+                if len(parts) != 7:
+                    continue
+                server = parts[6]
+                sessions.add(parts[0])
+                windows.setdefault(parts[0], []).append(
+                    {"id": parts[1], "tab": parts[2], "cmd": parts[3], "pid": parts[4], "cwd": parts[5]})
+            if not server:
+                server = self.server_id()   # a server with no sessions, or none at all
+            self._snap = {"server": server, "sessions": sessions, "windows": windows}
+            self._snap_at, self._snap_gen = time.monotonic(), gen
+            return self._snap
 
     def ok(self, *args):
         return self.run(*args).returncode == 0
@@ -754,16 +793,29 @@ class Workspaces:
         raise BridgeError("no such tab")
 
     def describe(self, ws_id):
-        """Workspace with live state folded in."""
+        """Workspace with live state folded in. The workspace lock is held
+        only for metadata and one shared tmux snapshot; reading each Hermes
+        status bar (a tmux call per tab) happens after it is released."""
+        later = []
         with self.lock:
-            return self._describe_locked(self._ws(ws_id), TM.server_id())
+            snap = TM.snapshot()
+            desc = self._describe_locked(self._ws(ws_id), snap["server"], snap=snap, later=later)
+        self._fill_agents(later)
+        return desc
 
-    def _recover_base_locked(self, ws_id):
+    @staticmethod
+    def _fill_agents(later):
+        for tab, target in later:
+            tab["agent"] = agent_status(target)
+
+    def _recover_base_locked(self, ws_id, snap=None):
         """tmux keeps a grouped session's windows alive while any member of
         the group exists. If the base session is gone but a view survived,
         the shells are still running: recreate the base from the view so the
         workspace is reported (truthfully) as live rather than interrupted."""
         base = ws_session(ws_id)
+        if snap is not None and base in snap["sessions"]:
+            return True
         if TM.has_session(base):
             return True
         for name in TM.sessions():
@@ -772,11 +824,14 @@ class Workspaces:
                 return True
         return False
 
-    def _windows_locked(self, ws, server):
+    def _windows_locked(self, ws, server, snap=None):
         """{tab_id: window} for the live windows of a workspace. Windows made
         before tabs were tagged are adopted by their stored id, once."""
         session = ws_session(ws["id"])
-        wins = TM.windows(session)
+        if snap is not None and session in snap["sessions"]:
+            wins = [dict(w) for w in snap["windows"].get(session, ())]
+        else:
+            wins = TM.windows(session)
         by_tab = {w["tab"]: w for w in wins if w["tab"]}
         for t in ws["tabs"]:
             if t["id"] in by_tab or t.get("server"):
@@ -788,9 +843,9 @@ class Workspaces:
                 META.save()
         return by_tab
 
-    def _describe_locked(self, ws, server):
-        alive = bool(server) and self._recover_base_locked(ws["id"])
-        wins = self._windows_locked(ws, server) if alive else {}
+    def _describe_locked(self, ws, server, snap=None, later=None):
+        alive = bool(server) and self._recover_base_locked(ws["id"], snap)
+        wins = self._windows_locked(ws, server, snap) if alive else {}
         self._remember_cwds_locked(ws, wins)
         tabs = []
         for t in ws["tabs"]:
@@ -806,7 +861,12 @@ class Workspaces:
                    "window": win["id"] if win else None, "command": command, "busy": busy,
                    "sleeping": bool(win and t.get("asleep") and not busy)}
             if command == "hermes":
-                tab["agent"] = agent_status(f"={ws_session(ws['id'])}:{win['id']}")
+                target = f"={ws_session(ws['id'])}:{win['id']}"
+                if later is None:
+                    tab["agent"] = agent_status(target)
+                else:
+                    tab["agent"] = ""
+                    later.append((tab, target))     # read once the lock is released
             tabs.append(tab)
         if alive:
             ws_state = "live"
@@ -819,9 +879,13 @@ class Workspaces:
                 "last_station": ws.get("last_station"), "keep_awake": bool(ws.get("keep_awake"))}
 
     def list(self):
+        later = []
         with self.lock:
-            server = TM.server_id()
-            return [self._describe_locked(ws, server) for ws in META.workspaces.values()]
+            snap = TM.snapshot()
+            items = [self._describe_locked(ws, snap["server"], snap=snap, later=later)
+                     for ws in META.workspaces.values()]
+        self._fill_agents(later)
+        return items
 
     # -- mutations --------------------------------------------------------
     def create(self, name, kind, station=None, world=None, profile="", tabs=None):
@@ -863,12 +927,13 @@ class Workspaces:
     def remember_cwds(self):
         """One pass over every workspace (worker thread, periodic)."""
         with self.lock:
-            server = TM.server_id()
+            snap = TM.snapshot()
+            server = snap["server"]
             if not server:
                 return
             for ws in META.workspaces.values():
-                if TM.has_session(ws_session(ws["id"])):
-                    self._remember_cwds_locked(ws, self._windows_locked(ws, server))
+                if ws_session(ws["id"]) in snap["sessions"]:
+                    self._remember_cwds_locked(ws, self._windows_locked(ws, server, snap))
 
     def restore(self, ws_id):
         """Reopen every interrupted tab of a workspace, as it was: same tab
@@ -1088,7 +1153,8 @@ class Workspaces:
         workspace, no process or screen reads (the sleeper does those unlocked)."""
         out = []
         with self.lock:
-            if not TM.server_id():
+            snap = TM.snapshot()
+            if not snap["server"]:
                 return out
             for ws in META.workspaces.values():
                 if ws.get("keep_awake"):
@@ -1097,7 +1163,7 @@ class Workspaces:
                 if not hermes_tabs:
                     continue
                 session = ws_session(ws["id"])
-                wins = {w["tab"]: w for w in TM.windows(session) if w["tab"]}
+                wins = {w["tab"]: w for w in snap["windows"].get(session, ()) if w["tab"]}
                 for t in hermes_tabs:
                     w = wins.get(t["id"])
                     if not w or w["cmd"] not in SHELLS:

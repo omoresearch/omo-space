@@ -137,10 +137,12 @@ def proxied(a, edit=False, nowait=False):
             return out
         os.makedirs(PROXY_DIR, exist_ok=True)
         tmp = f'{out}.{os.getpid()}.{threading.get_ident()}.part.mp4'
-        has_v = any(t == 'video' for t, _ in streams)
+        # audio files: drop cover art (an mjpeg 'video' stream that breaks the scale filter)
+        audio_file = a.lower().endswith(('.m4a', '.aac', '.mp3', '.wav', '.flac', '.ogg'))
+        has_v = not audio_file and any(t == 'video' and c not in ('mjpeg', 'png') for t, c in streams)
         has_a = any(t == 'audio' for t, _ in streams)
-        cmd = ['taskset', '-c', '10-15', 'nice', '-n', '19', 'ffmpeg', '-v', 'error', '-y', '-i', a, '-map', '0:v?',
-               '-map', '0:a?', '-map_metadata', '0']
+        cmd = ['taskset', '-c', '10-15', 'nice', '-n', '19', 'ffmpeg', '-v', 'error', '-y', '-i', a]
+        cmd += (['-map', '0:V:0?'] if has_v else []) + ['-map', '0:a?', '-map_metadata', '0']
         if has_v and edit:
             cmd += ['-vf', "scale=-2:'min(720,ih)'", '-r', '30']
         if has_v:

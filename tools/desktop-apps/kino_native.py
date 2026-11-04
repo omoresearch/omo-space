@@ -14,7 +14,7 @@ its kino.ai login cookies, so it opens logged in.
 
 Env: KINO_CDP (9337, the Kino desktop app's --remote-debugging-port), WALL_CDP (9338, MCEF's), KINO_COOKIES (1).
 """
-import asyncio, itertools, json, os, sys, time, urllib.request
+import asyncio, base64, itertools, json, os, sys, time, urllib.request
 from pathlib import Path
 
 import websockets
@@ -284,6 +284,33 @@ class Wall:
         if self.on_kino():
             await self.login_and_reload()
         log('attached', self.tid[:6], self.t['url'][:80])
+
+    async def _isolate(self, p):
+        rid = p['requestId']
+        log('isolate', self.tid[:6], p.get('responseStatusCode'), p.get('request', {}).get('url', '')[:80])
+        try:
+            hs = [h for h in (p.get('responseHeaders') or [])
+                  if h['name'].lower() not in ('cross-origin-opener-policy', 'cross-origin-embedder-policy')]
+            code = p.get('responseStatusCode') or 200
+            if 300 <= code < 400:
+                return await self.cdp.send('Fetch.continueRequest', {'requestId': rid})
+            hs += [{'name': 'Cross-Origin-Opener-Policy', 'value': 'same-origin'},
+                   {'name': 'Cross-Origin-Embedder-Policy', 'value': 'credentialless'}]
+            r = await self.cdp.send('Fetch.continueResponse', {'requestId': rid, 'responseCode': code,
+                                                                'responseHeaders': hs})
+            if 'error' in r:
+                log('isolate: continueResponse failed', r['error'].get('message'), '- fulfilling instead')
+                body = await self.cdp.send('Fetch.getResponseBody', {'requestId': rid})
+                b = body.get('result', {})
+                data = b.get('body', '') if b.get('base64Encoded') else base64.b64encode(b.get('body', '').encode()).decode()
+                await self.cdp.send('Fetch.fulfillRequest', {'requestId': rid, 'responseCode': code,
+                                                             'responseHeaders': hs, 'body': data})
+        except Exception as e:
+            log('isolate failed', repr(e))
+            try:
+                await self.cdp.send('Fetch.continueRequest', {'requestId': rid})
+            except Exception:
+                pass
 
     def on_kino(self, url=None):
         u = url or self.t.get('url', '')

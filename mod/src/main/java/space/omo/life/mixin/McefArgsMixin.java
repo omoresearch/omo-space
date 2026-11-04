@@ -39,7 +39,9 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
  * so those pages may call the bridge's 127.0.0.1 file API (CEF ignores the permission
  * prompt Chromium would show for that and denies the request), and
  * {@code --enable-unsafe-swiftshader}: with {@code --disable-gpu} walls have no WebGL at all since
- * Chromium dropped the automatic SwiftShader fallback, and app UIs (Kino's timeline) need it.
+ * Chromium dropped the automatic SwiftShader fallback, and app UIs (Kino's timeline) need it; and
+ * {@code --enable-features=SharedArrayBuffer}: CEF never makes pages crossOriginIsolated (COOP/COEP
+ * headers don't help), and app bundlers (Kino's project compiler) post SharedArrayBuffers to workers.
  * These switches widen what
  * local programs and wall pages can do, so they only exist while the file does.
  */
@@ -97,6 +99,7 @@ public abstract class McefArgsMixin {
                         "--remote-debugging-port=" + port,
                         "--disable-features=LocalNetworkAccessChecks",
                         "--enable-unsafe-swiftshader",
+                        "--enable-features=SharedArrayBuffer",
                     };
                 }
             }

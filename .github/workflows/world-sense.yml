@@ -1,0 +1,52 @@
+name: World Sense
+
+# Runs on hosted runners (not the self-hosted pool) so it also runs for
+# fork PRs: the self-hosted pool never runs code from forks.
+on:
+  push:
+    branches: [main]
+    paths:
+      - bridge/world_sense.py
+      - bridge/brain.py
+      - bridge/cost_ledger.py
+      - bridge/omobridge.py
+      - tools/world_agent.py
+      - tools/push_snapshot.py
+      - tests/test_world_sense.py
+      - scripts/demo.sh
+      - scripts/make_release.sh
+      - .github/workflows/world-sense.yml
+  pull_request:
+    paths:
+      - bridge/world_sense.py
+      - bridge/brain.py
+      - bridge/cost_ledger.py
+      - bridge/omobridge.py
+      - tools/world_agent.py
+      - tools/push_snapshot.py
+      - tests/test_world_sense.py
+      - scripts/demo.sh
+      - scripts/make_release.sh
+      - .github/workflows/world-sense.yml
+
+jobs:
+  world-sense:
+    name: World Sense tests + testable release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: World Sense unit tests (no game, no network, no key)
+        run: python3 tests/test_world_sense.py
+      - name: Demo end to end (scratch bridge, echo brain)
+        run: sh scripts/demo.sh
+      - name: Build the testable release tarball
+        run: |
+          sh scripts/make_release.sh 0.1.0
+          cat dist/SHA256SUMS
+      - name: Upload the release tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: omo-world-sense-0.1.0
+          path: |
+            dist/omo-world-sense-0.1.0.tar.gz
+            dist/SHA256SUMS

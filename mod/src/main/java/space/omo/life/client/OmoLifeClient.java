@@ -22,6 +22,7 @@ import space.omo.life.block.SlimScreenBlock;
 import space.omo.life.client.remote.RemoteWall;
 import space.omo.life.net.OmoNetworking;
 import space.omo.life.net.StationPackets;
+import space.omo.life.world.WorldTools;
 
 /**
  * Client wiring: monitor and name plate renderers, Slim Screen frame tints,
@@ -35,6 +36,7 @@ public final class OmoLifeClient implements ClientModInitializer {
     @SuppressWarnings("deprecation") // Fabric's renderer registry: vanilla's register() is private without an access widener
     public void onInitializeClient() {
         AgentLan.register(); // local AI agents can join this single-player world as players
+        WorldTools.register(); // World Sense write tools (off unless -Domo.world.tools=true)
         BlockEntityRendererRegistry.register(OmoLife.MONITOR_BE, WebMonitorRenderer::new);
         BlockEntityRendererRegistry.register(OmoLife.STATUS_BE, NamePlateRenderer::new);
         BlockColorRegistry.register(List.of(new BlockTintSource() {       // a Slim Screen's frame finish

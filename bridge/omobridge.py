@@ -42,6 +42,17 @@ Protocol (JSON text frames over a loopback websocket; first frame is `hello`):
   -> tab_close {ws, tab, force?}                        <- workspace | confirm
   -> tab_revive {ws, tab, mode} | hermes {ws, tab}
   -> station_status {station} | steer {station, ws, tab}
+  World Sense (see bridge/world_sense.py, docs/WORLD-SENSE.md):
+  ui only:
+  -> world_snapshot {snapshot}                          <- world_snapshot {ok, world|problems}
+  both roles:
+  -> world_describe {world?, max_chars?}                <- world_describe {snapshot, diff}
+  -> world_act {name, args, world?}                     <- world_act {ok, result|error}
+     read tools answer from the stored snapshot; write tools are validated
+     here and forwarded to the game as world_tool frames (the mod executes
+     them only with -Domo.world.tools=true, on the server thread).
+  Plain HTTP on the same port also serves /world/describe, /world/tools,
+  /world/brain, /world/cost and /world/cost/report (all token-guarded).
   both roles (a screen only for its own workspace):
   -> ws_get {ws} | attach {ws, tab, cols, rows} | switch {tab} | detach
   -> pause | resume                                     no player near: keep the last frame, close the view
@@ -101,6 +112,14 @@ from websockets.http11 import Response
 
 import hermesfeed
 import termcore
+import world_sense
+import brain
+import cost_ledger
+
+# World Sense: the latest deterministic snapshot per world, pushed by the
+# Fabric mod over the UI websocket (see bridge/world_sense.py). The bridge
+# keeps only the summary, never the raw snapshot.
+WORLD = world_sense.SnapshotStore()
 
 VERSION = "1.3.0"
 HOME = os.path.expanduser("~")
@@ -2004,6 +2023,45 @@ class Conn:
                              "running tabs are unchanged")
         elif kind == "agents":
             await self.send({"t": "agents", "agents": await call(agents_info)})
+        elif kind == "world_snapshot":
+            # The Fabric mod pushes a raw snapshot (ui role only: screens
+            # must never inject world state). The bridge stores the summary.
+            if self.scope is not None:
+                raise BridgeError("screens cannot push world snapshots")
+            snap = msg.get("snapshot")
+            if not isinstance(snap, dict):
+                raise BridgeError("world_snapshot needs a snapshot object")
+            result = await call(WORLD.put, snap)
+            await self.send({"t": "world_snapshot", **result})
+        elif kind == "world_describe":
+            # Any authed role; a screen only gets its own workspace's world,
+            # which is the same world the game is in, so no scoping needed.
+            max_chars = int(msg.get("max_chars") or world_sense.DEFAULT_MAX_CHARS)
+            await self.send({"t": "world_describe",
+                             **await call(WORLD.get, msg.get("world"), max_chars)})
+        elif kind == "world_act":
+            # Validate first (bridge-side limits), then forward write tools
+            # to the game as a world_tool frame; read tools answer from the
+            # stored snapshot. The mod executes writes only when
+            # -Domo.world.tools=true, on the server thread.
+            name = str(msg.get("name") or "")
+            args = msg.get("args") or {}
+            ok, err = world_sense.validate_tool_call(name, args)
+            if not ok:
+                raise BridgeError(err)
+            if name in ("world.describe", "world.scan"):
+                got = await call(WORLD.get, msg.get("world"))
+                await self.send({"t": "world_act", "name": name, "ok": got.get("ok", False),
+                                 "result": got.get("snapshot"), "error": got.get("error", "")})
+            else:
+                frame = {"t": "world_tool", "name": name, "args": args,
+                         "world": msg.get("world"), "from": self.station or "bridge"}
+                for c in list(CONNS):
+                    if c.role == "ui" and not c.closed and c is not self:
+                        await c.send(frame)
+                await self.send({"t": "world_act", "name": name, "ok": True,
+                                 "result": {"queued": True,
+                                            "note": "sent to the game; executes only with -Domo.world.tools=true"}})
         elif kind == "profiles":
             await self.send({"t": "profiles", "items": await call(hermes_profiles)})
         elif kind == "tab_new":
@@ -2419,6 +2477,33 @@ async def process_request(connection, request):
         return _response(403, "forbidden")
     if path == "/ticket":
         return _response(200, mint_ticket(clean(q.get("station", "-")), clean(q.get("ws", ""))))
+    if path == "/world/describe":
+        # Token-guarded, loopback-only (same guard as /ticket above).
+        # The game pushes snapshots; brains read them here. No raw map:
+        # only the budgeted deterministic summary leaves the bridge.
+        try:
+            max_chars = int(q.get("max_chars") or world_sense.DEFAULT_MAX_CHARS)
+        except ValueError:
+            max_chars = world_sense.DEFAULT_MAX_CHARS
+        return _response(200, WORLD.get(q.get("world") or None, max_chars), "application/json")
+    if path == "/world/tools":
+        return _response(200, world_sense.tools_listing(), "application/json")
+    if path == "/world/brain":
+        return _response(200, {"backends": brain.available_backends(),
+                               "note": "keys stay with the caller; the bridge never stores one"},
+                         "application/json")
+    if path == "/world/cost":
+        return _response(200, cost_ledger.totals(DATA_DIR, workspace=q.get("workspace") or None,
+                                                 day=q.get("day") or None), "application/json")
+    if path == "/world/cost/report":
+        # An outside agent reports its own brain usage after a completion,
+        # so the ledger stays central while keys stay with the caller.
+        entry = cost_ledger.record(
+            DATA_DIR, q.get("workspace") or "?", q.get("backend") or "?",
+            q.get("model") or "?", int(q.get("prompt_tokens") or 0),
+            int(q.get("completion_tokens") or 0),
+            float(q["cost_usd"]) if q.get("cost_usd") else None)
+        return _response(200, {"ok": True, "entry": entry}, "application/json")
     if path.startswith("/api/"):
         try:
             result = await _api(path[len("/api/"):], q)

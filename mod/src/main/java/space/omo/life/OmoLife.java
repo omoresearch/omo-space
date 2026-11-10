@@ -42,6 +42,7 @@ import space.omo.life.block.StatusBlockEntity;
 import space.omo.life.block.StatusLampBlock;
 import space.omo.life.block.WallForming;
 import space.omo.life.builder.BuilderCommands;
+import space.omo.life.world.WorldSenseCommand;
 import space.omo.life.link.Links;
 import space.omo.life.lua.OmoLuaApi;
 import space.omo.life.net.OmoNetworking;
@@ -203,6 +204,7 @@ public final class OmoLife implements ModInitializer {
         OmoNetworking.registerCommon();
         StationCommands.register();
         BuilderCommands.register();
+        WorldSenseCommand.register();
         OmoPocketItem.register();
         WallForming.register();
         StationStatus.register();

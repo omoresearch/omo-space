@@ -160,6 +160,17 @@ The rooms themselves were built by agents: the main underground base, with one r
 and so did an underground robot lab, live on stream. At the busiest point the builder ran 21 to 25 agent sessions at
 once, across 22 separate Hermes profiles.
 
+<table>
+<tr>
+<td width="50%"><img src="docs/media/s-papers-lab.webp" alt="The papers room: our own site and research page on in-world screens"><br><sub><code>FROM OUR WORLD</code> The papers room: our site and research page on the walls, 11 November</sub></td>
+<td width="50%"><img src="docs/media/s-reading-gallery.webp" alt="A reading gallery with woodblock-style prints and notes from the book we read on stream"><br><sub><code>FROM OUR WORLD</code> The reading gallery: prints and notes from the book we read on stream</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/media/s-mushroom-garden.webp" alt="An ideas room opening onto an underground garden of lanterns and giant mushrooms"><br><sub><code>FROM OUR WORLD</code> The ideas room and the garden hall behind it</sub></td>
+<td width="50%"><img src="docs/media/s-glass-atrium.webp" alt="A glass atrium at night, with screen walls on every floor"><br><sub><code>FROM OUR WORLD</code> The glass atrium at night, a screen wall on every floor</sub></td>
+</tr>
+</table>
+
 <p><img src="docs/media/s-agent-player.webp" alt="An AI agent joins the world as a player and follows you around" width="100%"><br>
 <sub><code>FROM OUR STREAM</code> An AI agent joins the world as a player and follows you around</sub></p>
 

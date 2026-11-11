@@ -162,12 +162,24 @@ once, across 22 separate Hermes profiles.
 
 <table>
 <tr>
-<td width="50%"><img src="docs/media/s-papers-lab.webp" alt="The papers room: our own site and research page on in-world screens"><br><sub><code>FROM OUR WORLD</code> The papers room: our site and research page on the walls, 11 November</sub></td>
-<td width="50%"><img src="docs/media/s-reading-gallery.webp" alt="A reading gallery with woodblock-style prints and notes from the book we read on stream"><br><sub><code>FROM OUR WORLD</code> The reading gallery: prints and notes from the book we read on stream</sub></td>
+<td width="50%" valign="top"><img src="docs/media/s-papers-lab.webp" alt="The papers room: our own site and research page on in-world screens"><br><sub><code>FROM OUR WORLD</code> The papers room: our site and research page on the walls, 11 November</sub></td>
+<td width="50%" valign="top"><img src="docs/media/s-reading-gallery.webp" alt="A reading gallery with woodblock-style prints and notes from the book we read on stream"><br><sub><code>FROM OUR WORLD</code> The reading gallery: prints and notes from the book we read on stream</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/media/s-mushroom-garden.webp" alt="An ideas room opening onto an underground garden of lanterns and giant mushrooms"><br><sub><code>FROM OUR WORLD</code> The ideas room and the garden hall behind it</sub></td>
-<td width="50%"><img src="docs/media/s-glass-atrium.webp" alt="A glass atrium at night, with screen walls on every floor"><br><sub><code>FROM OUR WORLD</code> The glass atrium at night, a screen wall on every floor</sub></td>
+<td width="50%" valign="top"><img src="docs/media/s-mushroom-garden.webp" alt="An ideas room opening onto an underground garden of lanterns and giant mushrooms"><br><sub><code>FROM OUR WORLD</code> The ideas room and the garden hall behind it</sub></td>
+<td width="50%" valign="top"><img src="docs/media/s-glass-atrium.webp" alt="A glass atrium at night, with screen walls on every floor"><br><sub><code>FROM OUR WORLD</code> The glass atrium at night, a screen wall on every floor</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="docs/media/s-boulevard.webp" alt="A lantern-lit boulevard of screen-lined rooms under hanging gardens"><br><sub><code>FROM OUR WORLD</code> The boulevard: a street of rooms, a screen in every one</sub></td>
+<td width="50%" valign="top"><img src="docs/media/s-red-lounge.webp" alt="A red lounge under mushroom-block chandeliers, a screen at its centre"><br><sub><code>FROM OUR WORLD</code> The red lounge</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="docs/media/s-command-center.webp" alt="Wall-to-wall dashboards tracking agent runtime"><br><sub><code>FROM OUR WORLD</code> The command centre: agent runtime on every wall</sub></td>
+<td width="50%" valign="top"><img src="docs/media/s-analytics-wall.webp" alt="A live analytics wall: follower growth per platform and the posting pipeline"><br><sub><code>FROM OUR WORLD</code> The analytics room: real counters from our accounts, updated hourly</sub></td>
+</tr>
+<tr>
+<td width="50%" valign="top"><img src="docs/media/s-ferryman.webp" alt="A ukiyo-e print of a traveller and a ferryman beside a reading note"><br><sub><code>FROM OUR WORLD</code> Reading gallery: one print per chapter</sub></td>
+<td width="50%" valign="top"><img src="docs/media/s-stone-or-man.webp" alt="A lantern-lit gallery of ukiyo-e prints, led by Stone or Man"><br><sub><code>FROM OUR WORLD</code> Reading gallery: "Stone or Man"</sub></td>
 </tr>
 </table>
 
